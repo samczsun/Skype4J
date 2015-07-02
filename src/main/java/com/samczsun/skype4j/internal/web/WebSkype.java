@@ -16,12 +16,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.net.ssl.HttpsURLConnection;
 
-import org.apache.commons.lang3.StringEscapeUtils;
 import org.jsoup.Connection.Method;
 import org.jsoup.Connection.Response;
 import org.jsoup.Jsoup;
@@ -37,15 +34,9 @@ import com.google.gson.JsonPrimitive;
 import com.samczsun.skype4j.Skype;
 import com.samczsun.skype4j.StreamUtils;
 import com.samczsun.skype4j.chat.Chat;
-import com.samczsun.skype4j.chat.ChatMessage;
-import com.samczsun.skype4j.chat.User.Role;
 import com.samczsun.skype4j.events.EventDispatcher;
 import com.samczsun.skype4j.events.SkypeEventDispatcher;
-import com.samczsun.skype4j.events.chat.TopicChangeEvent;
-import com.samczsun.skype4j.events.chat.message.MessageReceivedEvent;
-import com.samczsun.skype4j.events.chat.user.RoleUpdateEvent;
-import com.samczsun.skype4j.events.chat.user.UserAddEvent;
-import com.samczsun.skype4j.events.chat.user.UserRemoveEvent;
+import com.samczsun.skype4j.events.chat.ChatJoinedEvent;
 import com.samczsun.skype4j.exceptions.SkypeException;
 
 public class WebSkype implements Skype {
@@ -54,12 +45,6 @@ public class WebSkype implements Skype {
     private static final String SUBSCRIPTIONS_URL = "https://client-s.gateway.messenger.live.com/v1/users/ME/endpoints/SELF/subscriptions";
     private static final String MESSAGINGSERVICE_URL = "https://client-s.gateway.messenger.live.com/v1/users/ME/endpoints/%s/presenceDocs/messagingService";
     private static final String LOGOUT_URL = "https://login.skype.com/logout?client_id=578134&redirect_uri=https%3A%2F%2Fweb.skype.com&intsrc=client-_-webapp-_-production-_-go-signin";
-
-    private static final Pattern TARGET_PATTERN = Pattern.compile("<target>8:([^<]*)<\\/target>");
-    private static final Pattern ID_PATTERN = Pattern.compile("<id>8:([^<]*)<\\/id><role>([^<]*)<\\/role>");
-    private static final Pattern VALUE_PATTERN = Pattern.compile("<value>([^<]*)<\\/value>");
-    private static final Pattern URL_PATTERN = Pattern.compile("conversations\\/(.*)");
-    private static final Pattern USER_PATTERN = Pattern.compile("8:(.*)");
 
     private final Map<String, String> cookies = new HashMap<>();
     private final String skypeToken;
@@ -73,9 +58,7 @@ public class WebSkype implements Skype {
     private Thread pollThread;
 
     private final ExecutorService scheduler = Executors.newFixedThreadPool(16);
-
     private final Logger logger = Logger.getLogger("webskype");
-
     private final Map<String, Chat> allChats = new ConcurrentHashMap<>();
 
     public WebSkype(String username, String password) throws SkypeException {
@@ -160,7 +143,7 @@ public class WebSkype implements Skype {
 
     public void subscribe() throws IOException {
         Gson gson = new Gson();
-        
+
         HttpsURLConnection subscribe = (HttpsURLConnection) new URL(SUBSCRIPTIONS_URL).openConnection();
         subscribe.setRequestMethod("POST");
         subscribe.setDoOutput(true);
@@ -176,7 +159,7 @@ public class WebSkype implements Skype {
         registerEndpoint.setRequestProperty("Content-Type", "application/json");
         registerEndpoint.getOutputStream().write(gson.toJson(buildRegistrationObject()).getBytes());
         registerEndpoint.getInputStream();
-        
+
         pollThread = new Thread() {
             public void run() {
                 try {
@@ -197,89 +180,46 @@ public class WebSkype implements Skype {
                                 final JsonObject message = gson.fromJson(json, JsonObject.class);
                                 scheduler.execute(new Runnable() {
                                     public void run() {
-                                        if (message.has("eventMessages")) {
+                                        try {
                                             JsonArray arr = message.get("eventMessages").getAsJsonArray();
-                                            for (JsonElement event : arr) {
-                                                JsonObject eventObj = event.getAsJsonObject();
+                                            for (JsonElement elem : arr) {
+                                                JsonObject eventObj = elem.getAsJsonObject();
                                                 String resourceType = eventObj.get("resourceType").getAsString();
-                                                if (eventObj.get("resourceType").getAsString().equals("NewMessage")) {
+                                                if (resourceType.equals("NewMessage")) {
                                                     JsonObject resource = eventObj.get("resource").getAsJsonObject();
                                                     String messageType = resource.get("messagetype").getAsString();
-                                                    if (resource.get("messagetype").getAsString().equals("RichText") || resource.get("messagetype").getAsString().equals("Text")) {
-                                                        try {
-                                                            String clientid = resource.has("clientmessageid") ? resource.get("clientmessageid").getAsString() : resource.get("skypeeditedid").getAsString();
-                                                            String id = resource.get("id").getAsString();
-                                                            String from = getUser(resource.get("from").getAsString());
-                                                            String url = resource.get("conversationLink").getAsString();
-                                                            Chat c = fromUrl(url);
-                                                            ChatMessage m = WebChatMessage.createMessage(c, c.getUser(from), id, clientid, System.currentTimeMillis(), resource.get("content").getAsString());
-                                                            MessageReceivedEvent evnt = new MessageReceivedEvent(m);
-                                                            eventDispatcher.callEvent(evnt);
-                                                        } catch (NullPointerException e) {
-                                                            logger.log(Level.SEVERE, "An NPE occured while parsing a message");
-                                                            logger.log(Level.SEVERE, message.toString());
-                                                        }
-                                                    } else if (resource.get("messagetype").getAsString().equals("ThreadActivity/AddMember")) {
-                                                        String content = resource.get("content").getAsString();
-                                                        Matcher m = TARGET_PATTERN.matcher(content);
-                                                        m.find();
-                                                        String target = m.group(1);
-                                                        String url = resource.get("conversationLink").getAsString();
-                                                        Chat c = fromUrl(url);
-                                                        ((WebChat) c).addUser(target);
-                                                        UserAddEvent e = new UserAddEvent(c.getUser(target));
-                                                        eventDispatcher.callEvent(e);
-                                                    } else if (resource.get("messagetype").getAsString().equals("ThreadActivity/DeleteMember")) {
-                                                        String content = resource.get("content").getAsString();
-                                                        Matcher m = TARGET_PATTERN.matcher(content);
-                                                        m.find();
-                                                        String target = m.group(1);
-                                                        String url = resource.get("conversationLink").getAsString();
-                                                        Chat c = fromUrl(url);
-                                                        ((WebChat) c).removeUser(target);
-                                                        UserRemoveEvent e = new UserRemoveEvent(c.getUser(target));
-                                                        eventDispatcher.callEvent(e);
-                                                    } else if (resource.get("messagetype").getAsString().equals("ThreadActivity/RoleUpdate")) {
-                                                        String content = resource.get("content").getAsString();
-                                                        Matcher m = ID_PATTERN.matcher(content);
-                                                        m.find();
-                                                        String target = m.group(1);
-                                                        String role = m.group(2);
-                                                        String url = resource.get("conversationLink").getAsString();
-                                                        Chat c = fromUrl(url);
-                                                        ((WebChat) c).getUser(target).setRole(role.equals("admin") ? Role.ADMIN : Role.USER);
-                                                        RoleUpdateEvent e = new RoleUpdateEvent(c.getUser(target));
-                                                        eventDispatcher.callEvent(e);
-                                                    } else if (messageType.equalsIgnoreCase("Control/Typing")) {
-                                                    } else if (messageType.equalsIgnoreCase("Control/ClearTyping")) {
-                                                    } else if (messageType.equalsIgnoreCase("Control/LiveState")) {
-                                                    } else if (messageType.equalsIgnoreCase("ThreadActivity/TopicUpdate")) {
-                                                        String content = resource.get("content").getAsString();
-                                                        Matcher m = VALUE_PATTERN.matcher(content);
-                                                        String url = resource.get("conversationLink").getAsString();
-                                                        Chat c = fromUrl(url);
-                                                        if (c instanceof WebChatGroup) {
-                                                            if (m.find()) {
-                                                                ((WebChatGroup) c).updateTopic(StringEscapeUtils.unescapeHtml4(m.group(1)));
-                                                            } else {
-                                                                ((WebChatGroup) c).updateTopic("");
-                                                            }
-                                                            TopicChangeEvent e = new TopicChangeEvent(c);
-                                                            eventDispatcher.callEvent(e);
-                                                        }
-                                                    } else {
-                                                        logger.severe("Unhandled messageType " + messageType);
-                                                        logger.severe(eventObj.toString());
+                                                    MessageType type = MessageType.getByName(messageType);
+                                                    try {
+                                                        type.handle(WebSkype.this, resource);
+                                                    } catch (SkypeException e) {
+                                                        e.printStackTrace();
                                                     }
                                                 } else if (resourceType.equalsIgnoreCase("EndpointPresence")) {
                                                 } else if (resourceType.equalsIgnoreCase("UserPresence")) {
-                                                } else if (resourceType.equalsIgnoreCase("ConversationUpdate")) {
+                                                } else if (resourceType.equalsIgnoreCase("ConversationUpdate")) { //Not sure what this does
                                                 } else if (resourceType.equalsIgnoreCase("ThreadUpdate")) {
+                                                    JsonObject resource = eventObj.get("resource").getAsJsonObject();
+                                                    String chatId = resource.get("id").getAsString();
+                                                    Chat chat = getChat(chatId);
+                                                    if (chat == null) {
+                                                        chat = WebChat.createChat(WebSkype.this, chatId);
+                                                        try {
+                                                            chat.updateUsers();
+                                                        } catch (SkypeException e) {
+                                                            e.printStackTrace();
+                                                        }
+                                                        allChats.put(chatId, chat);
+                                                        ChatJoinedEvent e = new ChatJoinedEvent(chat);
+                                                        eventDispatcher.callEvent(e);
+                                                    }
                                                 } else {
                                                     logger.severe("Unhandled resourceType " + resourceType);
                                                     logger.severe(eventObj.toString());
                                                 }
                                             }
+                                        } catch (Exception e) {
+                                            logger.log(Level.SEVERE, "Exception while handling message", e);
+                                            logger.log(Level.SEVERE, message.toString());
                                         }
                                     }
                                 });
@@ -324,22 +264,6 @@ public class WebSkype implements Skype {
         return this.eventDispatcher;
     }
 
-    private Chat fromUrl(String url) {
-        Matcher m = URL_PATTERN.matcher(url);
-        if (m.find()) {
-            return allChats.get(m.group(1));
-        }
-        return null;
-    }
-
-    private String getUser(String url) {
-        Matcher m = USER_PATTERN.matcher(url);
-        if (m.find()) {
-            return m.group(1);
-        }
-        return null;
-    }
-
     private Response postToLogin(String username, String password) throws IOException {
         Map<String, String> data = new HashMap<>();
         Document loginDocument = Jsoup.connect(LOGIN_URL).get();
@@ -367,7 +291,7 @@ public class WebSkype implements Skype {
         subscriptionObject.add("interestedResources", interestedResources);
         return subscriptionObject;
     }
-    
+
     private JsonObject buildRegistrationObject() {
         JsonObject registrationObject = new JsonObject();
         registrationObject.addProperty("id", "messagingService");

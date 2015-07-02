@@ -8,6 +8,7 @@ public abstract class UserEvent extends ChatEvent {
     
     public UserEvent(User user) {
         super(user.getChat());
+        this.user = user;
     }
     
     public User getUser() {

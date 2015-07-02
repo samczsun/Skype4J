@@ -1,6 +1,5 @@
 package com.samczsun.skype4j.chat;
 
-
 public interface User {
     public String getUsername();
 
@@ -14,9 +13,9 @@ public interface User {
 
     public static enum Role {
         ADMIN, USER;
-
-        public boolean isAdmin() {
-            return this == ADMIN;
+        
+        public static Role getByName(String name) {
+            return name.equalsIgnoreCase("admin") ? ADMIN : USER;
         }
     }
 }

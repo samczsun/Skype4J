@@ -3,7 +3,14 @@ package com.samczsun.skype4j.events.chat.user;
 import com.samczsun.skype4j.chat.User;
 
 public class UserAddEvent extends UserEvent {
-    public UserAddEvent(User user) {
+    private User initiator;
+    
+    public UserAddEvent(User user, User initiator) {
         super(user);
+        this.initiator = initiator;
+    }
+    
+    public User getInitiator() {
+        return this.initiator;
     }
 }
