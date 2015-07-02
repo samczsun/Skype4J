@@ -3,6 +3,7 @@ package com.samczsun.skype4j.internal.web;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.ChatMessage;
 import com.samczsun.skype4j.chat.User;
+import com.samczsun.skype4j.exceptions.SkypeException;
 import com.samczsun.skype4j.formatting.Text;
 
 public class WebOtherChatMessage implements ChatMessage {
@@ -24,7 +25,7 @@ public class WebOtherChatMessage implements ChatMessage {
     }
 
     @Override
-    public String getMessage() {
+    public String getText() {
         return message;
     }
 
@@ -46,5 +47,10 @@ public class WebOtherChatMessage implements ChatMessage {
     @Override
     public Chat getChat() {
         return sender.getChat();
+    }
+
+    @Override
+    public void delete() throws SkypeException {
+        throw new UnsupportedOperationException();
     }
 }

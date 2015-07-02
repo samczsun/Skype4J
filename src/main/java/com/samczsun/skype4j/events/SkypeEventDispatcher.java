@@ -26,7 +26,17 @@ public class SkypeEventDispatcher implements EventDispatcher {
     }
 
     public void callEvent(Event e) {
-        List<RegisteredListener> methods = listeners.get(e.getClass());
+        List<RegisteredListener> methods = new ArrayList<>();
+        Class<?> eventClass = e.getClass();
+        while (true) {
+            if (listeners.containsKey(eventClass)) {
+                methods.addAll(listeners.get(eventClass));
+            }
+            eventClass = eventClass.getSuperclass();
+            if (eventClass == Event.class) {
+                break;
+            }
+        }
         if (methods != null) {
             for (RegisteredListener method : methods) {
                 try {
