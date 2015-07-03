@@ -1,7 +1,7 @@
 package com.samczsun.skype4j.events.chat.user;
 
-import com.samczsun.skype4j.chat.User;
 import com.samczsun.skype4j.events.chat.ChatEvent;
+import com.samczsun.skype4j.user.User;
 
 public abstract class UserEvent extends ChatEvent {
     private User user;

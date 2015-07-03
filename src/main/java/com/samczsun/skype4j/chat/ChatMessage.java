@@ -2,6 +2,7 @@ package com.samczsun.skype4j.chat;
 
 import com.samczsun.skype4j.exceptions.SkypeException;
 import com.samczsun.skype4j.formatting.Text;
+import com.samczsun.skype4j.user.User;
 
 /**
  * Represents a single message sent in a group
@@ -23,4 +24,6 @@ public interface ChatMessage {
     public void delete() throws SkypeException;
 
     public Chat getChat();
+
+    public String getId();
 }

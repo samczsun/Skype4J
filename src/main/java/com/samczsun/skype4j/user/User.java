@@ -1,4 +1,9 @@
-package com.samczsun.skype4j.chat;
+package com.samczsun.skype4j.user;
+
+import java.util.List;
+
+import com.samczsun.skype4j.chat.Chat;
+import com.samczsun.skype4j.chat.ChatMessage;
 
 public interface User {
     public String getUsername();
@@ -10,6 +15,10 @@ public interface User {
     public void setRole(Role role);
 
     public Chat getChat();
+    
+    public List<ChatMessage> getSentMessages();
+    
+    public ChatMessage getMessageById(String id);
 
     public static enum Role {
         ADMIN, USER;
