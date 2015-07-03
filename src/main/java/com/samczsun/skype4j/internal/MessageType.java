@@ -2,10 +2,8 @@ package com.samczsun.skype4j.internal;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -296,8 +294,6 @@ public enum MessageType {
     private static final Pattern STRIP_EDIT_PATTERN = Pattern.compile("<\\/?[e_m][^<>]+>");
     private static final Pattern STRIP_QUOTE_PATTERN = Pattern.compile("(<(?:\\/?)(?:quote|legacyquote)[^>]*>)", Pattern.CASE_INSENSITIVE);
 
-    private static final Set<String> ids = new HashSet<>();
-
     private String value;
 
     MessageType(String value) {
@@ -317,7 +313,7 @@ public enum MessageType {
     }
 
     public static MessageType getByName(String messageType) {
-        return byValue.containsKey(messageType) ? byValue.get(messageType) : UNKNOWN;
+        return byValue.get(messageType);
     }
 
     private static Chat getChat(String url, SkypeImpl skype) {
