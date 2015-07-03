@@ -18,6 +18,27 @@ skype.subscribe();
 // Do stuff
 skype.logout();
 ```
+## Maven
+
+Maven is used for dependency management and deployment. To build with this project as a dependency, you must add the following repository to your POM
+
+```
+<repository>
+  <id>samczsun-repo</id>
+  <url>http://r.zk.ms/content/repositories/snapshots</url>
+</repository>
+```
+
+Then add the following dependency
+
+```
+<dependency>
+  <groupId>com.samczsun</groupId>
+  <artifactId>skype4j</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+</dependency>
+```
+
 ## Licensing
 
 This project is licensed under the GPLv3 licence
