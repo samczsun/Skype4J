@@ -13,16 +13,6 @@ import com.samczsun.skype4j.user.User;
  * @author samczsun
  */
 public interface Chat {
-
-    /**
-     * Fetches the list of members in the group, along with roles, and updates
-     * the internal database. If {@link #getType() getType()} returns a type of
-     * {@link Type#GROUP GROUP}, an HTTP request will be made
-     * 
-     * @throws SkypeException
-     */
-    public void updateUsers() throws SkypeException;
-
     /**
      * Sends a formatted message to this chat
      * 
@@ -44,41 +34,11 @@ public interface Chat {
     public User getUser(String username);
 
     /**
-     * Get the {@link ChatMessage ChatMessage} object associated with this
-     * Skype-assigned id
-     * 
-     * @param id
-     *            The skype id, not client id
-     * @return The ChatMessage object
-     */
-    public ChatMessage getMessage(String id);
-
-    /**
-     * Get the identity of the chat, or the output of /showname in chat
-     * 
-     * If the return of {@link #getType() getType()} is {@link Type#GROUP GROUP}
-     * , the result will start with "19:" Otherwise, the result will start with
-     * "8:"
+     * Get the identity of the chat. Persistent across restarts
      * 
      * @return The identity of this chat
      */
     public String getIdentity();
-
-    /**
-     * Get the topic of the chat.
-     * 
-     * @return The topic
-     */
-    public String getTopic();
-
-    /**
-     * Set the topic of the chat. This will update it in real time
-     * 
-     * @param topic
-     *            The topic
-     * @throws SkypeException
-     */
-    public void setTopic(String topic) throws SkypeException;
 
     /**
      * Return a view of all the users in this chat
@@ -95,34 +55,10 @@ public interface Chat {
     public List<ChatMessage> getAllMessages();
 
     /**
-     * Get the type of chat this is
+     * Returns whether this chat has finished loading. Any calls to act upon the
+     * chat will throw a {@link NotLoadedException NotLoadedException}
      * 
-     * @return A enum value of {@link Type Type}
+     * @return The loaded state
      */
-    public Type getType();
-
-    /**
-     * Kick a user from this chat. Is not supported in individual chats.
-     * 
-     * @param username
-     * @throws SkypeException If the user is not in this chat, or if the kick failed
-     */
-    public void kick(String username) throws SkypeException;
-
-    /**
-     * An Enum to represent the different types of chats
-     * 
-     * @author samczsun
-     *
-     */
-    public static enum Type {
-        /**
-         * Represents a private chat with one other person
-         */
-        INDIVIDUAL,
-        /**
-         * Represents a group chat with one or more people
-         */
-        GROUP;
-    }
+    public boolean isLoaded();
 }

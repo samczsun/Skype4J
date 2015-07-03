@@ -46,7 +46,7 @@ public enum MessageType {
     RICH_TEXT("RichText") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) throws SkypeException {
-            if (resource.get("clientmessageid") != null) { //New message
+            if (resource.get("clientmessageid") != null) { // New message
                 String clientId = resource.get("clientmessageid").asString();
                 String id = resource.get("id").asString();
                 String content = resource.get("content").asString();
@@ -58,11 +58,13 @@ public enum MessageType {
                 ((ChatImpl) c).onMessage(m);
                 MessageReceivedEvent evnt = new MessageReceivedEvent(m);
                 skype.getEventDispatcher().callEvent(evnt);
-            } else if (resource.get("skypeeditedid") != null) { //Edited message
+            } else if (resource.get("skypeeditedid") != null) { // Edited
+                                                                // message
                 String url = resource.get("conversationLink").asString();
                 String from = resource.get("from").asString();
                 final Chat c = getChat(url, skype);
-                final User u = getUser(from, c); //If not original sender, then fake
+                final User u = getUser(from, c); // If not original sender, then
+                                                 // fake
                 final String clientId = resource.get("skypeeditedid").asString();
                 final String id = resource.get("id").asString();
                 String content = resource.get("content").asString();
@@ -167,7 +169,7 @@ public enum MessageType {
     },
     THREAD_ACTIVITY_ADD_MEMBER("ThreadActivity/AddMember") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) {
+        public void handle(SkypeImpl skype, JsonObject resource) throws SkypeException {
             String url = resource.get("conversationLink").asString();
             Chat c = getChat(url, skype);
             List<User> usersAdded = new ArrayList<>();
@@ -216,7 +218,7 @@ public enum MessageType {
     },
     THREAD_ACTIVITY_ROLE_UPDATE("ThreadActivity/RoleUpdate") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) {
+        public void handle(SkypeImpl skype, JsonObject resource) throws SkypeException {
             String url = resource.get("conversationLink").asString();
             Chat c = getChat(url, skype);
             Document xml = Jsoup.parse(resource.get("content").asString(), "", Parser.xmlParser());
@@ -324,7 +326,7 @@ public enum MessageType {
         return null;
     }
 
-    private static User getUser(String url, Chat c) {
+    private static User getUser(String url, Chat c) throws SkypeException {
         Matcher m = USER_PATTERN.matcher(url);
         if (m.find()) {
             return c.getUser(m.group(1));
