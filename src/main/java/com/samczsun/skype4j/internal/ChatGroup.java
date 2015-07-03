@@ -16,11 +16,9 @@ import javax.net.ssl.HttpsURLConnection;
 
 import org.jsoup.Jsoup;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
+import com.eclipsesource.json.JsonArray;
+import com.eclipsesource.json.JsonObject;
+import com.eclipsesource.json.JsonValue;
 import com.samczsun.skype4j.StreamUtils;
 import com.samczsun.skype4j.chat.ChatMessage;
 import com.samczsun.skype4j.exceptions.SkypeException;
@@ -47,18 +45,17 @@ public class ChatGroup extends ChatImpl {
         try {
             long ms = System.currentTimeMillis();
             JsonObject obj = new JsonObject();
-            obj.addProperty("content", message.parent().write());
-            obj.addProperty("messagetype", "RichText");
-            obj.addProperty("contenttype", "text");
-            obj.addProperty("clientmessageid", String.valueOf(ms));
-            Gson gson = new GsonBuilder().disableHtmlEscaping().create();
+            obj.add("content", message.parent().write());
+            obj.add("messagetype", "RichText");
+            obj.add("contenttype", "text");
+            obj.add("clientmessageid", String.valueOf(ms));
             URL url = new URL("https://client-s.gateway.messenger.live.com/v1/users/ME/conversations/" + this.getIdentity() + "/messages");
             con = (HttpsURLConnection) url.openConnection();
             con.setRequestMethod("POST");
             con.setDoOutput(true);
             con.setRequestProperty("RegistrationToken", getClient().getRegistrationToken());
             con.setRequestProperty("Content-Type", "application/json");
-            con.getOutputStream().write(gson.toJson(obj).getBytes(Charset.forName("UTF-8")));
+            con.getOutputStream().write(obj.toString().getBytes(Charset.forName("UTF-8")));
             con.getInputStream();
             return ChatMessageImpl.createMessage(this, getUser(getClient().getUsername()), null, String.valueOf(ms), ms, Jsoup.parse(message.parent().write()).text());
         } catch (IOException e) {
@@ -84,18 +81,17 @@ public class ChatGroup extends ChatImpl {
             con.setRequestProperty("RegistrationToken", getClient().getRegistrationToken());
             con.setRequestProperty("Content-Type", "application/json");
             String in = StreamUtils.readFully(con.getInputStream());
-            Gson gson = new Gson();
-            JsonObject object = gson.fromJson(in, JsonObject.class);
-            JsonObject props = object.get("properties").getAsJsonObject();
-            if (props.has("topic")) {
-                this.topic = props.get("topic").getAsString();
+            JsonObject object = JsonObject.readFrom(in);
+            JsonObject props = object.get("properties").asObject();
+            if (props.get("topic") != null) {
+                this.topic = props.get("topic").asString();
             } else {
-                this.topic = props.get("creator").getAsString().substring(2);
+                this.topic = props.get("creator").asString().substring(2);
             }
-            JsonArray members = object.get("members").getAsJsonArray();
-            for (JsonElement element : members) {
-                String username = element.getAsJsonObject().get("id").getAsString().substring(2);
-                String role = element.getAsJsonObject().get("role").getAsString();
+            JsonArray members = object.get("members").asArray();
+            for (JsonValue element : members) {
+                String username = element.asObject().get("id").asString().substring(2);
+                String role = element.asObject().get("role").asString();
                 User user = getUser(username);
                 if (user == null) {
                     user = new UserImpl(username, this);
@@ -158,10 +154,9 @@ public class ChatGroup extends ChatImpl {
             con.setDoOutput(true);
             con.setRequestProperty("RegistrationToken", getClient().getRegistrationToken());
             con.setRequestProperty("Content-Type", "application/json");
-            Gson gson = new Gson();
             JsonObject obj = new JsonObject();
-            obj.addProperty("topic", topic);
-            con.getOutputStream().write(gson.toJson(obj).getBytes(Charset.forName("UTF-8")));
+            obj.add("topic", topic);
+            con.getOutputStream().write(obj.toString().getBytes(Charset.forName("UTF-8")));
             con.getOutputStream();
         } catch (Exception e) {
             throw new SkypeException("An exception occured while updating the topic", e);

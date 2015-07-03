@@ -13,7 +13,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.parser.Parser;
 
-import com.google.gson.JsonObject;
+import com.eclipsesource.json.JsonObject;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.ChatMessage;
 import com.samczsun.skype4j.events.chat.ChatJoinedEvent;
@@ -46,26 +46,26 @@ public enum MessageType {
     RICH_TEXT("RichText") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) throws SkypeException {
-            if (resource.has("clientmessageid")) { //New message
-                String clientId = resource.get("clientmessageid").getAsString();
-                String id = resource.get("id").getAsString();
-                String content = resource.get("content").getAsString();
-                String from = resource.get("from").getAsString();
-                String url = resource.get("conversationLink").getAsString();
+            if (resource.get("clientmessageid") != null) { //New message
+                String clientId = resource.get("clientmessageid").asString();
+                String id = resource.get("id").asString();
+                String content = resource.get("content").asString();
+                String from = resource.get("from").asString();
+                String url = resource.get("conversationLink").asString();
                 Chat c = getChat(url, skype);
                 User u = getUser(from, c);
                 ChatMessage m = ChatMessageImpl.createMessage(c, u, id, clientId, System.currentTimeMillis(), stripMetadata(content));
                 ((ChatImpl) c).onMessage(m);
                 MessageReceivedEvent evnt = new MessageReceivedEvent(m);
                 skype.getEventDispatcher().callEvent(evnt);
-            } else if (resource.has("skypeeditedid")) { //Edited message
-                String url = resource.get("conversationLink").getAsString();
-                String from = resource.get("from").getAsString();
+            } else if (resource.get("skypeeditedid") != null) { //Edited message
+                String url = resource.get("conversationLink").asString();
+                String from = resource.get("from").asString();
                 final Chat c = getChat(url, skype);
                 final User u = getUser(from, c); //If not original sender, then fake
-                final String clientId = resource.get("skypeeditedid").getAsString();
-                final String id = resource.get("id").getAsString();
-                String content = resource.get("content").getAsString();
+                final String clientId = resource.get("skypeeditedid").asString();
+                final String id = resource.get("id").asString();
+                String content = resource.get("content").asString();
                 content = stripMetadata(content);
                 boolean faker = false;
                 if (content.startsWith("Edited previous message: ")) {
@@ -168,10 +168,10 @@ public enum MessageType {
     THREAD_ACTIVITY_ADD_MEMBER("ThreadActivity/AddMember") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) {
-            String url = resource.get("conversationLink").getAsString();
+            String url = resource.get("conversationLink").asString();
             Chat c = getChat(url, skype);
             List<User> usersAdded = new ArrayList<>();
-            Document xml = Jsoup.parse(resource.get("content").getAsString(), "", Parser.xmlParser());
+            Document xml = Jsoup.parse(resource.get("content").asString(), "", Parser.xmlParser());
             User initiator = c.getUser(xml.getElementsByTag("initiator").get(0).text());
             for (Element e : xml.getElementsByTag("target")) {
                 String username = e.text().substring(2);
@@ -195,10 +195,10 @@ public enum MessageType {
     THREAD_ACTIVITY_DELETE_MEMBER("ThreadActivity/DeleteMember") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) throws SkypeException {
-            String url = resource.get("conversationLink").getAsString();
+            String url = resource.get("conversationLink").asString();
             Chat c = getChat(url, skype);
             List<User> usersRemoved = new ArrayList<>();
-            Document xml = Jsoup.parse(resource.get("content").getAsString(), "", Parser.xmlParser());
+            Document xml = Jsoup.parse(resource.get("content").asString(), "", Parser.xmlParser());
             User initiator = c.getUser(xml.getElementsByTag("initiator").get(0).text());
             for (Element e : xml.getElementsByTag("target")) {
                 String username = e.text().substring(2);
@@ -217,9 +217,9 @@ public enum MessageType {
     THREAD_ACTIVITY_ROLE_UPDATE("ThreadActivity/RoleUpdate") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) {
-            String url = resource.get("conversationLink").getAsString();
+            String url = resource.get("conversationLink").asString();
             Chat c = getChat(url, skype);
-            Document xml = Jsoup.parse(resource.get("content").getAsString(), "", Parser.xmlParser());
+            Document xml = Jsoup.parse(resource.get("content").asString(), "", Parser.xmlParser());
             User target = c.getUser(xml.getElementsByTag("id").get(0).text().substring(2));
             Role role = Role.getByName(xml.getElementsByTag("role").get(0).text());
             target.setRole(role);
@@ -230,9 +230,9 @@ public enum MessageType {
     THREAD_ACTIVITY_TOPIC_UPDATE("ThreadActivity/TopicUpdate") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) {
-            String url = resource.get("conversationLink").getAsString();
+            String url = resource.get("conversationLink").asString();
             Chat c = getChat(url, skype);
-            Document xml = Jsoup.parse(resource.get("content").getAsString(), "", Parser.xmlParser());
+            Document xml = Jsoup.parse(resource.get("content").asString(), "", Parser.xmlParser());
             if (xml.getElementsByTag("value").size() > 0) {
                 ((ChatGroup) c).updateTopic(StringEscapeUtils.unescapeHtml4(xml.getElementsByTag("value").get(0).text()));
             } else {

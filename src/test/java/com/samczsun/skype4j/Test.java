@@ -18,7 +18,6 @@ public class Test {
     public static void main(String[] args) throws Exception {
         String[] creds = StreamUtils.readFully(new FileInputStream("credentials")).split(":");
         Skype skype = Skype.login(creds[0], creds[1]);
-        skype.logout();
         skype.getEventDispatcher().registerListener(new Listener() {
             @EventHandler
             public void onUserAdd(MessageReceivedEvent e) {
