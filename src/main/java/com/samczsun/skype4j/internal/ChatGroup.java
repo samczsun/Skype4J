@@ -1,4 +1,4 @@
-package com.samczsun.skype4j.internal.web;
+package com.samczsun.skype4j.internal;
 
 import java.io.IOException;
 import java.net.URL;
@@ -23,20 +23,21 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.samczsun.skype4j.StreamUtils;
 import com.samczsun.skype4j.chat.ChatMessage;
-import com.samczsun.skype4j.chat.User;
-import com.samczsun.skype4j.chat.User.Role;
 import com.samczsun.skype4j.exceptions.SkypeException;
 import com.samczsun.skype4j.formatting.Text;
+import com.samczsun.skype4j.user.User;
+import com.samczsun.skype4j.user.User.Role;
 
-public class WebChatGroup extends WebChat {
+public class ChatGroup extends ChatImpl {
     private AtomicBoolean isLoading = new AtomicBoolean(false);
 
     private String topic;
 
-    private List<ChatMessage> messages = new CopyOnWriteArrayList<>();
     private Map<String, User> users = new ConcurrentHashMap<>();
+    private List<ChatMessage> messages = new CopyOnWriteArrayList<>();
+    private Map<String, ChatMessage> messageMap = new ConcurrentHashMap<>();
 
-    protected WebChatGroup(WebSkype skype, String identity) {
+    protected ChatGroup(SkypeImpl skype, String identity) {
         super(skype, identity);
     }
 
@@ -59,7 +60,7 @@ public class WebChatGroup extends WebChat {
             con.setRequestProperty("Content-Type", "application/json");
             con.getOutputStream().write(gson.toJson(obj).getBytes(Charset.forName("UTF-8")));
             con.getInputStream();
-            return WebChatMessage.createMessage(this, getUser(getClient().getUsername()), null, String.valueOf(ms), ms, Jsoup.parse(message.parent().write()).text());
+            return ChatMessageImpl.createMessage(this, getUser(getClient().getUsername()), null, String.valueOf(ms), ms, Jsoup.parse(message.parent().write()).text());
         } catch (IOException e) {
             throw new SkypeException("An error occured while sending a message", e);
         }
@@ -97,7 +98,7 @@ public class WebChatGroup extends WebChat {
                 String role = element.getAsJsonObject().get("role").getAsString();
                 User user = getUser(username);
                 if (user == null) {
-                    user = new WebUser(username, this);
+                    user = new UserImpl(username, this);
                 }
                 newUsers.put(username, user);
                 if (role.equalsIgnoreCase("admin")) {
@@ -116,7 +117,7 @@ public class WebChatGroup extends WebChat {
 
     public void addUser(String username) {
         if (!users.containsKey(username)) {
-            User user = new WebUser(username, this);
+            User user = new UserImpl(username, this);
             users.put(username, user);
         } else {
             System.out.println(username + " joined twice???");
@@ -173,6 +174,8 @@ public class WebChatGroup extends WebChat {
 
     public void onMessage(ChatMessage message) {
         this.messages.add(message);
+        this.messageMap.put(message.getId(), message);
+        ((UserImpl) message.getSender()).onMessage(message);
     }
 
     @Override
@@ -183,5 +186,15 @@ public class WebChatGroup extends WebChat {
     @Override
     public User getUser(String username) {
         return this.users.get(username);
+    }
+
+    @Override
+    public ChatMessage getMessage(String id) {
+        return messageMap.get(id);
+    }
+
+    @Override
+    public List<ChatMessage> getAllMessages() {
+        return Collections.unmodifiableList(this.messages);
     }
 }

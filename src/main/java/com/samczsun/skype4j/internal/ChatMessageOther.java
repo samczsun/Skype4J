@@ -1,22 +1,24 @@
-package com.samczsun.skype4j.internal.web;
+package com.samczsun.skype4j.internal;
 
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.ChatMessage;
-import com.samczsun.skype4j.chat.User;
 import com.samczsun.skype4j.exceptions.SkypeException;
 import com.samczsun.skype4j.formatting.Text;
+import com.samczsun.skype4j.user.User;
 
-public class WebOtherChatMessage implements ChatMessage {
+public class ChatMessageOther extends ChatMessageImpl {
     private String clientId;
+    private String id;
     private String message;
     private long time;
     private User sender;
 
-    public WebOtherChatMessage(Chat chat, User user, String id, String clientId, long time, String message) {
+    public ChatMessageOther(Chat chat, User user, String id, String clientId, long time, String message) {
         this.clientId = clientId;
         this.message = message;
         this.time = time;
         this.sender = user;
+        this.id = id;
     }
 
     @Override
@@ -52,5 +54,15 @@ public class WebOtherChatMessage implements ChatMessage {
     @Override
     public void delete() throws SkypeException {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public String getId() {
+        return this.id;
+    }
+
+    @Override
+    public void setContent(String content) {
+        this.message = content;
     }
 }

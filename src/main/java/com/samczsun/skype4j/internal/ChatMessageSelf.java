@@ -1,4 +1,4 @@
-package com.samczsun.skype4j.internal.web;
+package com.samczsun.skype4j.internal;
 
 import java.net.URL;
 
@@ -8,22 +8,24 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.ChatMessage;
-import com.samczsun.skype4j.chat.User;
 import com.samczsun.skype4j.exceptions.SkypeException;
 import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.formatting.Text;
+import com.samczsun.skype4j.user.User;
 
-public class WebSelfChatMessage implements ChatMessage {
+public class ChatMessageSelf extends ChatMessageImpl {
     private String clientId;
+    private String id;
     private String message;
     private long time;
     private User sender;
 
-    public WebSelfChatMessage(Chat chat, User user, String id, String clientId, long time, String message) {
+    public ChatMessageSelf(Chat chat, User user, String id, String clientId, long time, String message) {
         this.clientId = clientId;
         this.message = message;
         this.time = time;
         this.sender = user;
+        this.id = id;
     }
 
     @Override
@@ -60,7 +62,7 @@ public class WebSelfChatMessage implements ChatMessage {
             con = (HttpsURLConnection) url.openConnection();
             con.setRequestMethod("POST");
             con.setDoOutput(true);
-            con.setRequestProperty("RegistrationToken", ((WebChat) sender.getChat()).getClient().getRegistrationToken());
+            con.setRequestProperty("RegistrationToken", ((ChatImpl) sender.getChat()).getClient().getRegistrationToken());
             con.setRequestProperty("Content-Type", "application/json");
             con.getOutputStream().write(gson.toJson(obj).getBytes());
             con.getInputStream();
@@ -68,7 +70,7 @@ public class WebSelfChatMessage implements ChatMessage {
             throw new SkypeException("An exception occured while editing a message", e);
         }
     }
-    
+
     @Override
     public void delete() throws SkypeException {
         edit(Message.text(""));
@@ -77,5 +79,15 @@ public class WebSelfChatMessage implements ChatMessage {
     @Override
     public Chat getChat() {
         return sender.getChat();
+    }
+
+    @Override
+    public String getId() {
+        return this.id;
+    }
+
+    @Override
+    public void setContent(String content) {
+        this.message = content;
     }
 }

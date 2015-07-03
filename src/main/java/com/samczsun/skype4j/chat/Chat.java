@@ -1,9 +1,11 @@
 package com.samczsun.skype4j.chat;
 
 import java.util.Collection;
+import java.util.List;
 
 import com.samczsun.skype4j.exceptions.SkypeException;
 import com.samczsun.skype4j.formatting.Text;
+import com.samczsun.skype4j.user.User;
 
 /**
  * Represents a single chat. This can be a private message or a group chat.
@@ -42,6 +44,16 @@ public interface Chat {
     public User getUser(String username);
 
     /**
+     * Get the {@link ChatMessage ChatMessage} object associated with this
+     * Skype-assigned id
+     * 
+     * @param id
+     *            The skype id, not client id
+     * @return The ChatMessage object
+     */
+    public ChatMessage getMessage(String id);
+
+    /**
      * Get the identity of the chat, or the output of /showname in chat
      * 
      * If the return of {@link #getType() getType()} is {@link Type#GROUP GROUP}
@@ -74,6 +86,13 @@ public interface Chat {
      * @return All the users
      */
     public Collection<User> getAllUsers();
+
+    /**
+     * Return a view of all the messages saved, in chronological order
+     * 
+     * @return All the messages saved
+     */
+    public List<ChatMessage> getAllMessages();
 
     /**
      * Get the type of chat this is

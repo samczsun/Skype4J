@@ -1,4 +1,4 @@
-package com.samczsun.skype4j.internal.web;
+package com.samczsun.skype4j.internal;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -39,7 +39,7 @@ import com.samczsun.skype4j.events.SkypeEventDispatcher;
 import com.samczsun.skype4j.events.chat.ChatJoinedEvent;
 import com.samczsun.skype4j.exceptions.SkypeException;
 
-public class WebSkype implements Skype {
+public class SkypeImpl extends Skype {
     private static final String LOGIN_URL = "https://login.skype.com/login?client_id=578134&redirect_uri=https%3A%2F%2Fweb.skype.com";
     private static final String PING_URL = "https://web.skype.com/api/v1/session-ping";
     private static final String SUBSCRIPTIONS_URL = "https://client-s.gateway.messenger.live.com/v1/users/ME/endpoints/SELF/subscriptions";
@@ -61,7 +61,7 @@ public class WebSkype implements Skype {
     private final Logger logger = Logger.getLogger("webskype");
     private final Map<String, Chat> allChats = new ConcurrentHashMap<>();
 
-    public WebSkype(String username, String password) throws SkypeException {
+    public SkypeImpl(String username, String password) throws SkypeException {
         try {
             this.username = username;
             this.eventDispatcher = new SkypeEventDispatcher();
@@ -115,7 +115,7 @@ public class WebSkype implements Skype {
                         try {
                             JsonObject conversation = elem.getAsJsonObject();
                             String id = conversation.get("id").getAsString();
-                            Chat chat = WebChat.createChat(this, id);
+                            Chat chat = ChatImpl.createChat(this, id);
                             chat.updateUsers();
                             allChats.put(id, chat);
                         } catch (Exception e) {
@@ -189,11 +189,7 @@ public class WebSkype implements Skype {
                                                     JsonObject resource = eventObj.get("resource").getAsJsonObject();
                                                     String messageType = resource.get("messagetype").getAsString();
                                                     MessageType type = MessageType.getByName(messageType);
-                                                    try {
-                                                        type.handle(WebSkype.this, resource);
-                                                    } catch (SkypeException e) {
-                                                        e.printStackTrace();
-                                                    }
+                                                    type.handle(SkypeImpl.this, resource);
                                                 } else if (resourceType.equalsIgnoreCase("EndpointPresence")) {
                                                 } else if (resourceType.equalsIgnoreCase("UserPresence")) {
                                                 } else if (resourceType.equalsIgnoreCase("ConversationUpdate")) { //Not sure what this does
@@ -202,7 +198,7 @@ public class WebSkype implements Skype {
                                                     String chatId = resource.get("id").getAsString();
                                                     Chat chat = getChat(chatId);
                                                     if (chat == null) {
-                                                        chat = WebChat.createChat(WebSkype.this, chatId);
+                                                        chat = ChatImpl.createChat(SkypeImpl.this, chatId);
                                                         try {
                                                             chat.updateUsers();
                                                         } catch (SkypeException e) {
@@ -238,7 +234,19 @@ public class WebSkype implements Skype {
 
     @Override
     public Chat getChat(String name) {
-        return allChats.get(name);
+        if (allChats.containsKey(name)) {
+            return allChats.get(name);
+        } else {
+            try {
+                Chat chat = ChatImpl.createChat(this, name);
+                chat.updateUsers();
+                allChats.put(name, chat);
+                return getChat(name);
+            } catch (Exception e) {
+                e.printStackTrace();
+                return null;
+            }
+        }
     }
 
     @Override
@@ -249,6 +257,8 @@ public class WebSkype implements Skype {
     @Override
     public void logout() throws IOException {
         Jsoup.connect(LOGOUT_URL).cookies(this.cookies).get();
+        this.sessionKeepaliveThread.stop();
+        this.pollThread.stop(); //TODO: Actually do Java
     }
 
     public String getRegistrationToken() {

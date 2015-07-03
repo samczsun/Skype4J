@@ -1,9 +1,11 @@
-package com.samczsun.skype4j.internal.web;
+package com.samczsun.skype4j.internal;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -16,34 +18,36 @@ import org.jsoup.parser.Parser;
 import com.google.gson.JsonObject;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.ChatMessage;
-import com.samczsun.skype4j.chat.User;
-import com.samczsun.skype4j.chat.User.Role;
 import com.samczsun.skype4j.events.chat.ChatJoinedEvent;
 import com.samczsun.skype4j.events.chat.TopicChangeEvent;
+import com.samczsun.skype4j.events.chat.message.MessageEditedByOtherEvent;
+import com.samczsun.skype4j.events.chat.message.MessageEditedEvent;
 import com.samczsun.skype4j.events.chat.message.MessageReceivedEvent;
 import com.samczsun.skype4j.events.chat.user.MultiUserAddEvent;
-import com.samczsun.skype4j.events.chat.user.MultiUserRemoveEvent;
 import com.samczsun.skype4j.events.chat.user.RoleUpdateEvent;
 import com.samczsun.skype4j.events.chat.user.UserAddEvent;
 import com.samczsun.skype4j.events.chat.user.UserRemoveEvent;
 import com.samczsun.skype4j.exceptions.SkypeException;
+import com.samczsun.skype4j.formatting.Text;
+import com.samczsun.skype4j.user.User;
+import com.samczsun.skype4j.user.User.Role;
 
 public enum MessageType {
     UNKNOWN("Unknown") {
         @Override
-        public void handle(WebSkype skype, JsonObject resource) {
+        public void handle(SkypeImpl skype, JsonObject resource) {
 
         }
     },
     TEXT("Text") {
         @Override
-        public void handle(WebSkype skype, JsonObject resource) throws SkypeException {
+        public void handle(SkypeImpl skype, JsonObject resource) throws SkypeException {
             MessageType.RICH_TEXT.handle(skype, resource);
         }
     },
     RICH_TEXT("RichText") {
         @Override
-        public void handle(WebSkype skype, JsonObject resource) throws SkypeException {
+        public void handle(SkypeImpl skype, JsonObject resource) throws SkypeException {
             if (resource.has("clientmessageid")) { //New message
                 String clientId = resource.get("clientmessageid").getAsString();
                 String id = resource.get("id").getAsString();
@@ -52,23 +56,77 @@ public enum MessageType {
                 String url = resource.get("conversationLink").getAsString();
                 Chat c = getChat(url, skype);
                 User u = getUser(from, c);
-                ChatMessage m = WebChatMessage.createMessage(c, u, id, clientId, System.currentTimeMillis(), stripMetadata(content));
+                ChatMessage m = ChatMessageImpl.createMessage(c, u, id, clientId, System.currentTimeMillis(), stripMetadata(content));
+                ((ChatImpl) c).onMessage(m);
                 MessageReceivedEvent evnt = new MessageReceivedEvent(m);
                 skype.getEventDispatcher().callEvent(evnt);
             } else if (resource.has("skypeeditedid")) { //Edited message
-                String clientId = resource.get("skypeeditedid").getAsString();
-                String id = resource.get("id").getAsString();
-                String content = resource.get("content").getAsString();
-                content = content.substring("Edited previous message: ".length());
-                content = stripMetadata(content);
-                String from = resource.get("from").getAsString();
                 String url = resource.get("conversationLink").getAsString();
-                Chat c = getChat(url, skype);
-                User u = getUser(from, c);
-                //TODO: Actually fire the event - there's no API in place to store chatmessages yet
-                //                ChatMessage m = WebChatMessage.createMessage(c, c.getUser(from), id, clientId, System.currentTimeMillis(), resource.get("content").getAsString());
-                //                MessageEditedEvent evnt = new MessageEditedEvent(m);
-                //                skype.getEventDispatcher().callEvent(evnt);
+                String from = resource.get("from").getAsString();
+                final Chat c = getChat(url, skype);
+                final User u = getUser(from, c); //If not original sender, then fake
+                final String clientId = resource.get("skypeeditedid").getAsString();
+                final String id = resource.get("id").getAsString();
+                String content = resource.get("content").getAsString();
+                content = stripMetadata(content);
+                boolean faker = false;
+                if (content.startsWith("Edited previous message: ")) {
+                    content = content.substring("Edited previous message: ".length());
+                    ChatMessage m = u.getMessageById(clientId);
+                    if (m != null) {
+                        MessageEditedEvent evnt = new MessageEditedEvent(m, content);
+                        skype.getEventDispatcher().callEvent(evnt);
+                        ((ChatMessageImpl) m).setContent(content);
+                    } else {
+                        faker = true;
+                    }
+                } else {
+                    faker = true;
+                }
+                if (faker) {
+                    String originalContent = null;
+                    for (User user : c.getAllUsers()) {
+                        if (user.getMessageById(clientId) != null) {
+                            originalContent = user.getMessageById(clientId).getText();
+                        }
+                    }
+                    final String finalContent = content;
+                    final String finalOriginalContent = originalContent;
+                    MessageEditedByOtherEvent event = new MessageEditedByOtherEvent(new ChatMessage() {
+                        public String getClientId() {
+                            return clientId;
+                        }
+
+                        public String getText() {
+                            return finalOriginalContent;
+                        }
+
+                        public long getTime() {
+                            return System.currentTimeMillis();
+                        }
+
+                        public User getSender() {
+                            return u;
+                        }
+
+                        public void edit(Text newMessage) throws SkypeException {
+                            throw new UnsupportedOperationException();
+                        }
+
+                        public void delete() throws SkypeException {
+                            throw new UnsupportedOperationException();
+                        }
+
+                        public Chat getChat() {
+                            return c;
+                        }
+
+                        public String getId() {
+                            return id;
+                        }
+                    }, finalContent, u);
+                    skype.getEventDispatcher().callEvent(event);
+                }
             } else {
                 throw new SkypeException("Had no id");
             }
@@ -76,42 +134,42 @@ public enum MessageType {
     },
     RICH_TEXT_CONTACTS("RichText/Contacts") {
         @Override
-        public void handle(WebSkype skype, JsonObject resource) {
+        public void handle(SkypeImpl skype, JsonObject resource) {
         }
     },
     RICH_TEXT_FILES("RichText/Files") {
         @Override
-        public void handle(WebSkype skype, JsonObject resource) {
+        public void handle(SkypeImpl skype, JsonObject resource) {
         }
     },
     RICH_TEXT_SMS("RichText/Sms") {
         @Override
-        public void handle(WebSkype skype, JsonObject resource) {
+        public void handle(SkypeImpl skype, JsonObject resource) {
         }
     },
     RICH_TEXT_LOCATION("RichText/Location") {
         @Override
-        public void handle(WebSkype skype, JsonObject resource) {
+        public void handle(SkypeImpl skype, JsonObject resource) {
         }
     },
     RICH_TEXT_URI_OBJECT("RichText/UriObject") {
         @Override
-        public void handle(WebSkype skype, JsonObject resource) {
+        public void handle(SkypeImpl skype, JsonObject resource) {
         }
     },
     RICH_TEXT_MEDIA_FLIK_MSG("RichText/Media_FlikMsg") {
         @Override
-        public void handle(WebSkype skype, JsonObject resource) {
+        public void handle(SkypeImpl skype, JsonObject resource) {
         }
     },
     EVENT_SKYPE_VIDEO_MESSAGE("Event/SkypeVideoMessage") {
         @Override
-        public void handle(WebSkype skype, JsonObject resource) {
+        public void handle(SkypeImpl skype, JsonObject resource) {
         }
     },
     THREAD_ACTIVITY_ADD_MEMBER("ThreadActivity/AddMember") {
         @Override
-        public void handle(WebSkype skype, JsonObject resource) {
+        public void handle(SkypeImpl skype, JsonObject resource) {
             String url = resource.get("conversationLink").getAsString();
             Chat c = getChat(url, skype);
             List<User> usersAdded = new ArrayList<>();
@@ -125,7 +183,7 @@ public enum MessageType {
                 } else {
                     usersAdded.add(c.getUser(username));
                 }
-                ((WebChat) c).addUser(username);
+                ((ChatImpl) c).addUser(username);
             }
             UserAddEvent event = null;
             if (usersAdded.size() == 1) {
@@ -138,7 +196,7 @@ public enum MessageType {
     },
     THREAD_ACTIVITY_DELETE_MEMBER("ThreadActivity/DeleteMember") {
         @Override
-        public void handle(WebSkype skype, JsonObject resource) {
+        public void handle(SkypeImpl skype, JsonObject resource) throws SkypeException {
             String url = resource.get("conversationLink").getAsString();
             Chat c = getChat(url, skype);
             List<User> usersRemoved = new ArrayList<>();
@@ -147,20 +205,20 @@ public enum MessageType {
             for (Element e : xml.getElementsByTag("target")) {
                 String username = e.text().substring(2);
                 usersRemoved.add(c.getUser(username));
-                ((WebChat) c).removeUser(username);
+                ((ChatImpl) c).removeUser(username);
             }
             UserRemoveEvent event = null;
             if (usersRemoved.size() == 1) {
                 event = new UserRemoveEvent(usersRemoved.get(0), initiator);
             } else {
-                event = new MultiUserRemoveEvent(usersRemoved, initiator);
+                throw new SkypeException("More than one user removed?");
             }
             skype.getEventDispatcher().callEvent(event);
         }
     },
     THREAD_ACTIVITY_ROLE_UPDATE("ThreadActivity/RoleUpdate") {
         @Override
-        public void handle(WebSkype skype, JsonObject resource) {
+        public void handle(SkypeImpl skype, JsonObject resource) {
             String url = resource.get("conversationLink").getAsString();
             Chat c = getChat(url, skype);
             Document xml = Jsoup.parse(resource.get("content").getAsString(), "", Parser.xmlParser());
@@ -173,14 +231,14 @@ public enum MessageType {
     },
     THREAD_ACTIVITY_TOPIC_UPDATE("ThreadActivity/TopicUpdate") {
         @Override
-        public void handle(WebSkype skype, JsonObject resource) {
+        public void handle(SkypeImpl skype, JsonObject resource) {
             String url = resource.get("conversationLink").getAsString();
             Chat c = getChat(url, skype);
             Document xml = Jsoup.parse(resource.get("content").getAsString(), "", Parser.xmlParser());
             if (xml.getElementsByTag("value").size() > 0) {
-                ((WebChatGroup) c).updateTopic(StringEscapeUtils.unescapeHtml4(xml.getElementsByTag("value").get(0).text()));
+                ((ChatGroup) c).updateTopic(StringEscapeUtils.unescapeHtml4(xml.getElementsByTag("value").get(0).text()));
             } else {
-                ((WebChatGroup) c).updateTopic("");
+                ((ChatGroup) c).updateTopic("");
             }
             TopicChangeEvent e = new TopicChangeEvent(c);
             skype.getEventDispatcher().callEvent(e);
@@ -188,47 +246,47 @@ public enum MessageType {
     },
     THREAD_ACTIVITY_PICTURE_UPDATE("ThreadActivity/PictureUpdate") {
         @Override
-        public void handle(WebSkype skype, JsonObject resource) {
+        public void handle(SkypeImpl skype, JsonObject resource) {
         }
     },
     THREAD_ACTIVITY_HISTORY_DISCLOSED_UPDATE("ThreadActivity/HistoryDisclosedUpdate") {
         @Override
-        public void handle(WebSkype skype, JsonObject resource) {
+        public void handle(SkypeImpl skype, JsonObject resource) {
         }
     },
     THREAD_ACTIVITY_JOINING_ENABLED_UPDATE("ThreadActivity/JoiningEnabledUpdate") {
         @Override
-        public void handle(WebSkype skype, JsonObject resource) {
+        public void handle(SkypeImpl skype, JsonObject resource) {
         }
     },
     THREAD_ACTIVITY_LEGACY_MEMBER_ADDED("ThreadActivity/LegacyMemberAdded") {
         @Override
-        public void handle(WebSkype skype, JsonObject resource) {
+        public void handle(SkypeImpl skype, JsonObject resource) {
         }
     },
     THREAD_ACTIVITY_LEGACY_MEMBER_UPGRADED("ThreadActivity/LegacyMemberUpgraded") {
         @Override
-        public void handle(WebSkype skype, JsonObject resource) {
+        public void handle(SkypeImpl skype, JsonObject resource) {
         }
     },
     EVENT_CALL("Event/Call") {
         @Override
-        public void handle(WebSkype skype, JsonObject resource) {
+        public void handle(SkypeImpl skype, JsonObject resource) {
         }
     },
     CONTROL_TYPING("Control/Typing") {
         @Override
-        public void handle(WebSkype skype, JsonObject resource) {
+        public void handle(SkypeImpl skype, JsonObject resource) {
         }
     },
     CONTROL_CLEAR_TYPING("Control/ClearTyping") {
         @Override
-        public void handle(WebSkype skype, JsonObject resource) {
+        public void handle(SkypeImpl skype, JsonObject resource) {
         }
     },
     CONTROL_LIVE_STATE("Control/LiveState") {
         @Override
-        public void handle(WebSkype skype, JsonObject resource) {
+        public void handle(SkypeImpl skype, JsonObject resource) {
         }
     };
 
@@ -237,6 +295,8 @@ public enum MessageType {
     private static final Pattern USER_PATTERN = Pattern.compile("8:(.*)");
     private static final Pattern STRIP_EDIT_PATTERN = Pattern.compile("<\\/?[e_m][^<>]+>");
     private static final Pattern STRIP_QUOTE_PATTERN = Pattern.compile("(<(?:\\/?)(?:quote|legacyquote)[^>]*>)", Pattern.CASE_INSENSITIVE);
+
+    private static final Set<String> ids = new HashSet<>();
 
     private String value;
 
@@ -248,7 +308,7 @@ public enum MessageType {
         return this.value;
     }
 
-    public abstract void handle(WebSkype skype, JsonObject resource) throws SkypeException;
+    public abstract void handle(SkypeImpl skype, JsonObject resource) throws SkypeException;
 
     static {
         for (MessageType type : values()) {
@@ -260,7 +320,7 @@ public enum MessageType {
         return byValue.containsKey(messageType) ? byValue.get(messageType) : UNKNOWN;
     }
 
-    private static Chat getChat(String url, WebSkype skype) {
+    private static Chat getChat(String url, SkypeImpl skype) {
         Matcher m = URL_PATTERN.matcher(url);
         if (m.find()) {
             return skype.getChat(m.group(1));

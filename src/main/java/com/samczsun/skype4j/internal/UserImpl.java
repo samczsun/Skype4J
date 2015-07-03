@@ -1,20 +1,30 @@
-package com.samczsun.skype4j.internal.web;
+package com.samczsun.skype4j.internal;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import com.samczsun.skype4j.chat.Chat;
-import com.samczsun.skype4j.chat.User;
+import com.samczsun.skype4j.chat.ChatMessage;
+import com.samczsun.skype4j.user.User;
 
-public class WebUser implements User {
+public class UserImpl implements User {
     private String username;
 
     private Chat chat;
     private Role role = Role.USER;
+    
+    private List<ChatMessage> messages = new CopyOnWriteArrayList<>();
+    private Map<String, ChatMessage> messageMap = new ConcurrentHashMap<>();
 
-    public WebUser(String username, Chat chat) {
+    public UserImpl(String username, Chat chat) {
         this.username = username;
         this.chat = chat;
     }
 
-    public WebUser(Chat chat) {
+    public UserImpl(Chat chat) {
         this.chat = chat;
     }
 
@@ -59,12 +69,27 @@ public class WebUser implements User {
             return false;
         if (getClass() != obj.getClass())
             return false;
-        WebUser other = (WebUser) obj;
+        UserImpl other = (UserImpl) obj;
         if (username == null) {
             if (other.username != null)
                 return false;
         } else if (!username.equals(other.username))
             return false;
         return true;
+    }
+
+    @Override
+    public List<ChatMessage> getSentMessages() {
+        return Collections.unmodifiableList(messages);
+    }
+
+    @Override
+    public ChatMessage getMessageById(String id) {
+        return messageMap.get(id);
+    }
+    
+    public void onMessage(ChatMessage message) {
+        this.messages.add(message);
+        this.messageMap.put(message.getClientId(), message);
     }
 }
