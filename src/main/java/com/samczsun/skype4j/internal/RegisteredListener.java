@@ -1,7 +1,10 @@
-package com.samczsun.skype4j.events;
+package com.samczsun.skype4j.internal;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+
+import com.samczsun.skype4j.events.Event;
+import com.samczsun.skype4j.events.Listener;
 
 public class RegisteredListener {
     private Listener listener;

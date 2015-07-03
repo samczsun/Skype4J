@@ -5,10 +5,10 @@ import java.io.InputStream;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,7 +33,6 @@ import com.samczsun.skype4j.Skype;
 import com.samczsun.skype4j.StreamUtils;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.events.EventDispatcher;
-import com.samczsun.skype4j.events.SkypeEventDispatcher;
 import com.samczsun.skype4j.events.chat.ChatJoinedEvent;
 import com.samczsun.skype4j.exceptions.SkypeException;
 
@@ -112,7 +111,6 @@ public class SkypeImpl extends Skype {
                             JsonObject conversation = elem.asObject();
                             String id = conversation.get("id").asString();
                             Chat chat = ChatImpl.createChat(this, id);
-                            chat.updateUsers();
                             allChats.put(id, chat);
                         } catch (Exception e) {
                             e.printStackTrace();
@@ -192,11 +190,6 @@ public class SkypeImpl extends Skype {
                                                     Chat chat = getChat(chatId);
                                                     if (chat == null) {
                                                         chat = ChatImpl.createChat(SkypeImpl.this, chatId);
-                                                        try {
-                                                            chat.updateUsers();
-                                                        } catch (SkypeException e) {
-                                                            e.printStackTrace();
-                                                        }
                                                         allChats.put(chatId, chat);
                                                         ChatJoinedEvent e = new ChatJoinedEvent(chat);
                                                         eventDispatcher.callEvent(e);
@@ -232,7 +225,6 @@ public class SkypeImpl extends Skype {
         } else {
             try {
                 Chat chat = ChatImpl.createChat(this, name);
-                chat.updateUsers();
                 allChats.put(name, chat);
                 return getChat(name);
             } catch (Exception e) {
@@ -243,8 +235,8 @@ public class SkypeImpl extends Skype {
     }
 
     @Override
-    public List<Chat> getAllChats() {
-        return new ArrayList<>(this.allChats.values());
+    public Collection<Chat> getAllChats() {
+        return Collections.unmodifiableCollection(this.allChats.values());
     }
 
     @Override

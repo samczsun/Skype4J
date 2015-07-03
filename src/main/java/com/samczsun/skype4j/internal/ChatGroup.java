@@ -8,9 +8,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -21,59 +18,26 @@ import com.eclipsesource.json.JsonObject;
 import com.eclipsesource.json.JsonValue;
 import com.samczsun.skype4j.StreamUtils;
 import com.samczsun.skype4j.chat.ChatMessage;
+import com.samczsun.skype4j.chat.GroupChat;
+import com.samczsun.skype4j.exceptions.NotLoadedException;
 import com.samczsun.skype4j.exceptions.SkypeException;
 import com.samczsun.skype4j.formatting.Text;
 import com.samczsun.skype4j.user.User;
 import com.samczsun.skype4j.user.User.Role;
 
-public class ChatGroup extends ChatImpl {
-    private AtomicBoolean isLoading = new AtomicBoolean(false);
-
+public class ChatGroup extends ChatImpl implements GroupChat {
     private String topic;
 
-    private Map<String, User> users = new ConcurrentHashMap<>();
-    private List<ChatMessage> messages = new CopyOnWriteArrayList<>();
-    private Map<String, ChatMessage> messageMap = new ConcurrentHashMap<>();
-
-    protected ChatGroup(SkypeImpl skype, String identity) {
+    protected ChatGroup(SkypeImpl skype, String identity) throws SkypeException {
         super(skype, identity);
     }
 
-    @Override
-    public ChatMessage sendMessage(Text message) throws SkypeException {
-        HttpsURLConnection con = null;
-        try {
-            long ms = System.currentTimeMillis();
-            JsonObject obj = new JsonObject();
-            obj.add("content", message.parent().write());
-            obj.add("messagetype", "RichText");
-            obj.add("contenttype", "text");
-            obj.add("clientmessageid", String.valueOf(ms));
-            URL url = new URL("https://client-s.gateway.messenger.live.com/v1/users/ME/conversations/" + this.getIdentity() + "/messages");
-            con = (HttpsURLConnection) url.openConnection();
-            con.setRequestMethod("POST");
-            con.setDoOutput(true);
-            con.setRequestProperty("RegistrationToken", getClient().getRegistrationToken());
-            con.setRequestProperty("Content-Type", "application/json");
-            con.getOutputStream().write(obj.toString().getBytes(Charset.forName("UTF-8")));
-            con.getInputStream();
-            return ChatMessageImpl.createMessage(this, getUser(getClient().getUsername()), null, String.valueOf(ms), ms, Jsoup.parse(message.parent().write()).text());
-        } catch (IOException e) {
-            throw new SkypeException("An error occured while sending a message", e);
-        }
-    }
-
-    @Override
-    public Collection<User> getAllUsers() {
-        return Collections.unmodifiableCollection(users.values());
-    }
-
-    public void updateUsers() throws SkypeException {
-        if (isLoading.get()) {
+    protected void load() throws SkypeException {
+        if (isLoaded()) {
             return;
         }
-        Map<String, User> newUsers = new HashMap<>();
         isLoading.set(true);
+        Map<String, User> newUsers = new HashMap<>();
         HttpsURLConnection con = null;
         try {
             URL url = new URL("https://client-s.gateway.messenger.live.com/v1/threads/" + this.getIdentity() + "?view=msnp24Equivalent");
@@ -109,6 +73,38 @@ public class ChatGroup extends ChatImpl {
         this.users.clear();
         this.users.putAll(newUsers);
         isLoading.set(false);
+        hasLoaded.set(true);
+    }
+
+    @Override
+    public ChatMessage sendMessage(Text message) throws SkypeException {
+        checkLoaded();
+        HttpsURLConnection con = null;
+        try {
+            long ms = System.currentTimeMillis();
+            JsonObject obj = new JsonObject();
+            obj.add("content", message.parent().write());
+            obj.add("messagetype", "RichText");
+            obj.add("contenttype", "text");
+            obj.add("clientmessageid", String.valueOf(ms));
+            URL url = new URL("https://client-s.gateway.messenger.live.com/v1/users/ME/conversations/" + this.getIdentity() + "/messages");
+            con = (HttpsURLConnection) url.openConnection();
+            con.setRequestMethod("POST");
+            con.setDoOutput(true);
+            con.setRequestProperty("RegistrationToken", getClient().getRegistrationToken());
+            con.setRequestProperty("Content-Type", "application/json");
+            con.getOutputStream().write(obj.toString().getBytes(Charset.forName("UTF-8")));
+            con.getInputStream();
+            return ChatMessageImpl.createMessage(this, getUser(getClient().getUsername()), null, String.valueOf(ms), ms, Jsoup.parse(message.parent().write()).text());
+        } catch (IOException e) {
+            throw new SkypeException("An error occured while sending a message", e);
+        }
+    }
+
+    @Override
+    public Collection<User> getAllUsers() throws NotLoadedException {
+        checkLoaded();
+        return Collections.unmodifiableCollection(users.values());
     }
 
     public void addUser(String username) {
@@ -125,6 +121,7 @@ public class ChatGroup extends ChatImpl {
     }
 
     public void kick(String username) throws SkypeException {
+        checkLoaded();
         HttpsURLConnection con = null;
         try {
             URL url = new URL("https://getClient()-s.gateway.messenger.live.com/v1/threads/" + this.getIdentity() + "/members/8:" + username);
@@ -141,10 +138,12 @@ public class ChatGroup extends ChatImpl {
 
     @Override
     public String getTopic() {
+        checkLoaded();
         return this.topic;
     }
 
     public void setTopic(String topic) throws SkypeException {
+        checkLoaded();
         HttpsURLConnection con = null;
         try {
             URL url = new URL("https://client-s.gateway.messenger.live.com/v1/threads/" + this.getIdentity() + "/properties?name=topic");
@@ -169,27 +168,18 @@ public class ChatGroup extends ChatImpl {
 
     public void onMessage(ChatMessage message) {
         this.messages.add(message);
-        this.messageMap.put(message.getId(), message);
         ((UserImpl) message.getSender()).onMessage(message);
     }
 
     @Override
-    public Type getType() {
-        return Type.GROUP;
-    }
-
-    @Override
     public User getUser(String username) {
+        checkLoaded();
         return this.users.get(username);
     }
 
     @Override
-    public ChatMessage getMessage(String id) {
-        return messageMap.get(id);
-    }
-
-    @Override
     public List<ChatMessage> getAllMessages() {
+        checkLoaded();
         return Collections.unmodifiableList(this.messages);
     }
 }
