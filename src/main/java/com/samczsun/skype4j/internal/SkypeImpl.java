@@ -26,11 +26,9 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
+import com.eclipsesource.json.JsonArray;
+import com.eclipsesource.json.JsonObject;
+import com.eclipsesource.json.JsonValue;
 import com.samczsun.skype4j.Skype;
 import com.samczsun.skype4j.StreamUtils;
 import com.samczsun.skype4j.chat.Chat;
@@ -101,7 +99,6 @@ public class SkypeImpl extends Skype {
                 Date now = new Date();
                 now.setDate(now.getDate() - 14);
 
-                Gson gson = new Gson();
                 String urlToUse = "https://client-s.gateway.messenger.live.com/v1/users/ME/conversations?startTime=" + now.getTime() + "&pageSize=100&view=msnp24Equivalent&targetType=Passport|Skype|Lync|Thread";
                 //        while (true) {
                 try {
@@ -109,12 +106,11 @@ public class SkypeImpl extends Skype {
                     HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
                     con.setRequestProperty("RegistrationToken", registrationToken);
                     String in = StreamUtils.readFully(con.getInputStream());
-                    JsonObject obj = gson.fromJson(in, JsonObject.class);
-
-                    for (JsonElement elem : obj.get("conversations").getAsJsonArray()) {
+                    JsonObject obj = JsonObject.readFrom(in);
+                    for (JsonValue elem : obj.get("conversations").asArray()) {
                         try {
-                            JsonObject conversation = elem.getAsJsonObject();
-                            String id = conversation.get("id").getAsString();
+                            JsonObject conversation = elem.asObject();
+                            String id = conversation.get("id").asString();
                             Chat chat = ChatImpl.createChat(this, id);
                             chat.updateUsers();
                             allChats.put(id, chat);
@@ -123,8 +119,8 @@ public class SkypeImpl extends Skype {
                         }
                     }
 
-                    //                if (obj.get("_metadata").getAsJsonObject().has("backwardLink")) {
-                    //                    urlToUse = obj.get("_metadata").getAsJsonObject().get("backwardLink").getAsString();
+                    //                if (obj.get("_metadata").asJsonObject().has("backwardLink")) {
+                    //                    urlToUse = obj.get("_metadata").asJsonObject().get("backwardLink").asString();
                     //                    System.out.println("Backwards");
                     //                } else {
                     //                    break;
@@ -142,14 +138,12 @@ public class SkypeImpl extends Skype {
     }
 
     public void subscribe() throws IOException {
-        Gson gson = new Gson();
-
         HttpsURLConnection subscribe = (HttpsURLConnection) new URL(SUBSCRIPTIONS_URL).openConnection();
         subscribe.setRequestMethod("POST");
         subscribe.setDoOutput(true);
         subscribe.setRequestProperty("RegistrationToken", registrationToken);
         subscribe.setRequestProperty("Content-Type", "application/json");
-        subscribe.getOutputStream().write(gson.toJson(buildSubscriptionObject()).getBytes());
+        subscribe.getOutputStream().write(buildSubscriptionObject().toString().getBytes());
         subscribe.getInputStream();
 
         HttpsURLConnection registerEndpoint = (HttpsURLConnection) new URL(String.format(MESSAGINGSERVICE_URL, URLEncoder.encode(endpointId, "UTF-8"))).openConnection();
@@ -157,14 +151,13 @@ public class SkypeImpl extends Skype {
         registerEndpoint.setDoOutput(true);
         registerEndpoint.setRequestProperty("RegistrationToken", registrationToken);
         registerEndpoint.setRequestProperty("Content-Type", "application/json");
-        registerEndpoint.getOutputStream().write(gson.toJson(buildRegistrationObject()).getBytes());
+        registerEndpoint.getOutputStream().write(buildRegistrationObject().toString().getBytes());
         registerEndpoint.getInputStream();
 
         pollThread = new Thread() {
             public void run() {
                 try {
                     URL url = new URL("https://client-s.gateway.messenger.live.com/v1/users/ME/endpoints/SELF/subscriptions/0/poll");
-                    Gson gson = new Gson();
                     HttpsURLConnection c = null;
                     while (true) {
                         try {
@@ -177,25 +170,25 @@ public class SkypeImpl extends Skype {
                             InputStream read = c.getInputStream();
                             String json = StreamUtils.readFully(read);
                             if (!json.isEmpty()) {
-                                final JsonObject message = gson.fromJson(json, JsonObject.class);
+                                final JsonObject message = JsonObject.readFrom(json);
                                 scheduler.execute(new Runnable() {
                                     public void run() {
                                         try {
-                                            JsonArray arr = message.get("eventMessages").getAsJsonArray();
-                                            for (JsonElement elem : arr) {
-                                                JsonObject eventObj = elem.getAsJsonObject();
-                                                String resourceType = eventObj.get("resourceType").getAsString();
+                                            JsonArray arr = message.get("eventMessages").asArray();
+                                            for (JsonValue elem : arr) {
+                                                JsonObject eventObj = elem.asObject();
+                                                String resourceType = eventObj.get("resourceType").asString();
                                                 if (resourceType.equals("NewMessage")) {
-                                                    JsonObject resource = eventObj.get("resource").getAsJsonObject();
-                                                    String messageType = resource.get("messagetype").getAsString();
+                                                    JsonObject resource = eventObj.get("resource").asObject();
+                                                    String messageType = resource.get("messagetype").asString();
                                                     MessageType type = MessageType.getByName(messageType);
                                                     type.handle(SkypeImpl.this, resource);
                                                 } else if (resourceType.equalsIgnoreCase("EndpointPresence")) {
                                                 } else if (resourceType.equalsIgnoreCase("UserPresence")) {
                                                 } else if (resourceType.equalsIgnoreCase("ConversationUpdate")) { //Not sure what this does
                                                 } else if (resourceType.equalsIgnoreCase("ThreadUpdate")) {
-                                                    JsonObject resource = eventObj.get("resource").getAsJsonObject();
-                                                    String chatId = resource.get("id").getAsString();
+                                                    JsonObject resource = eventObj.get("resource").asObject();
+                                                    String chatId = resource.get("id").asString();
                                                     Chat chat = getChat(chatId);
                                                     if (chat == null) {
                                                         chat = ChatImpl.createChat(SkypeImpl.this, chatId);
@@ -291,30 +284,30 @@ public class SkypeImpl extends Skype {
 
     private JsonObject buildSubscriptionObject() {
         JsonObject subscriptionObject = new JsonObject();
-        subscriptionObject.addProperty("channelType", "httpLongPoll");
-        subscriptionObject.addProperty("template", "raw");
+        subscriptionObject.add("channelType", "httpLongPoll");
+        subscriptionObject.add("template", "raw");
         JsonArray interestedResources = new JsonArray();
-        interestedResources.add(new JsonPrimitive("/v1/users/ME/conversations/ALL/properties"));
-        interestedResources.add(new JsonPrimitive("/v1/users/ME/conversations/ALL/messages"));
-        interestedResources.add(new JsonPrimitive("/v1/users/ME/contacts/ALL"));
-        interestedResources.add(new JsonPrimitive("/v1/threads/ALL"));
+        interestedResources.add("/v1/users/ME/conversations/ALL/properties");
+        interestedResources.add("/v1/users/ME/conversations/ALL/messages");
+        interestedResources.add("/v1/users/ME/contacts/ALL");
+        interestedResources.add("/v1/threads/ALL");
         subscriptionObject.add("interestedResources", interestedResources);
         return subscriptionObject;
     }
 
     private JsonObject buildRegistrationObject() {
         JsonObject registrationObject = new JsonObject();
-        registrationObject.addProperty("id", "messagingService");
-        registrationObject.addProperty("type", "EndpointPresenceDoc");
-        registrationObject.addProperty("selfLink", "uri");
+        registrationObject.add("id", "messagingService");
+        registrationObject.add("type", "EndpointPresenceDoc");
+        registrationObject.add("selfLink", "uri");
         JsonObject publicInfo = new JsonObject();
-        publicInfo.addProperty("capabilities", "video|audio");
-        publicInfo.addProperty("type", 1);
-        publicInfo.addProperty("skypeNameVersion", "908/1.5.116/swx-skype.com");
-        publicInfo.addProperty("nodeInfo", "xx");
-        publicInfo.addProperty("version", "908/1.5.116");
+        publicInfo.add("capabilities", "video|audio");
+        publicInfo.add("type", 1);
+        publicInfo.add("skypeNameVersion", "908/1.5.116/swx-skype.com");
+        publicInfo.add("nodeInfo", "xx");
+        publicInfo.add("version", "908/1.5.116");
         JsonObject privateInfo = new JsonObject();
-        privateInfo.addProperty("epname", "Skype4J");
+        privateInfo.add("epname", "Skype4J");
         registrationObject.add("publicInfo", publicInfo);
         registrationObject.add("privateInfo", privateInfo);
         return registrationObject;

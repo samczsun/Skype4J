@@ -16,9 +16,7 @@ import javax.net.ssl.HttpsURLConnection;
 
 import org.jsoup.Jsoup;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
+import com.eclipsesource.json.JsonObject;
 import com.samczsun.skype4j.chat.ChatMessage;
 import com.samczsun.skype4j.exceptions.SkypeException;
 import com.samczsun.skype4j.formatting.Text;
@@ -45,18 +43,17 @@ public class ChatIndividual extends ChatImpl {
         try {
             long ms = System.currentTimeMillis();
             JsonObject obj = new JsonObject();
-            obj.addProperty("content", message.parent().write());
-            obj.addProperty("messagetype", "RichText");
-            obj.addProperty("contenttype", "text");
-            obj.addProperty("clientmessageid", String.valueOf(ms));
-            Gson gson = new GsonBuilder().disableHtmlEscaping().create();
+            obj.add("content", message.parent().write());
+            obj.add("messagetype", "RichText");
+            obj.add("contenttype", "text");
+            obj.add("clientmessageid", String.valueOf(ms));
             URL url = new URL("https://client-s.gateway.messenger.live.com/v1/users/ME/conversations/" + this.getIdentity() + "/messages");
             con = (HttpsURLConnection) url.openConnection();
             con.setRequestMethod("POST");
             con.setDoOutput(true);
             con.setRequestProperty("RegistrationToken", getClient().getRegistrationToken());
             con.setRequestProperty("Content-Type", "application/json");
-            con.getOutputStream().write(gson.toJson(obj).getBytes(Charset.forName("UTF-8")));
+            con.getOutputStream().write(obj.toString().getBytes(Charset.forName("UTF-8")));
             con.getInputStream();
             return ChatMessageImpl.createMessage(this, getUser(getClient().getUsername()), null, String.valueOf(ms), ms, Jsoup.parse(message.parent().write()).text());
         } catch (IOException e) {
