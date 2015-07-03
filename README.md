@@ -7,14 +7,16 @@ This is also very much a work in progress. As such, API methods are not guarente
 Here is an example of this API in action
 
 ```java
-Skype skype = SkypeClient.create(username, password).client(Client.WEB).login();
+Skype skype = Skype.login(username, password);
 skype.getEventDispatcher().registerListener(new Listener() {
   @EventHandler
   public void onMessage(MessageReceivedEvent e) {
-    System.out.println("Got message: " + e.getMessage().getMessage());
+    System.out.println("Got message: " + e.getMessage().getText());
   }
 });
 skype.subscribe();
+// Do stuff
+skype.logout();
 ```
 ## Licensing
 
