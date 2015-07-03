@@ -102,8 +102,9 @@ public class ChatIndividual extends ChatImpl {
         users.remove(username);
     }
 
-    public boolean kick(String username) {
-        throw new IllegalArgumentException("Cannot kick in individual chats");
+    @Override
+    public void kick(String username) throws SkypeException {
+        throw new SkypeException("Cannot kick in individual chats");
     }
 
     @Override

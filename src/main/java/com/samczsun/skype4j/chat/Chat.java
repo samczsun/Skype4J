@@ -102,6 +102,14 @@ public interface Chat {
     public Type getType();
 
     /**
+     * Kick a user from this chat. Is not supported in individual chats.
+     * 
+     * @param username
+     * @throws SkypeException If the user is not in this chat, or if the kick failed
+     */
+    public void kick(String username) throws SkypeException;
+
+    /**
      * An Enum to represent the different types of chats
      * 
      * @author samczsun
