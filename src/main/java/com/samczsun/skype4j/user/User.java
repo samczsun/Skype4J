@@ -6,21 +6,21 @@ import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.ChatMessage;
 
 public interface User {
-    public String getUsername();
+    String getUsername();
 
-    public String getDisplayName();
+    String getDisplayName();
 
-    public Role getRole();
+    Role getRole();
 
-    public void setRole(Role role);
+    void setRole(Role role);
 
-    public Chat getChat();
+    Chat getChat();
     
-    public List<ChatMessage> getSentMessages();
+    List<ChatMessage> getSentMessages();
     
-    public ChatMessage getMessageById(String id);
+    ChatMessage getMessageById(String id);
 
-    public static enum Role {
+    enum Role {
         ADMIN, USER;
         
         public static Role getByName(String name) {

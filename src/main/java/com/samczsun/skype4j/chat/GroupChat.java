@@ -14,7 +14,7 @@ public interface GroupChat extends Chat {
      * 
      * @return The topic
      */
-    public String getTopic();
+    String getTopic();
 
     /**
      * Set the topic of the chat. This will update it in real time
@@ -23,14 +23,14 @@ public interface GroupChat extends Chat {
      *            The topic
      * @throws SkypeException
      */
-    public void setTopic(String topic) throws SkypeException;
+    void setTopic(String topic) throws SkypeException;
 
     /**
      * Kick a user from this chat. Is not supported in individual chats.
      * 
-     * @param username
+     * @param username The username of the user to kick
      * @throws SkypeException
      *             If the user is not in this chat, or if the kick failed
      */
-    public void kick(String username) throws SkypeException;
+    void kick(String username) throws SkypeException;
 }

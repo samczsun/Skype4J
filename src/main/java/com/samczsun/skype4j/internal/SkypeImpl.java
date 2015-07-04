@@ -5,15 +5,11 @@ import java.io.InputStream;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -43,6 +39,7 @@ public class SkypeImpl extends Skype {
     private static final String MESSAGINGSERVICE_URL = "https://client-s.gateway.messenger.live.com/v1/users/ME/endpoints/%s/presenceDocs/messagingService";
     private static final String LOGOUT_URL = "https://login.skype.com/logout?client_id=578134&redirect_uri=https%3A%2F%2Fweb.skype.com&intsrc=client-_-webapp-_-production-_-go-signin";
 
+    private final AtomicBoolean loggedIn = new AtomicBoolean(false);
     private final Map<String, String> cookies = new HashMap<>();
     private final String skypeToken;
     private final String registrationToken;
@@ -50,9 +47,6 @@ public class SkypeImpl extends Skype {
     private final String username;
 
     private final EventDispatcher eventDispatcher;
-
-    private Thread sessionKeepaliveThread;
-    private Thread pollThread;
 
     private final ExecutorService scheduler = Executors.newFixedThreadPool(16);
     private final Logger logger = Logger.getLogger("webskype");
@@ -69,9 +63,9 @@ public class SkypeImpl extends Skype {
             Elements inputs = loginResponseDocument.select("input[name=skypetoken]");
             if (inputs.size() > 0) {
                 skypeToken = inputs.get(0).attr("value");
-                sessionKeepaliveThread = new Thread(String.format("Skype-%s-Session", username)) {
+                Thread sessionKeepaliveThread = new Thread(String.format("Skype-%s-Session", username)) {
                     public void run() {
-                        while (true) {
+                        while (loggedIn.get()) {
                             try {
                                 Jsoup.connect(PING_URL).header("X-Skypetoken", skypeToken).cookies(cookies).data("sessionId", guid.toString()).post();
                                 Thread.sleep(300000);
@@ -95,8 +89,9 @@ public class SkypeImpl extends Skype {
                 registrationToken = splits[0];
                 endpointId = splits[2].split("=")[1];
 
-                Date now = new Date();
-                now.setDate(now.getDate() - 14);
+                Calendar calendar = Calendar.getInstance();
+                calendar.set(Calendar.DAY_OF_MONTH, calendar.get(Calendar.DAY_OF_MONTH) - 14);
+                Date now = calendar.getTime();
 
                 String urlToUse = "https://client-s.gateway.messenger.live.com/v1/users/ME/conversations?startTime=" + now.getTime() + "&pageSize=100&view=msnp24Equivalent&targetType=Passport|Skype|Lync|Thread";
                 //        while (true) {
@@ -123,6 +118,7 @@ public class SkypeImpl extends Skype {
                     //                } else {
                     //                    break;
                     //                }
+                    loggedIn.set(true);
                 } catch (Exception e) {
                     throw new SkypeException("An exception occured while fetching chats", e);
                 }
@@ -152,12 +148,12 @@ public class SkypeImpl extends Skype {
         registerEndpoint.getOutputStream().write(buildRegistrationObject().toString().getBytes());
         registerEndpoint.getInputStream();
 
-        pollThread = new Thread() {
+        Thread pollThread = new Thread() {
             public void run() {
                 try {
                     URL url = new URL("https://client-s.gateway.messenger.live.com/v1/users/ME/endpoints/SELF/subscriptions/0/poll");
                     HttpsURLConnection c = null;
-                    while (true) {
+                    while (loggedIn.get()) {
                         try {
                             c = (HttpsURLConnection) url.openConnection();
                             c.setRequestMethod("POST");
@@ -242,8 +238,7 @@ public class SkypeImpl extends Skype {
     @Override
     public void logout() throws IOException {
         Jsoup.connect(LOGOUT_URL).cookies(this.cookies).get();
-        this.sessionKeepaliveThread.stop();
-        this.pollThread.stop(); //TODO: Actually do Java
+        loggedIn.set(false);
     }
 
     public String getRegistrationToken() {

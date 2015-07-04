@@ -12,7 +12,7 @@ public class Message {
     private Message() {
     }
 
-    protected ArrayList<Text> components = new ArrayList<>();
+    protected final ArrayList<Text> components = new ArrayList<>();
 
     public static Text text(String text) {
         Message message = new Message();

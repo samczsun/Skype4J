@@ -13,7 +13,7 @@ import com.samczsun.skype4j.events.EventHandler;
 import com.samczsun.skype4j.events.Listener;
 
 public class SkypeEventDispatcher implements EventDispatcher {
-    private Map<Class<? extends Event>, List<RegisteredListener>> listeners = new HashMap<>();
+    private final Map<Class<? extends Event>, List<RegisteredListener>> listeners = new HashMap<>();
 
     public void registerListener(Listener l) {
         Class<?> c = l.getClass();

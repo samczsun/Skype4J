@@ -11,19 +11,19 @@ import com.samczsun.skype4j.user.User;
  */
 public interface ChatMessage {
     
-    public String getClientId();
+    String getClientId();
 
-    public String getText();
+    String getText();
 
-    public long getTime();
+    long getTime();
 
-    public User getSender();
+    User getSender();
 
-    public void edit(Text newMessage) throws SkypeException;
+    void edit(Text newMessage) throws SkypeException;
 
-    public void delete() throws SkypeException;
+    void delete() throws SkypeException;
 
-    public Chat getChat();
+    Chat getChat();
 
-    public String getId();
+    String getId();
 }

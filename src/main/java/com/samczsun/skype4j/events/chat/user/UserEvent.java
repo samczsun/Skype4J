@@ -4,7 +4,7 @@ import com.samczsun.skype4j.events.chat.ChatEvent;
 import com.samczsun.skype4j.user.User;
 
 public abstract class UserEvent extends ChatEvent {
-    private User user;
+    private final User user;
     
     public UserEvent(User user) {
         super(user.getChat());
