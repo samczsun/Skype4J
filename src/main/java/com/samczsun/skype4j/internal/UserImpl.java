@@ -13,11 +13,11 @@ import com.samczsun.skype4j.user.User;
 public class UserImpl implements User {
     private String username;
 
-    private Chat chat;
+    private final Chat chat;
     private Role role = Role.USER;
     
-    private List<ChatMessage> messages = new CopyOnWriteArrayList<>();
-    private Map<String, ChatMessage> messageMap = new ConcurrentHashMap<>();
+    private final List<ChatMessage> messages = new CopyOnWriteArrayList<>();
+    private final Map<String, ChatMessage> messageMap = new ConcurrentHashMap<>();
 
     public UserImpl(String username, Chat chat) {
         this.username = username;

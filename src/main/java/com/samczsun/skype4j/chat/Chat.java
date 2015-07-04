@@ -22,7 +22,7 @@ public interface Chat {
      *         message
      * @throws SkypeException
      */
-    public ChatMessage sendMessage(Text message) throws SkypeException;
+    ChatMessage sendMessage(Text message) throws SkypeException;
 
     /**
      * Get the {@link User User} object represented by that username
@@ -31,34 +31,34 @@ public interface Chat {
      *            The username of the user
      * @return The user object
      */
-    public User getUser(String username);
+    User getUser(String username);
 
     /**
      * Get the identity of the chat. Persistent across restarts
      * 
      * @return The identity of this chat
      */
-    public String getIdentity();
+    String getIdentity();
 
     /**
      * Return a view of all the users in this chat
      * 
      * @return All the users
      */
-    public Collection<User> getAllUsers();
+    Collection<User> getAllUsers();
 
     /**
      * Return a view of all the messages saved, in chronological order
      * 
      * @return All the messages saved
      */
-    public List<ChatMessage> getAllMessages();
+    List<ChatMessage> getAllMessages();
 
     /**
      * Returns whether this chat has finished loading. Any calls to act upon the
-     * chat will throw a {@link NotLoadedException NotLoadedException}
+     * chat will throw a {@link com.samczsun.skype4j.exceptions.NotLoadedException NotLoadedException}
      * 
      * @return The loaded state
      */
-    public boolean isLoaded();
+    boolean isLoaded();
 }

@@ -12,11 +12,11 @@ import com.samczsun.skype4j.formatting.Text;
 import com.samczsun.skype4j.user.User;
 
 public class ChatMessageSelf extends ChatMessageImpl {
-    private String clientId;
-    private String id;
+    private final String clientId;
+    private final String id;
     private String message;
-    private long time;
-    private User sender;
+    private final long time;
+    private final User sender;
 
     public ChatMessageSelf(Chat chat, User user, String id, String clientId, long time, String message) {
         this.clientId = clientId;

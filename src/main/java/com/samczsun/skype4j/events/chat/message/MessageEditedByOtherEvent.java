@@ -4,8 +4,8 @@ import com.samczsun.skype4j.chat.ChatMessage;
 import com.samczsun.skype4j.user.User;
 
 public class MessageEditedByOtherEvent extends MessageEvent {
-    private User malicious;
-    private String newContent;
+    private final User malicious;
+    private final String newContent;
 
     public MessageEditedByOtherEvent(ChatMessage message, String newContent, User user) {
         super(message);

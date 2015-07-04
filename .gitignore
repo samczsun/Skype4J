@@ -1,6 +1,8 @@
 /bin/
 /target/
 .settings/
+.idea/
 .classpath
 .project
+skype4j.iml
 credentials

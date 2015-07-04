@@ -90,7 +90,6 @@ public enum MessageType {
                             originalContent = user.getMessageById(clientId).getText();
                         }
                     }
-                    final String finalContent = content;
                     final String finalOriginalContent = originalContent;
                     MessageEditedByOtherEvent event = new MessageEditedByOtherEvent(new ChatMessage() {
                         public String getClientId() {
@@ -124,7 +123,7 @@ public enum MessageType {
                         public String getId() {
                             return id;
                         }
-                    }, finalContent, u);
+                    }, content, u);
                     skype.getEventDispatcher().callEvent(event);
                 }
             } else {
@@ -291,12 +290,12 @@ public enum MessageType {
     };
 
     private static final Map<String, MessageType> byValue = new HashMap<>();
-    private static final Pattern URL_PATTERN = Pattern.compile("conversations\\/(.*)");
+    private static final Pattern URL_PATTERN = Pattern.compile("conversations/(.*)");
     private static final Pattern USER_PATTERN = Pattern.compile("8:(.*)");
-    private static final Pattern STRIP_EDIT_PATTERN = Pattern.compile("<\\/?[e_m][^<>]+>");
-    private static final Pattern STRIP_QUOTE_PATTERN = Pattern.compile("(<(?:\\/?)(?:quote|legacyquote)[^>]*>)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern STRIP_EDIT_PATTERN = Pattern.compile("</?[e_m][^<>]+>");
+    private static final Pattern STRIP_QUOTE_PATTERN = Pattern.compile("(<(?:/?)(?:quote|legacyquote)[^>]*>)", Pattern.CASE_INSENSITIVE);
 
-    private String value;
+    private final String value;
 
     MessageType(String value) {
         this.value = value;
@@ -326,7 +325,7 @@ public enum MessageType {
         return null;
     }
 
-    private static User getUser(String url, Chat c) throws SkypeException {
+    private static User getUser(String url, Chat c) {
         Matcher m = USER_PATTERN.matcher(url);
         if (m.find()) {
             return c.getUser(m.group(1));

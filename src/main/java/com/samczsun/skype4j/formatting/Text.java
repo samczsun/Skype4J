@@ -5,7 +5,7 @@ import java.awt.Color;
 import org.apache.commons.lang3.StringEscapeUtils;
 
 public class Text {
-    private Message parent;
+    private final Message parent;
 
     private String text = null;
     private boolean bold = false;

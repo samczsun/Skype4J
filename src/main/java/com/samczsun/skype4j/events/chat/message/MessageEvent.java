@@ -4,7 +4,7 @@ import com.samczsun.skype4j.chat.ChatMessage;
 import com.samczsun.skype4j.events.chat.ChatEvent;
 
 public abstract class MessageEvent extends ChatEvent {
-    private ChatMessage message;
+    private final ChatMessage message;
 
     public MessageEvent(ChatMessage message) {
         super(message.getChat());

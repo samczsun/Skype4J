@@ -7,8 +7,8 @@ import com.samczsun.skype4j.events.Event;
 import com.samczsun.skype4j.events.Listener;
 
 public class RegisteredListener {
-    private Listener listener;
-    private Method method;
+    private final Listener listener;
+    private final Method method;
     
     public RegisteredListener(Listener l, Method m) {
         this.listener = l;

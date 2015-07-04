@@ -3,7 +3,7 @@ package com.samczsun.skype4j.events.chat.user;
 import com.samczsun.skype4j.user.User;
 
 public class UserRemoveEvent extends UserEvent {
-    private User initiator;
+    private final User initiator;
     
     public UserRemoveEvent(User user, User initiator) {
         super(user);
