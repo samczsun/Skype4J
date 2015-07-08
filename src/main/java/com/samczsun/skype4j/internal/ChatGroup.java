@@ -124,7 +124,7 @@ public class ChatGroup extends ChatImpl implements GroupChat {
         checkLoaded();
         HttpsURLConnection con = null;
         try {
-            URL url = new URL("https://getClient()-s.gateway.messenger.live.com/v1/threads/" + this.getIdentity() + "/members/8:" + username);
+            URL url = new URL("https://client-s.gateway.messenger.live.com/v1/threads/" + this.getIdentity() + "/members/8:" + username);
             con = (HttpsURLConnection) url.openConnection();
             con.setInstanceFollowRedirects(false);
             con.setRequestMethod("DELETE");
