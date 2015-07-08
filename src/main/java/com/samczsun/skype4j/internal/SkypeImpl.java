@@ -90,6 +90,7 @@ public class SkypeImpl extends Skype {
                 endpointId = splits[2].split("=")[1];
 
                 Calendar calendar = Calendar.getInstance();
+                calendar.setTime(new Date());
                 calendar.set(Calendar.DAY_OF_MONTH, calendar.get(Calendar.DAY_OF_MONTH) - 14);
                 Date now = calendar.getTime();
 
