@@ -5,8 +5,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.commons.lang3.StringEscapeUtils;
-
 public class RichText extends Text {
     private boolean bold = false;
     private boolean italic = false;
@@ -64,6 +62,9 @@ public class RichText extends Text {
     }
 
     public RichText with(Text t) {
+        if (children == null) {
+            children = new ArrayList<>();
+        }
         this.children.add(t);
         return this;
     }
@@ -137,5 +138,38 @@ public class RichText extends Text {
 
     public String toString() {
         return this.write();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        RichText richText = (RichText) o;
+
+        if (bold != richText.bold) return false;
+        if (italic != richText.italic) return false;
+        if (underline != richText.underline) return false;
+        if (strikethrough != richText.strikethrough) return false;
+        if (blink != richText.blink) return false;
+        if (size != richText.size) return false;
+        if (link != null ? !link.equals(richText.link) : richText.link != null) return false;
+        if (color != null ? !color.equals(richText.color) : richText.color != null) return false;
+        return children.equals(richText.children);
+
+    }
+
+    @Override
+    public int hashCode() {
+        int result = (bold ? 1 : 0);
+        result = 31 * result + (italic ? 1 : 0);
+        result = 31 * result + (underline ? 1 : 0);
+        result = 31 * result + (strikethrough ? 1 : 0);
+        result = 31 * result + (blink ? 1 : 0);
+        result = 31 * result + (link != null ? link.hashCode() : 0);
+        result = 31 * result + (color != null ? color.hashCode() : 0);
+        result = 31 * result + size;
+        result = 31 * result + children.hashCode();
+        return result;
     }
 }
