@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.samczsun.skype4j.formatting.Message;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -26,7 +27,7 @@ import com.samczsun.skype4j.events.chat.user.RoleUpdateEvent;
 import com.samczsun.skype4j.events.chat.user.UserAddEvent;
 import com.samczsun.skype4j.events.chat.user.UserRemoveEvent;
 import com.samczsun.skype4j.exceptions.SkypeException;
-import com.samczsun.skype4j.formatting.Text;
+import com.samczsun.skype4j.formatting.RichText;
 import com.samczsun.skype4j.user.User;
 import com.samczsun.skype4j.user.User.Role;
 
@@ -54,7 +55,7 @@ public enum MessageType {
                 String url = resource.get("conversationLink").asString();
                 Chat c = getChat(url, skype);
                 User u = getUser(from, c);
-                ChatMessage m = ChatMessageImpl.createMessage(c, u, id, clientId, System.currentTimeMillis(), stripMetadata(content));
+                ChatMessage m = ChatMessageImpl.createMessage(c, u, id, clientId, System.currentTimeMillis(), Message.fromHtml(stripMetadata(content)));
                 ((ChatImpl) c).onMessage(m);
                 MessageReceivedEvent evnt = new MessageReceivedEvent(m);
                 skype.getEventDispatcher().callEvent(evnt);
@@ -76,7 +77,7 @@ public enum MessageType {
                     if (m != null) {
                         MessageEditedEvent evnt = new MessageEditedEvent(m, content);
                         skype.getEventDispatcher().callEvent(evnt);
-                        ((ChatMessageImpl) m).setContent(content);
+                        ((ChatMessageImpl) m).setContent(Message.fromHtml(content));
                     } else {
                         faker = true;
                     }
@@ -84,19 +85,19 @@ public enum MessageType {
                     faker = true;
                 }
                 if (faker) {
-                    String originalContent = null;
+                    Message originalContent = null;
                     for (User user : c.getAllUsers()) {
                         if (user.getMessageById(clientId) != null) {
-                            originalContent = user.getMessageById(clientId).getText();
+                            originalContent = user.getMessageById(clientId).getMessage();
                         }
                     }
-                    final String finalOriginalContent = originalContent;
+                    final Message finalOriginalContent = originalContent;
                     MessageEditedByOtherEvent event = new MessageEditedByOtherEvent(new ChatMessage() {
                         public String getClientId() {
                             return clientId;
                         }
 
-                        public String getText() {
+                        public Message getMessage() {
                             return finalOriginalContent;
                         }
 
@@ -108,7 +109,7 @@ public enum MessageType {
                             return u;
                         }
 
-                        public void edit(Text newMessage) throws SkypeException {
+                        public void edit(Message newMessage) throws SkypeException {
                             throw new UnsupportedOperationException();
                         }
 

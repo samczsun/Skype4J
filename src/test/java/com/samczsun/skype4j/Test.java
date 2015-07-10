@@ -12,6 +12,7 @@ import com.samczsun.skype4j.events.chat.message.MessageReceivedEvent;
 import com.samczsun.skype4j.events.chat.user.MultiUserAddEvent;
 import com.samczsun.skype4j.events.chat.user.RoleUpdateEvent;
 import com.samczsun.skype4j.events.chat.user.UserAddEvent;
+import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.user.User;
 
 public class Test {
@@ -21,7 +22,7 @@ public class Test {
         skype.getEventDispatcher().registerListener(new Listener() {
             @EventHandler
             public void onUserAdd(MessageReceivedEvent e) {
-                System.out.println("Got message " + e.getMessage().getText() + " in " + e.getChat().getIdentity());
+                System.out.println("Got message " + e.getMessage().getMessage() + " in " + e.getChat().getIdentity());
             }
 
             @EventHandler
@@ -53,12 +54,12 @@ public class Test {
 
             @EventHandler
             public void onEdit(MessageEditedEvent e) {
-                System.out.println("Message " + e.getMessage().getText() + " edited to " + e.getNewContent());
+                System.out.println("Message " + e.getMessage().getMessage() + " edited to " + e.getNewContent());
             }
 
             @EventHandler
             public void onEdit(MessageEditedByOtherEvent e) {
-                System.out.println("Message " + e.getMessage().getText() + " edited by " + e.getMaliciousUser().getUsername() + "!");
+                System.out.println("Message " + e.getMessage().getMessage() + " edited by " + e.getMaliciousUser().getUsername() + "!");
             }
         });
         skype.subscribe();

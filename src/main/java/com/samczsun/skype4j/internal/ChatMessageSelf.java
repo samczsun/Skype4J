@@ -8,17 +8,18 @@ import com.eclipsesource.json.JsonObject;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.exceptions.SkypeException;
 import com.samczsun.skype4j.formatting.Message;
+import com.samczsun.skype4j.formatting.RichText;
 import com.samczsun.skype4j.formatting.Text;
 import com.samczsun.skype4j.user.User;
 
 public class ChatMessageSelf extends ChatMessageImpl {
     private final String clientId;
     private final String id;
-    private String message;
+    private Message message;
     private final long time;
     private final User sender;
 
-    public ChatMessageSelf(Chat chat, User user, String id, String clientId, long time, String message) {
+    public ChatMessageSelf(Chat chat, User user, String id, String clientId, long time, Message message) {
         this.clientId = clientId;
         this.message = message;
         this.time = time;
@@ -32,7 +33,7 @@ public class ChatMessageSelf extends ChatMessageImpl {
     }
 
     @Override
-    public String getText() {
+    public Message getMessage() {
         return message;
     }
 
@@ -47,11 +48,11 @@ public class ChatMessageSelf extends ChatMessageImpl {
     }
 
     @Override
-    public void edit(Text newMessage) throws SkypeException {
+    public void edit(Message newMessage) throws SkypeException {
         HttpsURLConnection con = null;
         try {
             JsonObject obj = new JsonObject();
-            obj.add("content", newMessage.parent().write());
+            obj.add("content", newMessage.write());
             obj.add("messagetype", "RichText");
             obj.add("contenttype", "text");
             obj.add("skypeeditedid", this.clientId);
@@ -70,7 +71,7 @@ public class ChatMessageSelf extends ChatMessageImpl {
 
     @Override
     public void delete() throws SkypeException {
-        edit(Message.text(""));
+        edit(Message.create().with(Text.BLANK));
     }
 
     @Override
@@ -84,7 +85,7 @@ public class ChatMessageSelf extends ChatMessageImpl {
     }
 
     @Override
-    public void setContent(String content) {
+    public void setContent(Message content) {
         this.message = content;
     }
 }

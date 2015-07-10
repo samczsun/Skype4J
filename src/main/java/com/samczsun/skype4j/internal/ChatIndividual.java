@@ -11,13 +11,14 @@ import java.util.Map;
 
 import javax.net.ssl.HttpsURLConnection;
 
+import com.samczsun.skype4j.formatting.Message;
 import org.jsoup.Jsoup;
 
 import com.eclipsesource.json.JsonObject;
 import com.samczsun.skype4j.chat.ChatMessage;
 import com.samczsun.skype4j.chat.IndividualChat;
 import com.samczsun.skype4j.exceptions.SkypeException;
-import com.samczsun.skype4j.formatting.Text;
+import com.samczsun.skype4j.formatting.RichText;
 import com.samczsun.skype4j.user.User;
 
 public class ChatIndividual extends ChatImpl implements IndividualChat {
@@ -50,12 +51,12 @@ public class ChatIndividual extends ChatImpl implements IndividualChat {
     }
 
     @Override
-    public ChatMessage sendMessage(Text message) throws SkypeException {
+    public ChatMessage sendMessage(Message message) throws SkypeException {
         HttpsURLConnection con = null;
         try {
             long ms = System.currentTimeMillis();
             JsonObject obj = new JsonObject();
-            obj.add("content", message.parent().write());
+            obj.add("content", message.write());
             obj.add("messagetype", "RichText");
             obj.add("contenttype", "text");
             obj.add("clientmessageid", String.valueOf(ms));
@@ -67,7 +68,7 @@ public class ChatIndividual extends ChatImpl implements IndividualChat {
             con.setRequestProperty("Content-Type", "application/json");
             con.getOutputStream().write(obj.toString().getBytes(Charset.forName("UTF-8")));
             con.getInputStream();
-            return ChatMessageImpl.createMessage(this, getUser(getClient().getUsername()), null, String.valueOf(ms), ms, Jsoup.parse(message.parent().write()).text());
+            return ChatMessageImpl.createMessage(this, getUser(getClient().getUsername()), null, String.valueOf(ms), ms, message);
         } catch (IOException e) {
             throw new SkypeException("An exception occured while sending a message", e);
         }

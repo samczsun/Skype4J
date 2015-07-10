@@ -2,17 +2,18 @@
 
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.exceptions.SkypeException;
-import com.samczsun.skype4j.formatting.Text;
+import com.samczsun.skype4j.formatting.Message;
+import com.samczsun.skype4j.formatting.RichText;
 import com.samczsun.skype4j.user.User;
 
 public class ChatMessageOther extends ChatMessageImpl {
     private final String clientId;
     private final String id;
-    private String message;
+    private Message message;
     private final long time;
     private final User sender;
 
-    public ChatMessageOther(Chat chat, User user, String id, String clientId, long time, String message) {
+    public ChatMessageOther(Chat chat, User user, String id, String clientId, long time, Message message) {
         this.clientId = clientId;
         this.message = message;
         this.time = time;
@@ -26,7 +27,7 @@ public class ChatMessageOther extends ChatMessageImpl {
     }
 
     @Override
-    public String getText() {
+    public Message getMessage() {
         return message;
     }
 
@@ -41,7 +42,7 @@ public class ChatMessageOther extends ChatMessageImpl {
     }
 
     @Override
-    public void edit(Text newMessage) {
+    public void edit(Message newMessage) {
         throw new UnsupportedOperationException();
     }
 
@@ -61,7 +62,7 @@ public class ChatMessageOther extends ChatMessageImpl {
     }
 
     @Override
-    public void setContent(String content) {
+    public void setContent(Message content) {
         this.message = content;
     }
 }

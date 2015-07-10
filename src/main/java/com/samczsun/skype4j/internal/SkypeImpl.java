@@ -291,7 +291,7 @@ public class SkypeImpl extends Skype {
         JsonObject publicInfo = new JsonObject();
         publicInfo.add("capabilities", "video|audio");
         publicInfo.add("type", 1);
-        publicInfo.add("skypeNameVersion", "908/1.5.116/swx-skype.com");
+        publicInfo.add("skypeNameVersion", "908/1.6.0.286//skype.com");
         publicInfo.add("nodeInfo", "xx");
         publicInfo.add("version", "908/1.5.116");
         JsonObject privateInfo = new JsonObject();
