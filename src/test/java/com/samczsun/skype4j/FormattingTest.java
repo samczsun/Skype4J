@@ -1,6 +1,7 @@
 package com.samczsun.skype4j;
 
 import com.samczsun.skype4j.formatting.Message;
+import com.samczsun.skype4j.formatting.PlainText;
 import com.samczsun.skype4j.formatting.RichText;
 import com.samczsun.skype4j.formatting.Text;
 import org.jsoup.Jsoup;
@@ -22,9 +23,33 @@ import java.util.*;
 public class FormattingTest {
     @Test
     public void testParsing() {
+        Message message = Message.create()
+                .with(Text.plain("Plain"))
+                .with(Text.rich().withBold()
+                                .with(Text.plain("Bold"))
+                                .with(Text.rich().withItalic()
+                                                .with(Text.plain("Italic"))
+                                )
+                )
+                .with(Text.NEW_LINE)
+                .with(Text.rich().withLink("http://google.com")
+                                .with(Text.plain("google"))
+                )
+                .with(Text.BLANK)
+                .with(Text.rich().withStrikethrough()
+                                .with(Text.plain("Strikethrough"))
+                )
+                .with(Text.rich().withBlink()
+                                .with(Text.plain("Blink"))
+                )
+                .with(Text.rich().withUnderline()
+                                .with(Text.plain("Underline"))
+                )
+                .with(Text.rich().withColor(Color.BLACK).withSize(10)
+                                .with(Text.plain("Black"))
+                );
         String html = "Plain<b>Bold<i>Italic</i></b>\n<a href=\"http://google.com\">google</a><s>Strikethrough</s><blink>Blink</blink><u>Underline</u>";
-        Message parsed = Message.fromHtml(html);
-        Assert.assertEquals(html, parsed.asHtml());
+        Assert.assertEquals(message, Message.fromHtml(html));
     }
 
     @Test
@@ -56,22 +81,7 @@ public class FormattingTest {
                 );
 
         String html = "Plain<b>Bold<i>Italic</i></b>\n<a href=\"http://google.com\">google</a><s>Strikethrough</s><blink>Blink</blink><u>Underline</u><font size=\"10\" color=\"#000000\">Black</font>";
-
-        Assert.assertEquals(html, message.asHtml());
-    }
-
-    @Test
-    public void testPlainText() {
-        Object randomObject = new Object();
-        String text = "This is %s formatted";
-        Assert.assertEquals(Text.plain((byte) 1).toString(), String.valueOf((byte) 1));
-        Assert.assertEquals(Text.plain((short) 1).toString(), String.valueOf((short) 1));
-        Assert.assertEquals(Text.plain((double) 1).toString(), String.valueOf((double) 1));
-        Assert.assertEquals(Text.plain(1).toString(), String.valueOf(1));
-        Assert.assertEquals(Text.plain((float) 1).toString(), String.valueOf((float) 1));
-        Assert.assertEquals(Text.plain((long) 1).toString(), String.valueOf((long) 1));
-        Assert.assertEquals(Text.plain(randomObject).toString(), String.valueOf(randomObject));
-        Assert.assertEquals(Text.plain(text, randomObject).toString(), String.format(text, randomObject));
+        Assert.assertEquals(html, message.write());
     }
 
     @Test
@@ -93,6 +103,27 @@ public class FormattingTest {
 
     @Test
     public void testReturns() {
-        Assert.assertNotNull(Text.rich().withUnderline());
+        RichText text = Text.rich();
+        Assert.assertNotNull(text.withBold());
+        Assert.assertNotNull(text.withItalic());
+        Assert.assertNotNull(text.withUnderline());
+        Assert.assertNotNull(text.withStrikethrough());
+        Assert.assertNotNull(text.withBlink());
+        Assert.assertNotNull(text.withColor(Color.BLACK));
+        Assert.assertNotNull(text.withSize(10));
+        Assert.assertNotNull(text.withLink("http://google.com"));
+        Assert.assertNotNull(text.with(Text.plain("plain")));
+        Assert.assertNotNull(text.toString());
+        Assert.assertNotNull(Message.create());
+        PlainText plainString = Text.plain("plain");
+        PlainText plainObject = Text.plain(new Object());
+        PlainText plainByte = Text.plain((byte) 1);
+        PlainText plainFloat = Text.plain(1F);
+        PlainText plainDouble = Text.plain(1D);
+        PlainText plainShort = Text.plain((short) 1);
+        PlainText plainLong = Text.plain(1L);
+        PlainText plainChar = Text.plain('1');
+        PlainText plainInt = Text.plain(1);
+        Assert.assertNotNull(plainString.toString());
     }
 }
