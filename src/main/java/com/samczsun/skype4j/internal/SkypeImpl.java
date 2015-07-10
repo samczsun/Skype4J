@@ -15,6 +15,7 @@ import java.util.logging.Logger;
 
 import javax.net.ssl.HttpsURLConnection;
 
+import com.samczsun.skype4j.exceptions.InvalidCredentialsException;
 import org.jsoup.Connection.Method;
 import org.jsoup.Connection.Response;
 import org.jsoup.Jsoup;
@@ -125,7 +126,16 @@ public class SkypeImpl extends Skype {
                 }
                 //        }
             } else {
-                throw new SkypeException("Login failure");
+                Elements elements = loginResponseDocument.select(".message_error");
+                if (elements.size() > 0) {
+                    Element div = elements.get(0);
+                    if (div.children().size() > 1) {
+                        Element span = div.child(1);
+                        throw new InvalidCredentialsException(span.text());
+                    }
+                }
+                throw new InvalidCredentialsException("Could not find error message. Dumping entire page. \n" + loginResponseDocument.html());
+
             }
         } catch (IOException e) {
             throw new SkypeException("An exception occured while logging in", e);
