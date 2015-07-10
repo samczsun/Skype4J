@@ -62,9 +62,6 @@ public class RichText extends Text {
     }
 
     public RichText with(Text t) {
-        if (children == null) {
-            children = new ArrayList<>();
-        }
         this.children.add(t);
         return this;
     }

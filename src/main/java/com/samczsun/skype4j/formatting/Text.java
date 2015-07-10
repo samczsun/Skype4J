@@ -17,10 +17,6 @@ public abstract class Text {
         return new PlainText(text);
     }
 
-    public static PlainText plain(String text, Object... args) {
-        return plain(String.format(text, args));
-    }
-
     public static PlainText plain(byte text) {
         return plain(Integer.toString(text));
     }
