@@ -11,7 +11,7 @@ Skype skype = Skype.login(username, password);
 skype.getEventDispatcher().registerListener(new Listener() {
   @EventHandler
   public void onMessage(MessageReceivedEvent e) {
-    System.out.println("Got message: " + e.getMessage().getText());
+    System.out.println("Got message: " + e.getMessage().getMessage());
   }
 });
 skype.subscribe();
@@ -35,7 +35,7 @@ Then add the following dependency
 <dependency>
   <groupId>com.samczsun</groupId>
   <artifactId>skype4j</artifactId>
-  <version>0.0.5-SNAPSHOT</version>
+  <version>0.0.6-SNAPSHOT</version>
 </dependency>
 ```
 
