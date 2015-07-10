@@ -107,7 +107,7 @@ public class Message {
                             stack.peek().with(newText);
                             stack.push(newText);
                         } else if (node.nodeName().equals("#text")) {
-                            stack.peek().with(Text.plain(((TextNode) node).text()));
+                            stack.peek().with(Text.plain(((TextNode) node).getWholeText()));
                         }
                     } else {
                         if (node.nodeName().equals("b")) {
@@ -150,7 +150,7 @@ public class Message {
                             parsed.with(currentText);
                             stack.push(currentText);
                         } else if (node.nodeName().equals("#text")) {
-                            parsed.with(Text.plain(((TextNode) node).text()));
+                            parsed.with(Text.plain(((TextNode) node).getWholeText()));
                         }
                     }
                 }

@@ -18,4 +18,20 @@ public class PlainText extends Text {
     public String toString() {
         return this.write();
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        PlainText plainText = (PlainText) o;
+
+        return !(value != null ? !value.equals(plainText.value) : plainText.value != null);
+
+    }
+
+    @Override
+    public int hashCode() {
+        return value != null ? value.hashCode() : 0;
+    }
 }
