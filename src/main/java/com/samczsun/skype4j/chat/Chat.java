@@ -4,7 +4,8 @@ import java.util.Collection;
 import java.util.List;
 
 import com.samczsun.skype4j.exceptions.SkypeException;
-import com.samczsun.skype4j.formatting.Text;
+import com.samczsun.skype4j.formatting.Message;
+import com.samczsun.skype4j.formatting.RichText;
 import com.samczsun.skype4j.user.User;
 
 /**
@@ -22,7 +23,7 @@ public interface Chat {
      *         message
      * @throws SkypeException
      */
-    ChatMessage sendMessage(Text message) throws SkypeException;
+    ChatMessage sendMessage(Message message) throws SkypeException;
 
     /**
      * Get the {@link User User} object represented by that username

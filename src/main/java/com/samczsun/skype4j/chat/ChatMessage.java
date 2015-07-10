@@ -1,7 +1,8 @@
 package com.samczsun.skype4j.chat;
 
 import com.samczsun.skype4j.exceptions.SkypeException;
-import com.samczsun.skype4j.formatting.Text;
+import com.samczsun.skype4j.formatting.Message;
+import com.samczsun.skype4j.formatting.RichText;
 import com.samczsun.skype4j.user.User;
 
 /**
@@ -13,13 +14,13 @@ public interface ChatMessage {
     
     String getClientId();
 
-    String getText();
+    Message getMessage();
 
     long getTime();
 
     User getSender();
 
-    void edit(Text newMessage) throws SkypeException;
+    void edit(Message newMessage) throws SkypeException;
 
     void delete() throws SkypeException;
 

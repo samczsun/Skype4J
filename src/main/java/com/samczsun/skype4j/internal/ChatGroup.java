@@ -11,8 +11,6 @@ import java.util.Map;
 
 import javax.net.ssl.HttpsURLConnection;
 
-import org.jsoup.Jsoup;
-
 import com.eclipsesource.json.JsonArray;
 import com.eclipsesource.json.JsonObject;
 import com.eclipsesource.json.JsonValue;
@@ -21,7 +19,8 @@ import com.samczsun.skype4j.chat.ChatMessage;
 import com.samczsun.skype4j.chat.GroupChat;
 import com.samczsun.skype4j.exceptions.NotLoadedException;
 import com.samczsun.skype4j.exceptions.SkypeException;
-import com.samczsun.skype4j.formatting.Text;
+import com.samczsun.skype4j.formatting.Message;
+import com.samczsun.skype4j.formatting.RichText;
 import com.samczsun.skype4j.user.User;
 import com.samczsun.skype4j.user.User.Role;
 
@@ -77,13 +76,13 @@ public class ChatGroup extends ChatImpl implements GroupChat {
     }
 
     @Override
-    public ChatMessage sendMessage(Text message) throws SkypeException {
+    public ChatMessage sendMessage(Message message) throws SkypeException {
         checkLoaded();
         HttpsURLConnection con = null;
         try {
             long ms = System.currentTimeMillis();
             JsonObject obj = new JsonObject();
-            obj.add("content", message.parent().write());
+            obj.add("content", message.write());
             obj.add("messagetype", "RichText");
             obj.add("contenttype", "text");
             obj.add("clientmessageid", String.valueOf(ms));
@@ -95,7 +94,7 @@ public class ChatGroup extends ChatImpl implements GroupChat {
             con.setRequestProperty("Content-Type", "application/json");
             con.getOutputStream().write(obj.toString().getBytes(Charset.forName("UTF-8")));
             con.getInputStream();
-            return ChatMessageImpl.createMessage(this, getUser(getClient().getUsername()), null, String.valueOf(ms), ms, Jsoup.parse(message.parent().write()).text());
+            return ChatMessageImpl.createMessage(this, getUser(getClient().getUsername()), null, String.valueOf(ms), ms, message);
         } catch (IOException e) {
             throw new SkypeException("An error occured while sending a message", e);
         }
