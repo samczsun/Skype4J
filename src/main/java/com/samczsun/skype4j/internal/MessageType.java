@@ -295,6 +295,7 @@ public enum MessageType {
     private static final Pattern USER_PATTERN = Pattern.compile("8:(.*)");
     private static final Pattern STRIP_EDIT_PATTERN = Pattern.compile("</?[e_m][^<>]+>");
     private static final Pattern STRIP_QUOTE_PATTERN = Pattern.compile("(<(?:/?)(?:quote|legacyquote)[^>]*>)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern STRIP_EMOTICON_PATTERN = Pattern.compile("(<(?:/?)(?:ss)[^>]*>)", Pattern.CASE_INSENSITIVE);
 
     private final String value;
 
@@ -335,6 +336,6 @@ public enum MessageType {
     }
 
     private static String stripMetadata(String message) {
-        return STRIP_QUOTE_PATTERN.matcher(STRIP_EDIT_PATTERN.matcher(message).replaceAll("")).replaceAll("");
+        return STRIP_EMOTICON_PATTERN.matcher(STRIP_QUOTE_PATTERN.matcher(STRIP_EDIT_PATTERN.matcher(message).replaceAll("")).replaceAll("")).replaceAll("");
     }
 }
