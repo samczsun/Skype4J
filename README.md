@@ -35,7 +35,7 @@ Then add the following dependency
 <dependency>
   <groupId>com.samczsun</groupId>
   <artifactId>skype4j</artifactId>
-  <version>0.0.6-SNAPSHOT</version>
+  <version>0.0.7-SNAPSHOT</version>
 </dependency>
 ```
 
