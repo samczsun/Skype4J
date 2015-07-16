@@ -194,6 +194,10 @@ public class SkypeImpl extends Skype {
         return this.eventDispatcher;
     }
 
+    public Logger getLogger() {
+        return this.logger;
+    }
+
     private Response postToLogin(String username, String password) throws IOException {
         Map<String, String> data = new HashMap<>();
         Document loginDocument = Jsoup.connect(LOGIN_URL).get();
@@ -294,7 +298,9 @@ public class SkypeImpl extends Skype {
                         JsonObject conversation = elem.asObject();
                         String id = conversation.get("id").asString();
                         Chat chat = ChatImpl.createChat(this, id);
-                        allChats.put(id, chat);
+                        if (chat != null) {
+                            allChats.put(id, chat);
+                        }
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
