@@ -1,17 +1,12 @@
 package com.samczsun.skype4j.exceptions;
 
+/**
+ * Represents any exception that may occur while using this API
+ *
+ * @author samczsun
+ */
 public class SkypeException extends Exception {
-    private static final long serialVersionUID = -7832042631619998728L;
-    
-    public SkypeException() {
-        super();
-    }
-    
     public SkypeException(String message) {
         super(message);
-    }
-    
-    public SkypeException(String message, Exception wrapped) {
-        super(message, wrapped);
     }
 }

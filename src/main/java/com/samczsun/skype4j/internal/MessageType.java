@@ -1,19 +1,5 @@
 package com.samczsun.skype4j.internal;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import com.samczsun.skype4j.formatting.Message;
-import org.apache.commons.lang3.StringEscapeUtils;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.parser.Parser;
-
 import com.eclipsesource.json.JsonObject;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.ChatMessage;
@@ -27,9 +13,21 @@ import com.samczsun.skype4j.events.chat.user.RoleUpdateEvent;
 import com.samczsun.skype4j.events.chat.user.UserAddEvent;
 import com.samczsun.skype4j.events.chat.user.UserRemoveEvent;
 import com.samczsun.skype4j.exceptions.SkypeException;
-import com.samczsun.skype4j.formatting.RichText;
+import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.user.User;
 import com.samczsun.skype4j.user.User.Role;
+import org.apache.commons.lang3.StringEscapeUtils;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.parser.Parser;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public enum MessageType {
     UNKNOWN("Unknown") {
@@ -60,12 +58,12 @@ public enum MessageType {
                 MessageReceivedEvent evnt = new MessageReceivedEvent(m);
                 skype.getEventDispatcher().callEvent(evnt);
             } else if (resource.get("skypeeditedid") != null) { // Edited
-                                                                // message
+                // message
                 String url = resource.get("conversationLink").asString();
                 String from = resource.get("from").asString();
                 final Chat c = getChat(url, skype);
                 final User u = getUser(from, c); // If not original sender, then
-                                                 // fake
+                // fake
                 final String clientId = resource.get("skypeeditedid").asString();
                 final String id = resource.get("id").asString();
                 String content = resource.get("content").asString();
