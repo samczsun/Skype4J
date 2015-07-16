@@ -1,19 +1,19 @@
 package com.samczsun.skype4j.internal;
 
+import com.samczsun.skype4j.Skype;
+import com.samczsun.skype4j.chat.Chat;
+import com.samczsun.skype4j.chat.ChatMessage;
+import com.samczsun.skype4j.exceptions.ConnectionException;
+import com.samczsun.skype4j.exceptions.NotLoadedException;
+import com.samczsun.skype4j.exceptions.SkypeException;
+import com.samczsun.skype4j.user.User;
+import org.jsoup.helper.Validate;
+
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import org.jsoup.helper.Validate;
-
-import com.samczsun.skype4j.Skype;
-import com.samczsun.skype4j.chat.Chat;
-import com.samczsun.skype4j.chat.ChatMessage;
-import com.samczsun.skype4j.exceptions.NotLoadedException;
-import com.samczsun.skype4j.exceptions.SkypeException;
-import com.samczsun.skype4j.user.User;
 
 public abstract class ChatImpl implements Chat {
     public static Chat createChat(Skype client, String identity) throws SkypeException {
@@ -43,7 +43,7 @@ public abstract class ChatImpl implements Chat {
     protected final Map<String, User> users = new ConcurrentHashMap<>();
     protected final List<ChatMessage> messages = new CopyOnWriteArrayList<>();
 
-    ChatImpl(SkypeImpl client, String identity) throws SkypeException {
+    ChatImpl(SkypeImpl client, String identity) throws ConnectionException {
         this.client = client;
         this.identity = identity;
         load();
@@ -67,7 +67,7 @@ public abstract class ChatImpl implements Chat {
 
     public abstract void onMessage(ChatMessage m);
 
-    protected abstract void load() throws SkypeException;
+    protected abstract void load() throws ConnectionException;
 
     protected void checkLoaded() throws NotLoadedException {
         if (!isLoaded()) {

@@ -1,7 +1,9 @@
 package com.samczsun.skype4j.exceptions;
 
 /**
- * Created by Sam on 7/9/2015.
+ * Thrown when invalid credentials are given to log in
+ *
+ * @author samczsun
  */
 public class InvalidCredentialsException extends SkypeException {
     public InvalidCredentialsException(String message) {

@@ -1,16 +1,16 @@
 package com.samczsun.skype4j.internal;
 
+import com.samczsun.skype4j.events.Event;
+import com.samczsun.skype4j.events.EventDispatcher;
+import com.samczsun.skype4j.events.EventHandler;
+import com.samczsun.skype4j.events.Listener;
+
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import com.samczsun.skype4j.events.Event;
-import com.samczsun.skype4j.events.EventDispatcher;
-import com.samczsun.skype4j.events.EventHandler;
-import com.samczsun.skype4j.events.Listener;
 
 public class SkypeEventDispatcher implements EventDispatcher {
     private final Map<Class<? extends Event>, List<RegisteredListener>> listeners = new HashMap<>();

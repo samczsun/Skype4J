@@ -2,9 +2,7 @@ package com.samczsun.skype4j.internal;
 
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.ReceivedMessage;
-import com.samczsun.skype4j.exceptions.SkypeException;
 import com.samczsun.skype4j.formatting.Message;
-import com.samczsun.skype4j.formatting.RichText;
 import com.samczsun.skype4j.user.User;
 
 public class ChatMessageOther extends ChatMessageImpl implements ReceivedMessage {

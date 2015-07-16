@@ -1,8 +1,6 @@
 package com.samczsun.skype4j.chat;
 
-import com.samczsun.skype4j.exceptions.SkypeException;
 import com.samczsun.skype4j.formatting.Message;
-import com.samczsun.skype4j.formatting.RichText;
 import com.samczsun.skype4j.user.User;
 
 /**
