@@ -2,6 +2,7 @@ package com.samczsun.skype4j;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.logging.Logger;
 
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.events.EventDispatcher;
@@ -53,6 +54,12 @@ public abstract class Skype {
      * @return The {@link EventDispatcher EventDispatcher}
      */
     public abstract EventDispatcher getEventDispatcher();
+
+    /**
+     * Get the Logger used for debugging
+     * @return The Logger
+     */
+    public abstract Logger getLogger();
 
     /**
      * Create a new Skype instance with the specified username and password

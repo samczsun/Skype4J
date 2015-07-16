@@ -5,7 +5,7 @@ import com.samczsun.skype4j.exceptions.SkypeException;
 /**
  * Represents a group chat with one or more people
  *
- * @author Sam
+ * @author samczsun
  */
 public interface GroupChat extends Chat {
     /**
@@ -24,7 +24,7 @@ public interface GroupChat extends Chat {
     void setTopic(String topic) throws SkypeException;
 
     /**
-     * Kick a user from this chat. Is not supported in individual chats.
+     * Kick a user from this chat
      *
      * @param username The username of the user to kick
      * @throws SkypeException If the user is not in this chat, or if the kick failed

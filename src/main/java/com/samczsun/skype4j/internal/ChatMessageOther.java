@@ -1,12 +1,13 @@
-    package com.samczsun.skype4j.internal;
+package com.samczsun.skype4j.internal;
 
 import com.samczsun.skype4j.chat.Chat;
+import com.samczsun.skype4j.chat.ReceivedMessage;
 import com.samczsun.skype4j.exceptions.SkypeException;
 import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.formatting.RichText;
 import com.samczsun.skype4j.user.User;
 
-public class ChatMessageOther extends ChatMessageImpl {
+public class ChatMessageOther extends ChatMessageImpl implements ReceivedMessage {
     private final String clientId;
     private final String id;
     private Message message;
@@ -42,18 +43,8 @@ public class ChatMessageOther extends ChatMessageImpl {
     }
 
     @Override
-    public void edit(Message newMessage) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public Chat getChat() {
         return sender.getChat();
-    }
-
-    @Override
-    public void delete() throws SkypeException {
-        throw new UnsupportedOperationException();
     }
 
     @Override

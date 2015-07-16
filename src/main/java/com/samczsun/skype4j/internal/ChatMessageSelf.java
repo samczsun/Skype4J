@@ -6,13 +6,14 @@ import javax.net.ssl.HttpsURLConnection;
 
 import com.eclipsesource.json.JsonObject;
 import com.samczsun.skype4j.chat.Chat;
+import com.samczsun.skype4j.chat.SentMessage;
 import com.samczsun.skype4j.exceptions.SkypeException;
 import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.formatting.RichText;
 import com.samczsun.skype4j.formatting.Text;
 import com.samczsun.skype4j.user.User;
 
-public class ChatMessageSelf extends ChatMessageImpl {
+public class ChatMessageSelf extends ChatMessageImpl implements SentMessage {
     private final String clientId;
     private final String id;
     private Message message;
