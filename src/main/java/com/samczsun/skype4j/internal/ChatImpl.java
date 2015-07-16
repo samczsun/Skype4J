@@ -15,13 +15,18 @@ import com.samczsun.skype4j.exceptions.NotLoadedException;
 import com.samczsun.skype4j.exceptions.SkypeException;
 import com.samczsun.skype4j.user.User;
 
-public abstract class ChatImpl {
+public abstract class ChatImpl implements Chat {
     public static Chat createChat(Skype client, String identity) throws SkypeException {
         Validate.notNull(client, "Client must not be null");
-        Validate.isTrue(client instanceof SkypeImpl, "Client type must be Web");
-        Validate.notEmpty(identity, "Identity must not be empty");
-        if (identity.startsWith("19:") && identity.endsWith("@thread.skype")) {
-            return new ChatGroup((SkypeImpl) client, identity);
+        Validate.isTrue(client instanceof SkypeImpl, String.format("Now is not the time to use that, %s", client.getUsername()));
+        Validate.notEmpty(identity, "Identity must not be null/empty");
+        if (identity.startsWith("19:")) {
+            if (identity.endsWith("@thread.skype")) {
+                return new ChatGroup((SkypeImpl) client, identity);
+            } else {
+                client.getLogger().info(String.format("Skipping P2P chat with identity %s", identity));
+                return null;
+            }
         } else if (identity.startsWith("8:")) {
             return new ChatIndividual((SkypeImpl) client, identity);
         } else {
@@ -38,7 +43,7 @@ public abstract class ChatImpl {
     protected final Map<String, User> users = new ConcurrentHashMap<>();
     protected final List<ChatMessage> messages = new CopyOnWriteArrayList<>();
 
-    public ChatImpl(SkypeImpl client, String identity) throws SkypeException {
+    ChatImpl(SkypeImpl client, String identity) throws SkypeException {
         this.client = client;
         this.identity = identity;
         load();
@@ -63,7 +68,7 @@ public abstract class ChatImpl {
     public abstract void onMessage(ChatMessage m);
 
     protected abstract void load() throws SkypeException;
-    
+
     protected void checkLoaded() throws NotLoadedException {
         if (!isLoaded()) {
             throw new NotLoadedException();
