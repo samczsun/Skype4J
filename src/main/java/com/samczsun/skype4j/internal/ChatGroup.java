@@ -135,6 +135,10 @@ public class ChatGroup extends ChatImpl implements GroupChat {
         }
     }
 
+    public void leave() throws SkypeException {
+        kick(getClient().getUsername());
+    }
+
     @Override
     public String getTopic() {
         checkLoaded();

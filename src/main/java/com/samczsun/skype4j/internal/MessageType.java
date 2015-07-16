@@ -177,13 +177,13 @@ public enum MessageType {
             User initiator = c.getUser(xml.getElementsByTag("initiator").get(0).text());
             for (Element e : xml.getElementsByTag("target")) {
                 String username = e.text().substring(2);
+                ((ChatImpl) c).addUser(username);
                 if (username.equals(skype.getUsername())) {
                     ChatJoinedEvent event = new ChatJoinedEvent(c);
                     skype.getEventDispatcher().callEvent(event);
                 } else {
                     usersAdded.add(c.getUser(username));
                 }
-                ((ChatImpl) c).addUser(username);
             }
             UserAddEvent event = null;
             if (usersAdded.size() == 1) {
