@@ -1,17 +1,17 @@
 package com.samczsun.skype4j.internal;
 
-import java.net.URL;
-
-import javax.net.ssl.HttpsURLConnection;
-
 import com.eclipsesource.json.JsonObject;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.SentMessage;
+import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.SkypeException;
 import com.samczsun.skype4j.formatting.Message;
-import com.samczsun.skype4j.formatting.RichText;
 import com.samczsun.skype4j.formatting.Text;
 import com.samczsun.skype4j.user.User;
+
+import javax.net.ssl.HttpsURLConnection;
+import java.io.IOException;
+import java.net.URL;
 
 public class ChatMessageSelf extends ChatMessageImpl implements SentMessage {
     private final String clientId;
@@ -49,8 +49,7 @@ public class ChatMessageSelf extends ChatMessageImpl implements SentMessage {
     }
 
     @Override
-    public void edit(Message newMessage) throws SkypeException {
-        HttpsURLConnection con = null;
+    public void edit(Message newMessage) throws ConnectionException {
         try {
             JsonObject obj = new JsonObject();
             obj.add("content", newMessage.write());
@@ -58,15 +57,15 @@ public class ChatMessageSelf extends ChatMessageImpl implements SentMessage {
             obj.add("contenttype", "text");
             obj.add("skypeeditedid", this.clientId);
             URL url = new URL("https://client-s.gateway.messenger.live.com/v1/users/ME/conversations/" + this.sender.getChat().getIdentity() + "/messages");
-            con = (HttpsURLConnection) url.openConnection();
+            HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
             con.setRequestMethod("POST");
             con.setDoOutput(true);
             con.setRequestProperty("RegistrationToken", ((ChatImpl) sender.getChat()).getClient().getRegistrationToken());
             con.setRequestProperty("Content-Type", "application/json");
             con.getOutputStream().write(obj.toString().getBytes());
             con.getInputStream();
-        } catch (Exception e) {
-            throw new SkypeException("An exception occured while editing a message", e);
+        } catch (IOException e) {
+            throw new ConnectionException("While editing a message", e);
         }
     }
 

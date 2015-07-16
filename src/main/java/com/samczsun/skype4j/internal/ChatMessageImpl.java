@@ -1,11 +1,10 @@
 package com.samczsun.skype4j.internal;
 
-import com.samczsun.skype4j.formatting.Message;
-import org.jsoup.helper.Validate;
-
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.ChatMessage;
+import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.user.User;
+import org.jsoup.helper.Validate;
 
 public abstract class ChatMessageImpl implements ChatMessage {
     public static ChatMessage createMessage(Chat chat, User user, String id, String clientId, long time, Message message) {

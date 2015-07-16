@@ -1,6 +1,6 @@
 package com.samczsun.skype4j.formatting;
 
-import java.awt.Color;
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;

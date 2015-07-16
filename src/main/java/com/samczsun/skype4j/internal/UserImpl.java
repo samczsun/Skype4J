@@ -1,21 +1,21 @@
 package com.samczsun.skype4j.internal;
 
+import com.samczsun.skype4j.chat.Chat;
+import com.samczsun.skype4j.chat.ChatMessage;
+import com.samczsun.skype4j.user.User;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import com.samczsun.skype4j.chat.Chat;
-import com.samczsun.skype4j.chat.ChatMessage;
-import com.samczsun.skype4j.user.User;
-
 public class UserImpl implements User {
     private String username;
 
     private final Chat chat;
     private Role role = Role.USER;
-    
+
     private final List<ChatMessage> messages = new CopyOnWriteArrayList<>();
     private final Map<String, ChatMessage> messageMap = new ConcurrentHashMap<>();
 
@@ -87,7 +87,7 @@ public class UserImpl implements User {
     public ChatMessage getMessageById(String id) {
         return messageMap.get(id);
     }
-    
+
     public void onMessage(ChatMessage message) {
         this.messages.add(message);
         this.messageMap.put(message.getClientId(), message);

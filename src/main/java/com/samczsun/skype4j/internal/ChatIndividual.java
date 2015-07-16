@@ -1,31 +1,23 @@
 package com.samczsun.skype4j.internal;
 
-import java.io.IOException;
-import java.net.URL;
-import java.nio.charset.Charset;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import javax.net.ssl.HttpsURLConnection;
-
-import com.samczsun.skype4j.formatting.Message;
-import org.jsoup.Jsoup;
-
 import com.eclipsesource.json.JsonObject;
 import com.samczsun.skype4j.chat.ChatMessage;
 import com.samczsun.skype4j.chat.IndividualChat;
-import com.samczsun.skype4j.exceptions.SkypeException;
-import com.samczsun.skype4j.formatting.RichText;
+import com.samczsun.skype4j.exceptions.ConnectionException;
+import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.user.User;
 
+import javax.net.ssl.HttpsURLConnection;
+import java.io.IOException;
+import java.net.URL;
+import java.nio.charset.Charset;
+import java.util.*;
+
 public class ChatIndividual extends ChatImpl implements IndividualChat {
-    protected ChatIndividual(SkypeImpl skype, String identity) throws SkypeException {
+    protected ChatIndividual(SkypeImpl skype, String identity) throws ConnectionException {
         super(skype, identity);
     }
-    
+
     @Override
     protected void load() {
         if (isLoaded()) {
@@ -51,8 +43,8 @@ public class ChatIndividual extends ChatImpl implements IndividualChat {
     }
 
     @Override
-    public ChatMessage sendMessage(Message message) throws SkypeException {
-        HttpsURLConnection con = null;
+    public ChatMessage sendMessage(Message message) throws ConnectionException {
+        checkLoaded();
         try {
             long ms = System.currentTimeMillis();
             JsonObject obj = new JsonObject();
@@ -61,7 +53,7 @@ public class ChatIndividual extends ChatImpl implements IndividualChat {
             obj.add("contenttype", "text");
             obj.add("clientmessageid", String.valueOf(ms));
             URL url = new URL("https://client-s.gateway.messenger.live.com/v1/users/ME/conversations/" + this.getIdentity() + "/messages");
-            con = (HttpsURLConnection) url.openConnection();
+            HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
             con.setRequestMethod("POST");
             con.setDoOutput(true);
             con.setRequestProperty("RegistrationToken", getClient().getRegistrationToken());
@@ -70,7 +62,7 @@ public class ChatIndividual extends ChatImpl implements IndividualChat {
             con.getInputStream();
             return ChatMessageImpl.createMessage(this, getUser(getClient().getUsername()), null, String.valueOf(ms), ms, message);
         } catch (IOException e) {
-            throw new SkypeException("An exception occured while sending a message", e);
+            throw new ConnectionException("While sending a message", e);
         }
     }
 
@@ -80,16 +72,11 @@ public class ChatIndividual extends ChatImpl implements IndividualChat {
     }
 
     public void addUser(String username) {
-        if (!users.containsKey(username)) {
-            User user = new UserImpl(username, this);
-            users.put(username, user);
-        } else {
-            System.out.println(username + " joined twice???");
-        }
+        throw new IllegalArgumentException("Cannot add user to individual chat");
     }
 
     public void removeUser(String username) {
-        users.remove(username);
+        throw new IllegalArgumentException("Cannot remove user from individual chat");
     }
 
     public void onMessage(ChatMessage message) {

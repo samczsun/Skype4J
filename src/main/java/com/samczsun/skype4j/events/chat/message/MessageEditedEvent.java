@@ -9,7 +9,7 @@ public class MessageEditedEvent extends MessageEvent {
         super(message);
         this.newContent = newContent;
     }
-    
+
     public String getNewContent() {
         return this.newContent;
     }

@@ -10,7 +10,7 @@ public abstract class MessageEvent extends ChatEvent {
         super(message.getChat());
         this.message = message;
     }
-    
+
     public ChatMessage getMessage() {
         return this.message;
     }
