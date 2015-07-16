@@ -48,7 +48,7 @@ public class FormattingTest {
                 .with(Text.rich().withColor(Color.BLACK).withSize(10)
                                 .with(Text.plain("Black"))
                 );
-        String html = "Plain<b>Bold<i>Italic</i></b>\n<a href=\"http://google.com\">google</a><s>Strikethrough</s><blink>Blink</blink><u>Underline</u>";
+        String html = "Plain<b>Bold<i>Italic</i></b>\n<a href=\"http://google.com\">google</a><s>Strikethrough</s><blink>Blink</blink><u>Underline</u><font size=\"10\" color=\"#000000\">Black</font>";
         Assert.assertEquals(message, Message.fromHtml(html));
     }
 
