@@ -80,8 +80,9 @@ public class SkypeImpl extends Skype {
 
                 Response getAsm = Jsoup.connect("https://api.asm.skype.com/v1/skypetokenauth").cookies(cookies).data("skypetoken", skypeToken).method(Method.POST).execute();
                 cookies.putAll(getAsm.cookies());
-                HttpsURLConnection getReg = (HttpsURLConnection) new URL("https://client-s.gateway.messenger.live.com/v1/users/ME/endpoints").openConnection();
+                HttpsURLConnection getReg = (HttpsURLConnection) new URL("https://client-s.gateway.messenger.live.com/v1/users/ME/endpoints").openConnection(); // msmsgs@msnmsgr.com,Q1P7W2E4J9R8U3S5
                 getReg.setRequestProperty("Authentication", "skypetoken=" + skypeToken);
+                //getReg.setRequestProperty("LockAndKey", "appId=msmsgs@msnmsgr.com; time=1436987361; lockAndKeyResponse=838e6231d460580332d22da83898ff44");
                 getReg.setRequestMethod("POST");
                 getReg.setDoOutput(true);
                 getReg.getOutputStream().write("{}".getBytes());
@@ -301,9 +302,9 @@ public class SkypeImpl extends Skype {
         JsonObject publicInfo = new JsonObject();
         publicInfo.add("capabilities", "video|audio");
         publicInfo.add("type", 1);
-        publicInfo.add("skypeNameVersion", "908/1.6.0.286//skype.com");
+        publicInfo.add("skypeNameVersion", "skype.com");
         publicInfo.add("nodeInfo", "xx");
-        publicInfo.add("version", "908/1.5.116");
+        publicInfo.add("version", "908/1.6.0.288//skype.com");
         JsonObject privateInfo = new JsonObject();
         privateInfo.add("epname", "Skype4J");
         registrationObject.add("publicInfo", publicInfo);
