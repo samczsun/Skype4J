@@ -42,102 +42,25 @@ public class SkypeImpl extends Skype {
 
     private final AtomicBoolean loggedIn = new AtomicBoolean(false);
     private final Map<String, String> cookies = new HashMap<>();
-    private final String skypeToken;
-    private final String registrationToken;
-    private final String endpointId;
     private final String username;
+    private final String password;
 
-    private final EventDispatcher eventDispatcher;
+    private EventDispatcher eventDispatcher;
+    private String skypeToken;
+    private String registrationToken;
+    private String endpointId;
+
+    private Thread sessionKeepaliveThread;
 
     private final ExecutorService scheduler = Executors.newFixedThreadPool(16);
     private final Logger logger = Logger.getLogger("webskype");
     private final Map<String, Chat> allChats = new ConcurrentHashMap<>();
 
     public SkypeImpl(String username, String password) throws SkypeException {
+        this.username = username;
+        this.password = password;
         try {
-            this.username = username;
-            this.eventDispatcher = new SkypeEventDispatcher();
-            final UUID guid = UUID.randomUUID();
-            Response loginResponse = postToLogin(username, password);
-            cookies.putAll(loginResponse.cookies());
-            Document loginResponseDocument = loginResponse.parse();
-            Elements inputs = loginResponseDocument.select("input[name=skypetoken]");
-            if (inputs.size() > 0) {
-                skypeToken = inputs.get(0).attr("value");
-                Thread sessionKeepaliveThread = new Thread(String.format("Skype-%s-Session", username)) {
-                    public void run() {
-                        while (loggedIn.get()) {
-                            try {
-                                Jsoup.connect(PING_URL).header("X-Skypetoken", skypeToken).cookies(cookies).data("sessionId", guid.toString()).post();
-                                Thread.sleep(300000);
-                            } catch (IOException | InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    }
-                };
-                sessionKeepaliveThread.start();
-
-                Response getAsm = Jsoup.connect("https://api.asm.skype.com/v1/skypetokenauth").cookies(cookies).data("skypetoken", skypeToken).method(Method.POST).execute();
-                cookies.putAll(getAsm.cookies());
-                HttpsURLConnection getReg = (HttpsURLConnection) new URL("https://client-s.gateway.messenger.live.com/v1/users/ME/endpoints").openConnection(); // msmsgs@msnmsgr.com,Q1P7W2E4J9R8U3S5
-                getReg.setRequestProperty("Authentication", "skypetoken=" + skypeToken);
-                //getReg.setRequestProperty("LockAndKey", "appId=msmsgs@msnmsgr.com; time=1436987361; lockAndKeyResponse=838e6231d460580332d22da83898ff44");
-                getReg.setRequestMethod("POST");
-                getReg.setDoOutput(true);
-                getReg.getOutputStream().write("{}".getBytes());
-                getReg.getInputStream();
-                String[] splits = getReg.getHeaderField("Set-RegistrationToken").split(";");
-                registrationToken = splits[0];
-                endpointId = splits[2].split("=")[1];
-
-                Calendar calendar = Calendar.getInstance();
-                calendar.setTime(new Date());
-                calendar.set(Calendar.DAY_OF_MONTH, calendar.get(Calendar.DAY_OF_MONTH) - 14);
-                Date now = calendar.getTime();
-
-                String urlToUse = "https://client-s.gateway.messenger.live.com/v1/users/ME/conversations?startTime=" + now.getTime() + "&pageSize=100&view=msnp24Equivalent&targetType=Passport|Skype|Lync|Thread";
-                //        while (true) {
-                try {
-                    URL url = new URL(urlToUse);
-                    HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
-                    con.setRequestProperty("RegistrationToken", registrationToken);
-                    String in = StreamUtils.readFully(con.getInputStream());
-                    JsonObject obj = JsonObject.readFrom(in);
-                    for (JsonValue elem : obj.get("conversations").asArray()) {
-                        try {
-                            JsonObject conversation = elem.asObject();
-                            String id = conversation.get("id").asString();
-                            Chat chat = ChatImpl.createChat(this, id);
-                            allChats.put(id, chat);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-
-                    //                if (obj.get("_metadata").asJsonObject().has("backwardLink")) {
-                    //                    urlToUse = obj.get("_metadata").asJsonObject().get("backwardLink").asString();
-                    //                    System.out.println("Backwards");
-                    //                } else {
-                    //                    break;
-                    //                }
-                    loggedIn.set(true);
-                } catch (Exception e) {
-                    throw new SkypeException("An exception occured while fetching chats", e);
-                }
-                //        }
-            } else {
-                Elements elements = loginResponseDocument.select(".message_error");
-                if (elements.size() > 0) {
-                    Element div = elements.get(0);
-                    if (div.children().size() > 1) {
-                        Element span = div.child(1);
-                        throw new InvalidCredentialsException(span.text());
-                    }
-                }
-                throw new InvalidCredentialsException("Could not find error message. Dumping entire page. \n" + loginResponseDocument.html());
-
-            }
+            this.login();
         } catch (IOException e) {
             throw new SkypeException("An exception occured while logging in", e);
         }
@@ -215,7 +138,12 @@ public class SkypeImpl extends Skype {
                                 });
                             }
                         } catch (IOException e) {
-                            e.printStackTrace();
+                            sessionKeepaliveThread.stop();
+                            try {
+                                login();
+                            } catch (SkypeException e1) {
+                                e1.printStackTrace();
+                            }
                         }
                     }
                 } catch (IOException e) {
@@ -310,6 +238,91 @@ public class SkypeImpl extends Skype {
         registrationObject.add("publicInfo", publicInfo);
         registrationObject.add("privateInfo", privateInfo);
         return registrationObject;
+    }
+
+    private void login() throws SkypeException, IOException{
+        this.eventDispatcher = new SkypeEventDispatcher();
+        final UUID guid = UUID.randomUUID();
+        Response loginResponse = postToLogin(username, password);
+        cookies.putAll(loginResponse.cookies());
+        Document loginResponseDocument = loginResponse.parse();
+        Elements inputs = loginResponseDocument.select("input[name=skypetoken]");
+        if (inputs.size() > 0) {
+            skypeToken = inputs.get(0).attr("value");
+            sessionKeepaliveThread = new Thread(String.format("Skype-%s-Session", username)) {
+                public void run() {
+                    while (loggedIn.get()) {
+                        try {
+                            Jsoup.connect(PING_URL).header("X-Skypetoken", skypeToken).cookies(cookies).data("sessionId", guid.toString()).post();
+                            Thread.sleep(300000);
+                        } catch (IOException | InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            };
+            sessionKeepaliveThread.start();
+
+            Response getAsm = Jsoup.connect("https://api.asm.skype.com/v1/skypetokenauth").cookies(cookies).data("skypetoken", skypeToken).method(Method.POST).execute();
+            cookies.putAll(getAsm.cookies());
+            HttpsURLConnection getReg = (HttpsURLConnection) new URL("https://client-s.gateway.messenger.live.com/v1/users/ME/endpoints").openConnection(); // msmsgs@msnmsgr.com,Q1P7W2E4J9R8U3S5
+            getReg.setRequestProperty("Authentication", "skypetoken=" + skypeToken);
+            //getReg.setRequestProperty("LockAndKey", "appId=msmsgs@msnmsgr.com; time=1436987361; lockAndKeyResponse=838e6231d460580332d22da83898ff44");
+            getReg.setRequestMethod("POST");
+            getReg.setDoOutput(true);
+            getReg.getOutputStream().write("{}".getBytes());
+            getReg.getInputStream();
+            String[] splits = getReg.getHeaderField("Set-RegistrationToken").split(";");
+            registrationToken = splits[0];
+            endpointId = splits[2].split("=")[1];
+
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTime(new Date());
+            calendar.set(Calendar.DAY_OF_MONTH, calendar.get(Calendar.DAY_OF_MONTH) - 14);
+            Date now = calendar.getTime();
+
+            String urlToUse = "https://client-s.gateway.messenger.live.com/v1/users/ME/conversations?startTime=" + now.getTime() + "&pageSize=100&view=msnp24Equivalent&targetType=Passport|Skype|Lync|Thread";
+            //        while (true) {
+            try {
+                URL url = new URL(urlToUse);
+                HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
+                con.setRequestProperty("RegistrationToken", registrationToken);
+                String in = StreamUtils.readFully(con.getInputStream());
+                JsonObject obj = JsonObject.readFrom(in);
+                for (JsonValue elem : obj.get("conversations").asArray()) {
+                    try {
+                        JsonObject conversation = elem.asObject();
+                        String id = conversation.get("id").asString();
+                        Chat chat = ChatImpl.createChat(this, id);
+                        allChats.put(id, chat);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                //                if (obj.get("_metadata").asJsonObject().has("backwardLink")) {
+                //                    urlToUse = obj.get("_metadata").asJsonObject().get("backwardLink").asString();
+                //                    System.out.println("Backwards");
+                //                } else {
+                //                    break;
+                //                }
+                loggedIn.set(true);
+            } catch (Exception e) {
+                throw new SkypeException("An exception occured while fetching chats", e);
+            }
+            //        }
+        } else {
+            Elements elements = loginResponseDocument.select(".message_error");
+            if (elements.size() > 0) {
+                Element div = elements.get(0);
+                if (div.children().size() > 1) {
+                    Element span = div.child(1);
+                    throw new InvalidCredentialsException(span.text());
+                }
+            }
+            throw new InvalidCredentialsException("Could not find error message. Dumping entire page. \n" + loginResponseDocument.html());
+
+        }
     }
 
     @Override
