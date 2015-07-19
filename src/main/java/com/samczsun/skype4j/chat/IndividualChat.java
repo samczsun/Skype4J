@@ -1,5 +1,7 @@
 package com.samczsun.skype4j.chat;
 
+import com.samczsun.skype4j.user.User;
+
 /**
  * Represents a private conversation between the user logged in and one other
  * user
@@ -7,5 +9,10 @@ package com.samczsun.skype4j.chat;
  * @author samczsun
  */
 public interface IndividualChat extends Chat {
-    // There's not much you can do in a private chat
+    /**
+     * Gets the conversation partner.
+     *
+     * @return A User object representing the conversation partner
+     */
+    User getPartner();
 }
