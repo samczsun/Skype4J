@@ -93,4 +93,12 @@ public class ChatIndividual extends ChatImpl implements IndividualChat {
     public List<ChatMessage> getAllMessages() {
         return Collections.unmodifiableList(messages);
     }
+
+    @Override
+    public User getPartner() {
+        for (User user : getAllUsers()) {
+            if (!user.getUsername().equals(getClient().getUsername())) return user;
+        }
+        return null;
+    }
 }
