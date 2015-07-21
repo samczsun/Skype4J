@@ -33,7 +33,7 @@ public enum MessageType {
     UNKNOWN("Unknown") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) {
-
+            throw new IllegalArgumentException("Somehow got an unknown tag. Please open a issue at the GitHub repo");
         }
     },
     TEXT("Text") {
@@ -44,19 +44,19 @@ public enum MessageType {
     },
     RICH_TEXT("RichText") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) throws SkypeException {
+        public void handle(SkypeImpl skype, JsonObject resource) {
             if (resource.get("clientmessageid") != null) { // New message
                 String clientId = resource.get("clientmessageid").asString();
                 String id = resource.get("id").asString();
                 String content = resource.get("content").asString();
                 String from = resource.get("from").asString();
                 String url = resource.get("conversationLink").asString();
-                Chat c = getChat(url, skype);
+                ChatImpl c = (ChatImpl) getChat(url, skype);
                 User u = getUser(from, c);
                 ChatMessage m = ChatMessageImpl.createMessage(c, u, id, clientId, System.currentTimeMillis(), Message.fromHtml(stripMetadata(content)));
-                ((ChatImpl) c).onMessage(m);
-                MessageReceivedEvent evnt = new MessageReceivedEvent(m);
-                skype.getEventDispatcher().callEvent(evnt);
+                c.onMessage(m);
+                MessageReceivedEvent event = new MessageReceivedEvent(m);
+                skype.getEventDispatcher().callEvent(event);
             } else if (resource.get("skypeeditedid") != null) { // Edited
                 // message
                 String url = resource.get("conversationLink").asString();
@@ -86,7 +86,7 @@ public enum MessageType {
                     Message originalContent = null;
                     for (User user : c.getAllUsers()) {
                         if (user.getMessageById(clientId) != null) {
-                            originalContent = user.getMessageById(clientId).getMessage();
+                            originalContent = user.getMessageById(clientId).getContent();
                         }
                     }
                     final Message finalOriginalContent = originalContent;
@@ -95,7 +95,7 @@ public enum MessageType {
                             return clientId;
                         }
 
-                        public Message getMessage() {
+                        public Message getContent() {
                             return finalOriginalContent;
                         }
 
@@ -126,7 +126,7 @@ public enum MessageType {
                     skype.getEventDispatcher().callEvent(event);
                 }
             } else {
-                throw new SkypeException("Had no id");
+                throw new IllegalArgumentException("Message had no id - hacking by user or skype changed their api");
             }
         }
     },
@@ -186,7 +186,7 @@ public enum MessageType {
             UserAddEvent event = null;
             if (usersAdded.size() == 1) {
                 event = new UserAddEvent(usersAdded.get(0), initiator);
-            } else {
+            } else if (usersAdded.size() > 1) {
                 event = new MultiUserAddEvent(usersAdded, initiator);
             }
             skype.getEventDispatcher().callEvent(event);

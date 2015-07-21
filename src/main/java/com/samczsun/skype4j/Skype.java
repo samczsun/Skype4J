@@ -2,6 +2,9 @@ package com.samczsun.skype4j;
 
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.events.EventDispatcher;
+import com.samczsun.skype4j.exceptions.ConnectionException;
+import com.samczsun.skype4j.exceptions.InvalidCredentialsException;
+import com.samczsun.skype4j.exceptions.ParseException;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -39,6 +42,15 @@ public abstract class Skype {
      * @return A view of all the chats
      */
     public abstract Collection<Chat> getAllChats();
+
+    /**
+     * Log into Skype
+     *
+     * @throws InvalidCredentialsException If you've provided invalid credentials or if you hit a CAPTCHA
+     * @throws ConnectionException If a network error occured while connecting
+     * @throws ParseException If invalid HTML/XML was returned, causing Jsoup to raise an exception
+     */
+    public abstract void login() throws InvalidCredentialsException, ConnectionException, ParseException;
 
     /**
      * Log out and stop all threads

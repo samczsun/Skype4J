@@ -34,7 +34,7 @@ public class ChatMessageSelf extends ChatMessageImpl implements SentMessage {
     }
 
     @Override
-    public Message getMessage() {
+    public Message getContent() {
         return message;
     }
 

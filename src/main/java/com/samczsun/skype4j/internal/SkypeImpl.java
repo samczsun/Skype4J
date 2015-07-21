@@ -3,6 +3,7 @@ package com.samczsun.skype4j.internal;
 import com.eclipsesource.json.JsonArray;
 import com.eclipsesource.json.JsonObject;
 import com.eclipsesource.json.JsonValue;
+import com.samczsun.skype4j.ConnectionBuilder;
 import com.samczsun.skype4j.Skype;
 import com.samczsun.skype4j.StreamUtils;
 import com.samczsun.skype4j.chat.Chat;
@@ -19,10 +20,9 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import javax.net.ssl.HttpsURLConnection;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
+import java.net.HttpURLConnection;
 import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -32,15 +32,19 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class SkypeImpl extends Skype {
     private static final String LOGIN_URL = "https://login.skype.com/login?client_id=578134&redirect_uri=https%3A%2F%2Fweb.skype.com";
     private static final String PING_URL = "https://web.skype.com/api/v1/session-ping";
     private static final String TOKEN_AUTH_URL = "https://api.asm.skype.com/v1/skypetokenauth";
-    private static final String SUBSCRIPTIONS_URL = "https://client-s.gateway.messenger.live.com/v1/users/ME/endpoints/SELF/subscriptions";
-    private static final String MESSAGINGSERVICE_URL = "https://client-s.gateway.messenger.live.com/v1/users/ME/endpoints/%s/presenceDocs/messagingService";
-    private static final String ENDPOINTS_URL = "https://client-s.gateway.messenger.live.com/v1/users/ME/endpoints";
     private static final String LOGOUT_URL = "https://login.skype.com/logout?client_id=578134&redirect_uri=https%3A%2F%2Fweb.skype.com&intsrc=client-_-webapp-_-production-_-go-signin";
+    private static final String ENDPOINTS_URL = "https://client-s.gateway.messenger.live.com/v1/users/ME/endpoints";
+    // The endpoints below all depend on the cloud the user is in
+    private static final String SUBSCRIPTIONS_URL = "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/SELF/subscriptions";
+    private static final String MESSAGINGSERVICE_URL = "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/%s/presenceDocs/messagingService";
+    private static final String POLL_URL = "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/SELF/subscriptions/0/poll";
 
     private final AtomicBoolean loggedIn = new AtomicBoolean(false);
     private final String username;
@@ -52,7 +56,10 @@ public class SkypeImpl extends Skype {
     private String endpointId;
     private Map<String, String> cookies;
 
+    private String cloud;
+
     private Thread sessionKeepaliveThread;
+    private Thread pollThread;
 
     private final ExecutorService scheduler = Executors.newFixedThreadPool(16);
     private final Logger logger = Logger.getLogger("webskype");
@@ -64,83 +71,92 @@ public class SkypeImpl extends Skype {
     }
 
     public void subscribe() throws IOException {
-        HttpsURLConnection subscribe = (HttpsURLConnection) new URL(SUBSCRIPTIONS_URL).openConnection();
-        subscribe.setRequestMethod("POST");
-        subscribe.setDoOutput(true);
-        subscribe.setRequestProperty("RegistrationToken", registrationToken);
-        subscribe.setRequestProperty("Content-Type", "application/json");
-        subscribe.getOutputStream().write(buildSubscriptionObject().toString().getBytes());
-        subscribe.getInputStream();
+        ConnectionBuilder builder = new ConnectionBuilder();
+        builder.setUrl(withCloud(SUBSCRIPTIONS_URL));
+        builder.setMethod("POST", true);
+        builder.addHeader("RegistrationToken", registrationToken);
+        builder.addHeader("Content-Type", "application/json");
+        builder.setData(buildSubscriptionObject().toString());
+        HttpURLConnection connection = builder.build();
 
-        HttpsURLConnection registerEndpoint = (HttpsURLConnection) new URL(String.format(MESSAGINGSERVICE_URL, URLEncoder.encode(endpointId, "UTF-8"))).openConnection();
-        registerEndpoint.setRequestMethod("PUT");
-        registerEndpoint.setDoOutput(true);
-        registerEndpoint.setRequestProperty("RegistrationToken", registrationToken);
-        registerEndpoint.setRequestProperty("Content-Type", "application/json");
-        registerEndpoint.getOutputStream().write(buildRegistrationObject().toString().getBytes());
-        registerEndpoint.getInputStream();
+        int code = connection.getResponseCode();
+        if (code != 201) {
+            throw generateException(connection);
+        }
 
-        Thread pollThread = new Thread() {
+        builder.setUrl(withCloud(MESSAGINGSERVICE_URL, URLEncoder.encode(endpointId, "UTF-8")));
+        builder.setMethod("PUT", true);
+        builder.setData(buildRegistrationObject().toString());
+        connection = builder.build();
+
+        code = connection.getResponseCode();
+        if (code != 200) {
+            throw generateException(connection);
+        }
+
+        pollThread = new Thread() {
             public void run() {
-                try {
-                    URL url = new URL("https://client-s.gateway.messenger.live.com/v1/users/ME/endpoints/SELF/subscriptions/0/poll");
-                    HttpsURLConnection c = null;
-                    while (loggedIn.get()) {
-                        try {
-                            c = (HttpsURLConnection) url.openConnection();
-                            c.setRequestMethod("POST");
-                            c.setDoOutput(true);
-                            c.addRequestProperty("Content-Type", "application/json");
-                            c.addRequestProperty("RegistrationToken", registrationToken);
-                            c.getOutputStream().write(new byte[0]);
-                            InputStream read = c.getInputStream();
-                            String json = StreamUtils.readFully(read);
-                            if (!json.isEmpty()) {
-                                final JsonObject message = JsonObject.readFrom(json);
-                                scheduler.execute(new Runnable() {
-                                    public void run() {
-                                        try {
-                                            JsonArray arr = message.get("eventMessages").asArray();
-                                            for (JsonValue elem : arr) {
-                                                JsonObject eventObj = elem.asObject();
-                                                String resourceType = eventObj.get("resourceType").asString();
-                                                if (resourceType.equals("NewMessage")) {
-                                                    JsonObject resource = eventObj.get("resource").asObject();
-                                                    String messageType = resource.get("messagetype").asString();
-                                                    MessageType type = MessageType.getByName(messageType);
-                                                    type.handle(SkypeImpl.this, resource);
-                                                } else if (resourceType.equalsIgnoreCase("EndpointPresence")) {
-                                                } else if (resourceType.equalsIgnoreCase("UserPresence")) {
-                                                } else if (resourceType.equalsIgnoreCase("ConversationUpdate")) { //Not sure what this does
-                                                } else if (resourceType.equalsIgnoreCase("ThreadUpdate")) {
-                                                    JsonObject resource = eventObj.get("resource").asObject();
-                                                    String chatId = resource.get("id").asString();
-                                                    Chat chat = getChat(chatId);
-                                                    if (chat == null) {
-                                                        chat = ChatImpl.createChat(SkypeImpl.this, chatId);
-                                                        allChats.put(chatId, chat);
-                                                        ChatJoinedEvent e = new ChatJoinedEvent(chat);
-                                                        eventDispatcher.callEvent(e);
-                                                    }
-                                                } else {
-                                                    logger.severe("Unhandled resourceType " + resourceType);
-                                                    logger.severe(eventObj.toString());
-                                                }
-                                            }
-                                        } catch (Exception e) {
-                                            logger.log(Level.SEVERE, "Exception while handling message", e);
-                                            logger.log(Level.SEVERE, message.toString());
-                                        }
-                                    }
-                                });
-                            }
-                        } catch (IOException e) {
-                            eventDispatcher.callEvent(new DisconnectedEvent(e));
-                            loggedIn.set(false);
+                ConnectionBuilder poll = new ConnectionBuilder();
+                poll.setUrl(withCloud(POLL_URL));
+                poll.setMethod("POST", true);
+                poll.addHeader("RegistrationToken", registrationToken);
+                poll.addHeader("Content-Type", "application/json");
+                poll.setData("");
+                while (loggedIn.get()) {
+                    try {
+                        HttpURLConnection c = poll.build();
+
+                        int code = c.getResponseCode();
+
+                        if (code != 200) {
+                            throw generateException(c);
                         }
+
+                        InputStream read = c.getInputStream();
+                        String json = StreamUtils.readFully(read);
+                        if (!json.isEmpty()) {
+                            final JsonObject message = JsonObject.readFrom(json);
+                            scheduler.execute(new Runnable() {
+                                public void run() {
+                                    try {
+                                        JsonArray arr = message.get("eventMessages").asArray();
+                                        for (JsonValue elem : arr) {
+                                            JsonObject eventObj = elem.asObject();
+                                            String resourceType = eventObj.get("resourceType").asString();
+                                            if (resourceType.equals("NewMessage")) {
+                                                JsonObject resource = eventObj.get("resource").asObject();
+                                                String messageType = resource.get("messagetype").asString();
+                                                MessageType type = MessageType.getByName(messageType);
+                                                type.handle(SkypeImpl.this, resource);
+                                            } else if (resourceType.equalsIgnoreCase("EndpointPresence")) {
+                                            } else if (resourceType.equalsIgnoreCase("UserPresence")) {
+                                            } else if (resourceType.equalsIgnoreCase("ConversationUpdate")) { //Not sure what this does
+                                            } else if (resourceType.equalsIgnoreCase("ThreadUpdate")) {
+                                                JsonObject resource = eventObj.get("resource").asObject();
+                                                String chatId = resource.get("id").asString();
+                                                Chat chat = getChat(chatId);
+                                                if (chat == null) {
+                                                    chat = ChatImpl.createChat(SkypeImpl.this, chatId);
+                                                    allChats.put(chatId, chat);
+                                                    ChatJoinedEvent e = new ChatJoinedEvent(chat);
+                                                    eventDispatcher.callEvent(e);
+                                                }
+                                            } else {
+                                                logger.severe("Unhandled resourceType " + resourceType);
+                                                logger.severe(eventObj.toString());
+                                            }
+                                        }
+                                    } catch (Exception e) {
+                                        logger.log(Level.SEVERE, "Exception while handling message", e);
+                                        logger.log(Level.SEVERE, message.toString());
+                                    }
+                                }
+                            });
+                        }
+                    } catch (IOException e) {
+                        eventDispatcher.callEvent(new DisconnectedEvent(e));
+                        loggedIn.set(false);
                     }
-                } catch (IOException e) {
-                    e.printStackTrace();
                 }
             }
         };
@@ -218,16 +234,27 @@ public class SkypeImpl extends Skype {
         }
     }
 
-    private HttpsURLConnection registerEndpoint(String skypeToken) throws ConnectionException {
+    private HttpURLConnection registerEndpoint(String skypeToken) throws ConnectionException {
         try {
-            HttpsURLConnection connection = (HttpsURLConnection) new URL(ENDPOINTS_URL).openConnection(); // msmsgs@msnmsgr.com,Q1P7W2E4J9R8U3S5
-            connection.setRequestProperty("Authentication", "skypetoken=" + skypeToken);
-            //getReg.setRequestProperty("LockAndKey", "appId=msmsgs@msnmsgr.com; time=1436987361; lockAndKeyResponse=838e6231d460580332d22da83898ff44");
-            connection.setRequestMethod("POST");
-            connection.setDoOutput(true);
-            connection.getOutputStream().write("{}".getBytes());
-            connection.getInputStream();
-            return connection;
+            ConnectionBuilder builder = new ConnectionBuilder();
+            builder.setUrl(ENDPOINTS_URL);
+            builder.setMethod("POST", true);
+            builder.addHeader("Authentication", String.format("skypetoken=%s", skypeToken));
+            builder.setData("{}");
+
+            HttpURLConnection connection = builder.build(); // LockAndKey data msmsgs@msnmsgr.com:Q1P7W2E4J9R8U3S5
+            int code = connection.getResponseCode();
+            if (code >= 301 && code <= 303 || code == 307) { //User is in a different cloud - let's go there
+                builder.setUrl(connection.getHeaderField("Location"));
+                updateCloud(connection.getHeaderField("Location"));
+                connection = builder.build();
+                code = connection.getResponseCode();
+            }
+            if (code == 201) {
+                return connection;
+            } else {
+                throw generateException(connection);
+            }
         } catch (IOException e) {
             throw new ConnectionException("While registering the endpoint", e);
         }
@@ -282,7 +309,7 @@ public class SkypeImpl extends Skype {
             Response asmResponse = getAsmToken(tCookies, tSkypeToken);
             tCookies.putAll(asmResponse.cookies());
 
-            HttpsURLConnection registrationToken = registerEndpoint(tSkypeToken);
+            HttpURLConnection registrationToken = registerEndpoint(tSkypeToken);
             String[] splits = registrationToken.getHeaderField("Set-RegistrationToken").split(";");
             String tRegistrationToken = splits[0];
             String tEndpointId = splits[2].split("=")[1];
@@ -322,6 +349,29 @@ public class SkypeImpl extends Skype {
             }
             throw new InvalidCredentialsException("Could not find error message. Dumping entire page. \n" + loginResponseDocument.html());
         }
+    }
+
+    public IOException generateException(HttpURLConnection connection) throws IOException {
+        return new IOException(String.format("(%s, %s)", connection.getResponseCode(), connection.getResponseMessage()));
+    }
+
+    private void updateCloud(String anyLocation) {
+        Pattern grabber = Pattern.compile("https?://([^-]*-)client-s");
+        Matcher m = grabber.matcher(anyLocation);
+        if (m.find()) {
+            this.cloud = m.group(1);
+        } else {
+            throw new IllegalArgumentException("Could not find match in " + anyLocation);
+        }
+    }
+
+    public String withCloud(String url, Object... extraArgs) {
+        Object[] format = new Object[extraArgs.length + 1];
+        format[0] = cloud;
+        for (int i = 1; i < format.length; i++) {
+            format[i] = extraArgs[i - 1].toString();
+        }
+        return String.format(url, format);
     }
 
     @Override

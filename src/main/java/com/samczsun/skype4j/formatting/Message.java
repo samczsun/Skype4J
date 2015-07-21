@@ -107,6 +107,8 @@ public class Message {
                             stack.push(newText);
                         } else if (node.nodeName().equals("#text")) {
                             stack.peek().with(Text.plain(((TextNode) node).getWholeText()));
+                        } else {
+                            stack.peek().with(Text.plain("UnsupportedTag" + node.nodeName()));
                         }
                     } else {
                         if (node.nodeName().equals("b")) {
@@ -150,6 +152,8 @@ public class Message {
                             stack.push(currentText);
                         } else if (node.nodeName().equals("#text")) {
                             parsed.with(Text.plain(((TextNode) node).getWholeText()));
+                        } else {
+                            parsed.with(Text.plain("UnsupportedTag" + node.nodeName()));
                         }
                     }
                 }

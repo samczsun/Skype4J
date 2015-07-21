@@ -26,7 +26,7 @@ public class ChatMessageOther extends ChatMessageImpl implements ReceivedMessage
     }
 
     @Override
-    public Message getMessage() {
+    public Message getContent() {
         return message;
     }
 
