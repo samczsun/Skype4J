@@ -3,26 +3,22 @@ package com.samczsun.skype4j.internal;
 import com.eclipsesource.json.JsonArray;
 import com.eclipsesource.json.JsonObject;
 import com.eclipsesource.json.JsonValue;
+import com.samczsun.skype4j.ConnectionBuilder;
 import com.samczsun.skype4j.StreamUtils;
-import com.samczsun.skype4j.chat.ChatMessage;
 import com.samczsun.skype4j.chat.GroupChat;
 import com.samczsun.skype4j.exceptions.ConnectionException;
-import com.samczsun.skype4j.exceptions.NotLoadedException;
-import com.samczsun.skype4j.exceptions.SkypeException;
-import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.user.User;
 import com.samczsun.skype4j.user.User.Role;
 
-import javax.net.ssl.HttpsURLConnection;
 import java.io.IOException;
-import java.net.URL;
-import java.nio.charset.Charset;
-import java.util.*;
+import java.net.HttpURLConnection;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ChatGroup extends ChatImpl implements GroupChat {
     private String topic;
 
-    protected ChatGroup(SkypeImpl skype, String identity) throws SkypeException {
+    protected ChatGroup(SkypeImpl skype, String identity) throws ConnectionException {
         super(skype, identity);
     }
 
@@ -33,12 +29,12 @@ public class ChatGroup extends ChatImpl implements GroupChat {
         isLoading.set(true);
         Map<String, User> newUsers = new HashMap<>();
         try {
-            URL url = new URL("https://client-s.gateway.messenger.live.com/v1/threads/" + this.getIdentity() + "?view=msnp24Equivalent");
-            HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
-            con.setRequestProperty("RegistrationToken", getClient().getRegistrationToken());
-            con.setRequestProperty("Content-Type", "application/json");
-            String in = StreamUtils.readFully(con.getInputStream());
-            JsonObject object = JsonObject.readFrom(in);
+            ConnectionBuilder builder = new ConnectionBuilder();
+            builder.setUrl(getClient().withCloud(CHAT_INFO_URL, getIdentity()));
+            builder.addHeader("RegistrationToken", getClient().getRegistrationToken());
+            builder.addHeader("Content-Type", "application/json");
+            HttpURLConnection con = builder.build();
+            JsonObject object = JsonObject.readFrom(StreamUtils.readFully(con.getInputStream()));
             JsonObject props = object.get("properties").asObject();
             if (props.get("topic") != null) {
                 this.topic = props.get("topic").asString();
@@ -70,36 +66,6 @@ public class ChatGroup extends ChatImpl implements GroupChat {
         }
     }
 
-    @Override
-    public ChatMessage sendMessage(Message message) throws ConnectionException {
-        checkLoaded();
-        try {
-            long ms = System.currentTimeMillis();
-            JsonObject obj = new JsonObject();
-            obj.add("content", message.write());
-            obj.add("messagetype", "RichText");
-            obj.add("contenttype", "text");
-            obj.add("clientmessageid", String.valueOf(ms));
-            URL url = new URL("https://client-s.gateway.messenger.live.com/v1/users/ME/conversations/" + this.getIdentity() + "/messages");
-            HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
-            con.setRequestMethod("POST");
-            con.setDoOutput(true);
-            con.setRequestProperty("RegistrationToken", getClient().getRegistrationToken());
-            con.setRequestProperty("Content-Type", "application/json");
-            con.getOutputStream().write(obj.toString().getBytes(Charset.forName("UTF-8")));
-            con.getInputStream();
-            return ChatMessageImpl.createMessage(this, getUser(getClient().getUsername()), null, String.valueOf(ms), ms, message);
-        } catch (IOException e) {
-            throw new ConnectionException("While sending a message", e);
-        }
-    }
-
-    @Override
-    public Collection<User> getAllUsers() throws NotLoadedException {
-        checkLoaded();
-        return Collections.unmodifiableCollection(users.values());
-    }
-
     public void addUser(String username) {
         if (!users.containsKey(username)) {
             User user = new UserImpl(username, this);
@@ -116,13 +82,14 @@ public class ChatGroup extends ChatImpl implements GroupChat {
     public void kick(String username) throws ConnectionException {
         checkLoaded();
         try {
-            URL url = new URL("https://client-s.gateway.messenger.live.com/v1/threads/" + this.getIdentity() + "/members/8:" + username);
-            HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
-            con.setInstanceFollowRedirects(false);
-            con.setRequestMethod("DELETE");
-            con.setRequestProperty("RegistrationToken", getClient().getRegistrationToken());
-            con.setRequestProperty("Content-Type", "application/json");
-            con.getInputStream();
+            ConnectionBuilder builder = new ConnectionBuilder();
+            builder.setUrl(getClient().withCloud(MODIFY_MEMBER_URL, getIdentity(), username));
+            builder.setMethod("DELETE", false);
+            builder.addHeader("RegistrationToken", getClient().getRegistrationToken());
+            HttpURLConnection con = builder.build();
+            if (con.getResponseCode() != 200) {
+                throw getClient().generateException(con);
+            }
         } catch (IOException e) {
             throw new ConnectionException("While kicking", e);
         }
@@ -141,17 +108,19 @@ public class ChatGroup extends ChatImpl implements GroupChat {
     public void setTopic(String topic) throws ConnectionException {
         checkLoaded();
         try {
-            URL url = new URL("https://client-s.gateway.messenger.live.com/v1/threads/" + this.getIdentity() + "/properties?name=topic");
-            HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
-            con.setInstanceFollowRedirects(false);
-            con.setRequestMethod("PUT");
-            con.setDoOutput(true);
-            con.setRequestProperty("RegistrationToken", getClient().getRegistrationToken());
-            con.setRequestProperty("Content-Type", "application/json");
+            ;
             JsonObject obj = new JsonObject();
             obj.add("topic", topic);
-            con.getOutputStream().write(obj.toString().getBytes(Charset.forName("UTF-8")));
-            con.getOutputStream();
+            ConnectionBuilder builder = new ConnectionBuilder();
+            builder.setUrl(getClient().withCloud(MODIFY_PROPERTY_URL, getIdentity(), "topic"));
+            builder.setMethod("PUT", true);
+            builder.addHeader("RegistrationToken", getClient().getRegistrationToken());
+            builder.addHeader("Content-Type", "application/json");
+            builder.setData(obj.toString());
+            HttpURLConnection con = builder.build();
+            if (con.getResponseCode() != 200) {
+                throw getClient().generateException(con);
+            }
         } catch (IOException e) {
             throw new ConnectionException("While updating the topic", e);
         }
@@ -159,22 +128,5 @@ public class ChatGroup extends ChatImpl implements GroupChat {
 
     public void updateTopic(String topic) {
         this.topic = topic;
-    }
-
-    public void onMessage(ChatMessage message) {
-        this.messages.add(message);
-        ((UserImpl) message.getSender()).onMessage(message);
-    }
-
-    @Override
-    public User getUser(String username) {
-        checkLoaded();
-        return this.users.get(username);
-    }
-
-    @Override
-    public List<ChatMessage> getAllMessages() {
-        checkLoaded();
-        return Collections.unmodifiableList(this.messages);
     }
 }

@@ -15,7 +15,7 @@ public interface ChatMessage {
      *
      * @return The message
      */
-    Message getMessage();
+    Message getContent();
 
     /**
      * Get the time this message was sent or received at

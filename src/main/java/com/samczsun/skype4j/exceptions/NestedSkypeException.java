@@ -10,6 +10,7 @@ public class NestedSkypeException extends SkypeException {
 
     public NestedSkypeException(String cause, Exception suppressed) {
         super(cause);
+        this.addSuppressed(suppressed);
         this.reason = suppressed;
     }
 
