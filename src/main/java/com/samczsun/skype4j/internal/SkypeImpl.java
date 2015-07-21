@@ -56,7 +56,7 @@ public class SkypeImpl extends Skype {
     private String endpointId;
     private Map<String, String> cookies;
 
-    private String cloud;
+    private String cloud = "";
 
     private Thread sessionKeepaliveThread;
     private Thread pollThread;
