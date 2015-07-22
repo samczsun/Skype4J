@@ -13,7 +13,6 @@ import com.samczsun.skype4j.events.chat.DisconnectedEvent;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.InvalidCredentialsException;
 import com.samczsun.skype4j.exceptions.ParseException;
-import com.samczsun.skype4j.exceptions.SkypeException;
 import org.jsoup.Connection.Method;
 import org.jsoup.Connection.Response;
 import org.jsoup.Jsoup;
@@ -96,7 +95,6 @@ public class SkypeImpl extends Skype {
         if (code != 200) {
             throw generateException(connection);
         }
-
         pollThread = new Thread(String.format("Skype-%s-PollThread", username)) {
             public void run() {
                 ConnectionBuilder poll = new ConnectionBuilder();
@@ -109,7 +107,6 @@ public class SkypeImpl extends Skype {
                 while (loggedIn.get()) {
                     try {
                         HttpURLConnection c = poll.build();
-
                         AtomicInteger code = new AtomicInteger(0);
                         while (code.get() == 0) {
                             try {
