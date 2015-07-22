@@ -43,7 +43,12 @@ public class ConnectionBuilder {
     }
 
     public HttpURLConnection build() throws IOException {
+        return build(0);
+    }
+
+    public HttpURLConnection build(int timeout) throws IOException {
         HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
+        con.setReadTimeout(timeout);
         con.setInstanceFollowRedirects(false);
         for (Map.Entry<String, List<String>> ent : headers.entrySet()) {
             for (String value : ent.getValue()) {

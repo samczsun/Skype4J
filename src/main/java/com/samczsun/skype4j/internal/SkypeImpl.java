@@ -13,6 +13,7 @@ import com.samczsun.skype4j.events.chat.DisconnectedEvent;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.InvalidCredentialsException;
 import com.samczsun.skype4j.exceptions.ParseException;
+import com.samczsun.skype4j.exceptions.SkypeException;
 import org.jsoup.Connection.Method;
 import org.jsoup.Connection.Response;
 import org.jsoup.Jsoup;
@@ -23,6 +24,7 @@ import org.jsoup.select.Elements;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
+import java.net.SocketTimeoutException;
 import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -30,6 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -94,7 +97,7 @@ public class SkypeImpl extends Skype {
             throw generateException(connection);
         }
 
-        pollThread = new Thread() {
+        pollThread = new Thread(String.format("Skype-%s-PollThread", username)) {
             public void run() {
                 ConnectionBuilder poll = new ConnectionBuilder();
                 poll.setUrl(withCloud(POLL_URL));
@@ -102,13 +105,23 @@ public class SkypeImpl extends Skype {
                 poll.addHeader("RegistrationToken", registrationToken);
                 poll.addHeader("Content-Type", "application/json");
                 poll.setData("");
+                main:
                 while (loggedIn.get()) {
                     try {
                         HttpURLConnection c = poll.build();
 
-                        int code = c.getResponseCode();
+                        AtomicInteger code = new AtomicInteger(0);
+                        while (code.get() == 0) {
+                            try {
+                                code.set(c.getResponseCode());
+                            } catch (SocketTimeoutException e) {
+                                if (Thread.currentThread().isInterrupted()) {
+                                    break main;
+                                }
+                            }
+                        }
 
-                        if (code != 200) {
+                        if (code.get() != 200) {
                             throw generateException(c);
                         }
 
@@ -116,42 +129,44 @@ public class SkypeImpl extends Skype {
                         String json = StreamUtils.readFully(read);
                         if (!json.isEmpty()) {
                             final JsonObject message = JsonObject.readFrom(json);
-                            scheduler.execute(new Runnable() {
-                                public void run() {
-                                    try {
-                                        JsonArray arr = message.get("eventMessages").asArray();
-                                        for (JsonValue elem : arr) {
-                                            JsonObject eventObj = elem.asObject();
-                                            String resourceType = eventObj.get("resourceType").asString();
-                                            if (resourceType.equals("NewMessage")) {
-                                                JsonObject resource = eventObj.get("resource").asObject();
-                                                String messageType = resource.get("messagetype").asString();
-                                                MessageType type = MessageType.getByName(messageType);
-                                                type.handle(SkypeImpl.this, resource);
-                                            } else if (resourceType.equalsIgnoreCase("EndpointPresence")) {
-                                            } else if (resourceType.equalsIgnoreCase("UserPresence")) {
-                                            } else if (resourceType.equalsIgnoreCase("ConversationUpdate")) { //Not sure what this does
-                                            } else if (resourceType.equalsIgnoreCase("ThreadUpdate")) {
-                                                JsonObject resource = eventObj.get("resource").asObject();
-                                                String chatId = resource.get("id").asString();
-                                                Chat chat = getChat(chatId);
-                                                if (chat == null) {
-                                                    chat = ChatImpl.createChat(SkypeImpl.this, chatId);
-                                                    allChats.put(chatId, chat);
-                                                    ChatJoinedEvent e = new ChatJoinedEvent(chat);
-                                                    eventDispatcher.callEvent(e);
+                            if (!scheduler.isShutdown()) {
+                                scheduler.execute(new Runnable() {
+                                    public void run() {
+                                        try {
+                                            JsonArray arr = message.get("eventMessages").asArray();
+                                            for (JsonValue elem : arr) {
+                                                JsonObject eventObj = elem.asObject();
+                                                String resourceType = eventObj.get("resourceType").asString();
+                                                if (resourceType.equals("NewMessage")) {
+                                                    JsonObject resource = eventObj.get("resource").asObject();
+                                                    String messageType = resource.get("messagetype").asString();
+                                                    MessageType type = MessageType.getByName(messageType);
+                                                    type.handle(SkypeImpl.this, resource);
+                                                } else if (resourceType.equalsIgnoreCase("EndpointPresence")) {
+                                                } else if (resourceType.equalsIgnoreCase("UserPresence")) {
+                                                } else if (resourceType.equalsIgnoreCase("ConversationUpdate")) { //Not sure what this does
+                                                } else if (resourceType.equalsIgnoreCase("ThreadUpdate")) {
+                                                    JsonObject resource = eventObj.get("resource").asObject();
+                                                    String chatId = resource.get("id").asString();
+                                                    Chat chat = getChat(chatId);
+                                                    if (chat == null) {
+                                                        chat = ChatImpl.createChat(SkypeImpl.this, chatId);
+                                                        allChats.put(chatId, chat);
+                                                        ChatJoinedEvent e = new ChatJoinedEvent(chat);
+                                                        eventDispatcher.callEvent(e);
+                                                    }
+                                                } else {
+                                                    logger.severe("Unhandled resourceType " + resourceType);
+                                                    logger.severe(eventObj.toString());
                                                 }
-                                            } else {
-                                                logger.severe("Unhandled resourceType " + resourceType);
-                                                logger.severe(eventObj.toString());
                                             }
+                                        } catch (Exception e) {
+                                            logger.log(Level.SEVERE, "Exception while handling message", e);
+                                            logger.log(Level.SEVERE, message.toString());
                                         }
-                                    } catch (Exception e) {
-                                        logger.log(Level.SEVERE, "Exception while handling message", e);
-                                        logger.log(Level.SEVERE, message.toString());
                                     }
-                                }
-                            });
+                                });
+                            }
                         }
                     } catch (IOException e) {
                         eventDispatcher.callEvent(new DisconnectedEvent(e));
@@ -165,17 +180,17 @@ public class SkypeImpl extends Skype {
 
     @Override
     public Chat getChat(String name) {
-        if (allChats.containsKey(name)) {
-            return allChats.get(name);
+        return allChats.get(name);
+    }
+
+    @Override
+    public Chat loadChat(String name) throws ConnectionException {
+        if (!allChats.containsKey(name)) {
+            Chat chat = ChatImpl.createChat(this, name);
+            allChats.put(name, chat);
+            return getChat(name);
         } else {
-            try {
-                Chat chat = ChatImpl.createChat(this, name);
-                allChats.put(name, chat);
-                return getChat(name);
-            } catch (Exception e) {
-                e.printStackTrace();
-                return null;
-            }
+            throw new IllegalArgumentException("Chat already exists");
         }
     }
 
@@ -185,9 +200,23 @@ public class SkypeImpl extends Skype {
     }
 
     @Override
-    public void logout() throws IOException {
-        Jsoup.connect(LOGOUT_URL).cookies(this.cookies).get();
-        loggedIn.set(false);
+    public void logout() throws ConnectionException {
+        ConnectionBuilder builder = new ConnectionBuilder();
+        builder.setUrl(LOGOUT_URL);
+        builder.addHeader("Cookies", serializeCookies(cookies));
+        try {
+            HttpURLConnection con = builder.build();
+            if (con.getResponseCode() != 302) {
+                throw generateException(con);
+            }
+            loggedIn.set(false);
+            pollThread.interrupt();
+            sessionKeepaliveThread.interrupt();
+            scheduler.shutdownNow();
+            while (!scheduler.isTerminated()) ;
+        } catch (IOException e) {
+            throw new ConnectionException("While logging out", e);
+        }
     }
 
     public String getRegistrationToken() {
@@ -372,6 +401,14 @@ public class SkypeImpl extends Skype {
             format[i] = extraArgs[i - 1].toString();
         }
         return String.format(url, format);
+    }
+
+    public String serializeCookies(Map<String, String> cookies) {
+        StringBuilder result = new StringBuilder();
+        for (Map.Entry<String, String> cookie : cookies.entrySet()) {
+            result.append(cookie.getKey()).append("=").append(cookie.getValue()).append(";");
+        }
+        return result.toString();
     }
 
     @Override

@@ -28,13 +28,17 @@ public abstract class Skype {
     public abstract String getUsername();
 
     /**
-     * Get a chat based on the identity given. If no chat is found, it will be
-     * loaded if it exists
+     * Get a chat based on the identity given. If no chat is found, null will be returned
      *
      * @param name The identity of the chat
      * @return The {@link Chat Chat} object, or null if not found
      */
     public abstract Chat getChat(String name);
+
+    /**
+     * Load a chat given an identity. No attempts will be made to validate whether the chat exists
+     */
+    public abstract Chat loadChat(String name) throws ConnectionException ;
 
     /**
      * Get all the chats loaded by this API
@@ -57,7 +61,7 @@ public abstract class Skype {
      *
      * @throws IOException
      */
-    public abstract void logout() throws IOException;
+    public abstract void logout() throws ConnectionException;
 
     /**
      * Get the event dispatcher that handles listening to events

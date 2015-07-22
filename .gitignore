@@ -1,6 +1,7 @@
 /bin/
 /target/
 /scripts/
+/src/other
 .settings/
 .idea/
 .classpath

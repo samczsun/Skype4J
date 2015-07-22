@@ -28,7 +28,7 @@ public abstract class ChatImpl implements Chat {
     protected static final String MODIFY_MEMBER_URL = "https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/members/8:%s";
     protected static final String MODIFY_PROPERTY_URL = "https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/properties?name=%s";
 
-    public static Chat createChat(Skype client, String identity) throws SkypeException {
+    public static Chat createChat(Skype client, String identity) throws ConnectionException {
         Validate.notNull(client, "Client must not be null");
         Validate.isTrue(client instanceof SkypeImpl, String.format("Now is not the time to use that, %s", client.getUsername()));
         Validate.notEmpty(identity, "Identity must not be null/empty");
