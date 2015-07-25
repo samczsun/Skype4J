@@ -2,8 +2,11 @@ package com.samczsun.skype4j.internal;
 
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.ChatMessage;
+import com.samczsun.skype4j.exceptions.ConnectionException;
+import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.User;
 
+import java.sql.Connection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -11,31 +14,28 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class UserImpl implements User {
-    private String username;
 
-    private final Chat chat;
+    private final Contact contactRep;
+    private final ChatImpl chat;
+
     private Role role = Role.USER;
 
     private final List<ChatMessage> messages = new CopyOnWriteArrayList<>();
     private final Map<String, ChatMessage> messageMap = new ConcurrentHashMap<>();
 
-    public UserImpl(String username, Chat chat) {
-        this.username = username;
-        this.chat = chat;
-    }
-
-    public UserImpl(Chat chat) {
+    public UserImpl(String username, ChatImpl chat) throws ConnectionException {
+        this.contactRep = ContactImpl.createContact(chat.getClient(), username);
         this.chat = chat;
     }
 
     @Override
     public String getUsername() {
-        return username;
+        return contactRep.getUsername();
     }
 
     @Override
     public String getDisplayName() {
-        return null;
+        return contactRep.getDisplayName();
     }
 
     @Override
@@ -54,31 +54,6 @@ public class UserImpl implements User {
     }
 
     @Override
-    public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + ((username == null) ? 0 : username.hashCode());
-        return result;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj)
-            return true;
-        if (obj == null)
-            return false;
-        if (getClass() != obj.getClass())
-            return false;
-        UserImpl other = (UserImpl) obj;
-        if (username == null) {
-            if (other.username != null)
-                return false;
-        } else if (!username.equals(other.username))
-            return false;
-        return true;
-    }
-
-    @Override
     public List<ChatMessage> getSentMessages() {
         return Collections.unmodifiableList(messages);
     }
@@ -91,5 +66,26 @@ public class UserImpl implements User {
     public void onMessage(ChatMessage message) {
         this.messages.add(message);
         this.messageMap.put(message.getClientId(), message);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        UserImpl user = (UserImpl) o;
+
+        if (!contactRep.equals(user.contactRep)) return false;
+        if (!chat.equals(user.chat)) return false;
+        return role == user.role;
+
+    }
+
+    @Override
+    public int hashCode() {
+        int result = contactRep.hashCode();
+        result = 31 * result + chat.hashCode();
+        result = 31 * result + role.hashCode();
+        return result;
     }
 }

@@ -122,7 +122,7 @@ public abstract class ChatImpl implements Chat {
         return !isLoading.get() && hasLoaded.get();
     }
 
-    public abstract void addUser(String username);
+    public abstract void addUser(String username) throws ConnectionException;
 
     public abstract void removeUser(String username);
 

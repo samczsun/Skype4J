@@ -8,10 +8,12 @@ import com.samczsun.skype4j.events.chat.TopicChangeEvent;
 import com.samczsun.skype4j.events.chat.message.MessageEditedByOtherEvent;
 import com.samczsun.skype4j.events.chat.message.MessageEditedEvent;
 import com.samczsun.skype4j.events.chat.message.MessageReceivedEvent;
+import com.samczsun.skype4j.events.chat.sent.ContactReceivedEvent;
 import com.samczsun.skype4j.events.chat.user.MultiUserAddEvent;
 import com.samczsun.skype4j.events.chat.user.RoleUpdateEvent;
 import com.samczsun.skype4j.events.chat.user.UserAddEvent;
 import com.samczsun.skype4j.events.chat.user.UserRemoveEvent;
+import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.SkypeException;
 import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.user.User;
@@ -44,7 +46,7 @@ public enum MessageType {
     },
     RICH_TEXT("RichText") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) {
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException {
             if (resource.get("clientmessageid") != null) { // New message
                 String clientId = resource.get("clientmessageid").asString();
                 String id = resource.get("id").asString();
@@ -132,37 +134,61 @@ public enum MessageType {
     },
     RICH_TEXT_CONTACTS("RichText/Contacts") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) {
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException {
+            String from = resource.get("from").asString();
+            String url = resource.get("conversationLink").asString();
+            String content = resource.get("content").asString();
+            Document doc = Parser.xmlParser().parseInput(content, "");
+            Element elem = doc.getElementsByTag("c").first();
+            System.out.println("Elem: " + elem.outerHtml());
+            Matcher m = CONTACT_PATTERN.matcher(elem.outerHtml());
+            m.find();
+            String username;
+            if (m.group(2).equals("s")) {
+                username = m.group(6);
+            } else {
+                username = m.group(4);
+            }
+            ChatImpl c = (ChatImpl) getChat(url, skype);
+            User u = getUser(from, c);
+            ContactReceivedEvent event = new ContactReceivedEvent(c, u, ContactImpl.createContact(skype, username));
+            skype.getEventDispatcher().callEvent(event);
         }
     },
     RICH_TEXT_FILES("RichText/Files") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) {
+            System.out.println(name() + " " + resource);
         }
     },
     RICH_TEXT_SMS("RichText/Sms") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) {
+            System.out.println(name() + " " + resource);
         }
     },
     RICH_TEXT_LOCATION("RichText/Location") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) {
+            System.out.println(name() + " " + resource);
         }
     },
     RICH_TEXT_URI_OBJECT("RichText/UriObject") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) {
+            System.out.println(name() + " " + resource);
         }
     },
     RICH_TEXT_MEDIA_FLIK_MSG("RichText/Media_FlikMsg") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) {
+            System.out.println(name() + " " + resource);
         }
     },
     EVENT_SKYPE_VIDEO_MESSAGE("Event/SkypeVideoMessage") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) {
+            System.out.println(name() + " " + resource);
         }
     },
     THREAD_ACTIVITY_ADD_MEMBER("ThreadActivity/AddMember") {
@@ -186,10 +212,11 @@ public enum MessageType {
             UserAddEvent event = null;
             if (usersAdded.size() == 1) {
                 event = new UserAddEvent(usersAdded.get(0), initiator);
+                skype.getEventDispatcher().callEvent(event);
             } else if (usersAdded.size() > 1) {
                 event = new MultiUserAddEvent(usersAdded, initiator);
+                skype.getEventDispatcher().callEvent(event);
             }
-            skype.getEventDispatcher().callEvent(event);
         }
     },
     THREAD_ACTIVITY_DELETE_MEMBER("ThreadActivity/DeleteMember") {
@@ -229,7 +256,7 @@ public enum MessageType {
     },
     THREAD_ACTIVITY_TOPIC_UPDATE("ThreadActivity/TopicUpdate") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) {
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException {
             String url = resource.get("conversationLink").asString();
             Chat c = getChat(url, skype);
             Document xml = Jsoup.parse(resource.get("content").asString(), "", Parser.xmlParser());
@@ -245,46 +272,55 @@ public enum MessageType {
     THREAD_ACTIVITY_PICTURE_UPDATE("ThreadActivity/PictureUpdate") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) {
+            System.out.println(name() + " " + resource);
         }
     },
     THREAD_ACTIVITY_HISTORY_DISCLOSED_UPDATE("ThreadActivity/HistoryDisclosedUpdate") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) {
+            System.out.println(name() + " " + resource);
         }
     },
     THREAD_ACTIVITY_JOINING_ENABLED_UPDATE("ThreadActivity/JoiningEnabledUpdate") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) {
+            System.out.println(name() + " " + resource);
         }
     },
     THREAD_ACTIVITY_LEGACY_MEMBER_ADDED("ThreadActivity/LegacyMemberAdded") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) {
+            System.out.println(name() + " " + resource);
         }
     },
     THREAD_ACTIVITY_LEGACY_MEMBER_UPGRADED("ThreadActivity/LegacyMemberUpgraded") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) {
+            System.out.println(name() + " " + resource);
         }
     },
     EVENT_CALL("Event/Call") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) {
+            System.out.println(name() + " " + resource);
         }
     },
     CONTROL_TYPING("Control/Typing") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) {
+            System.out.println(name() + " " + resource);
         }
     },
     CONTROL_CLEAR_TYPING("Control/ClearTyping") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) {
+            System.out.println(name() + " " + resource);
         }
     },
     CONTROL_LIVE_STATE("Control/LiveState") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) {
+            System.out.println(name() + " " + resource);
         }
     };
 
@@ -294,6 +330,7 @@ public enum MessageType {
     private static final Pattern STRIP_EDIT_PATTERN = Pattern.compile("</?[e_m][^<>]+>");
     private static final Pattern STRIP_QUOTE_PATTERN = Pattern.compile("(<(?:/?)(?:quote|legacyquote)[^>]*>)", Pattern.CASE_INSENSITIVE);
     private static final Pattern STRIP_EMOTICON_PATTERN = Pattern.compile("(<(?:/?)(?:ss)[^>]*>)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern CONTACT_PATTERN = Pattern.compile("(<c t=\"([^\"]+?)\"( p=\"([^\"]+?)\")?( s=\"([^\"]+?)\")?( f=\"([^\"]+?)\")? */>)");
 
     private final String value;
 
@@ -317,10 +354,14 @@ public enum MessageType {
         return byValue.get(messageType);
     }
 
-    private static Chat getChat(String url, SkypeImpl skype) {
+    private static Chat getChat(String url, SkypeImpl skype) throws ConnectionException {
         Matcher m = URL_PATTERN.matcher(url);
         if (m.find()) {
-            return skype.getChat(m.group(1));
+            Chat find = skype.getChat(m.group(1));
+            if (find == null) {
+                find = skype.loadChat(m.group(1));
+            }
+            return find;
         }
         return null;
     }

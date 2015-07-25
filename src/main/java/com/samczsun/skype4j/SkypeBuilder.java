@@ -12,8 +12,6 @@ public class SkypeBuilder {
     private final String password;
 
     private Set<String> resources = new HashSet<>();
-    private boolean lazyLoadChats = true;
-    private boolean loadMessages = false;
 
     public SkypeBuilder(String username, String password) {
         this.username = username;
@@ -45,17 +43,10 @@ public class SkypeBuilder {
         return this;
     }
 
-    public SkypeBuilder loadChats() {
-        this.lazyLoadChats = false;
-        return this;
-    }
-
-    public SkypeBuilder loadMessages() {
-        this.loadMessages = true;
-        return this;
-    }
-
     public Skype build() {
-        return new SkypeImpl(username, password);
+        if (resources.isEmpty()) {
+            throw new IllegalArgumentException("No resources selected");
+        }
+        return new SkypeImpl(username, password, resources);
     }
 }

@@ -66,7 +66,7 @@ public class ChatGroup extends ChatImpl implements GroupChat {
         }
     }
 
-    public void addUser(String username) {
+    public void addUser(String username) throws ConnectionException {
         if (!users.containsKey(username)) {
             User user = new UserImpl(username, this);
             users.put(username, user);

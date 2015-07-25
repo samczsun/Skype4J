@@ -15,7 +15,7 @@ public class ChatIndividual extends ChatImpl implements IndividualChat {
     }
 
     @Override
-    protected void load() {
+    protected void load() throws ConnectionException {
         if (isLoaded()) {
             return;
         }

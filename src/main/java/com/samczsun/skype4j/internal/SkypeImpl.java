@@ -49,8 +49,10 @@ public class SkypeImpl extends Skype {
     private static final String POLL_URL = "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/SELF/subscriptions/0/poll";
 
     private final AtomicBoolean loggedIn = new AtomicBoolean(false);
+
     private final String username;
     private final String password;
+    private final Set<String> resources;
 
     private EventDispatcher eventDispatcher;
     private String skypeToken;
@@ -67,9 +69,10 @@ public class SkypeImpl extends Skype {
     private final Logger logger = Logger.getLogger("webskype");
     private final Map<String, Chat> allChats = new ConcurrentHashMap<>();
 
-    public SkypeImpl(String username, String password) {
+    public SkypeImpl(String username, String password, Set<String> resources) {
         this.username = username;
         this.password = password;
+        this.resources = resources;
     }
 
     public void subscribe() throws IOException {
@@ -185,7 +188,7 @@ public class SkypeImpl extends Skype {
         if (!allChats.containsKey(name)) {
             Chat chat = ChatImpl.createChat(this, name);
             allChats.put(name, chat);
-            return getChat(name);
+            return chat;
         } else {
             throw new IllegalArgumentException("Chat already exists");
         }
@@ -291,10 +294,9 @@ public class SkypeImpl extends Skype {
         subscriptionObject.add("channelType", "httpLongPoll");
         subscriptionObject.add("template", "raw");
         JsonArray interestedResources = new JsonArray();
-        interestedResources.add("/v1/users/ME/conversations/ALL/properties");
-        interestedResources.add("/v1/users/ME/conversations/ALL/messages");
-        interestedResources.add("/v1/users/ME/contacts/ALL");
-        interestedResources.add("/v1/threads/ALL");
+        for (String s : this.resources) {
+            interestedResources.add(s);
+        }
         subscriptionObject.add("interestedResources", interestedResources);
         return subscriptionObject;
     }

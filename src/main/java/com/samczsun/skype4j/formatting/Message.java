@@ -108,7 +108,7 @@ public class Message {
                         } else if (node.nodeName().equals("#text")) {
                             stack.peek().with(Text.plain(((TextNode) node).getWholeText()));
                         } else {
-                            stack.peek().with(Text.plain("UnsupportedTag" + node.nodeName()));
+                            parsed.with(Text.rich().with(Text.plain("UnsupportedTag" + node.nodeName())));
                         }
                     } else {
                         if (node.nodeName().equals("b")) {
@@ -153,7 +153,7 @@ public class Message {
                         } else if (node.nodeName().equals("#text")) {
                             parsed.with(Text.plain(((TextNode) node).getWholeText()));
                         } else {
-                            parsed.with(Text.plain("UnsupportedTag" + node.nodeName()));
+                            parsed.with(Text.rich().with(Text.plain("UnsupportedTag" + node.nodeName())));
                         }
                     }
                 }
