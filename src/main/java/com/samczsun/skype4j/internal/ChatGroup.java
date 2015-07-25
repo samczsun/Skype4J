@@ -6,7 +6,9 @@ import com.eclipsesource.json.JsonValue;
 import com.samczsun.skype4j.ConnectionBuilder;
 import com.samczsun.skype4j.StreamUtils;
 import com.samczsun.skype4j.chat.GroupChat;
+import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
+import com.samczsun.skype4j.exceptions.NotParticipatingException;
 import com.samczsun.skype4j.user.User;
 import com.samczsun.skype4j.user.User.Role;
 
@@ -18,11 +20,11 @@ import java.util.Map;
 public class ChatGroup extends ChatImpl implements GroupChat {
     private String topic;
 
-    protected ChatGroup(SkypeImpl skype, String identity) throws ConnectionException {
+    protected ChatGroup(SkypeImpl skype, String identity) throws ConnectionException, ChatNotFoundException {
         super(skype, identity);
     }
 
-    protected void load() throws ConnectionException {
+    protected void load() throws ConnectionException, ChatNotFoundException {
         if (isLoaded()) {
             return;
         }
@@ -34,29 +36,39 @@ public class ChatGroup extends ChatImpl implements GroupChat {
             builder.addHeader("RegistrationToken", getClient().getRegistrationToken());
             builder.addHeader("Content-Type", "application/json");
             HttpURLConnection con = builder.build();
-            JsonObject object = JsonObject.readFrom(StreamUtils.readFully(con.getInputStream()));
-            JsonObject props = object.get("properties").asObject();
-            if (props.get("topic") != null) {
-                this.topic = props.get("topic").asString();
-            } else {
-                this.topic = props.get("creator").asString().substring(2);
-            }
-            JsonArray members = object.get("members").asArray();
-            for (JsonValue element : members) {
-                String username = element.asObject().get("id").asString().substring(2);
-                String role = element.asObject().get("role").asString();
-                User user = users.get(username);
-                if (user == null) {
-                    user = new UserImpl(username, this);
-                }
-                newUsers.put(username, user);
-                if (role.equalsIgnoreCase("admin")) {
-                    user.setRole(Role.ADMIN);
+            if (con.getResponseCode() == 200) {
+                JsonObject object = JsonObject.readFrom(StreamUtils.readFully(con.getInputStream()));
+                JsonObject props = object.get("properties").asObject();
+                if (props.get("topic") != null) {
+                    this.topic = props.get("topic").asString();
                 } else {
-                    user.setRole(Role.USER);
+                    this.topic = props.get("creator").asString().substring(2);
                 }
+                JsonArray members = object.get("members").asArray();
+                for (JsonValue element : members) {
+                    String username = element.asObject().get("id").asString().substring(2);
+                    String role = element.asObject().get("role").asString();
+                    User user = users.get(username);
+                    if (user == null) {
+                        user = new UserImpl(username, this);
+                    }
+                    newUsers.put(username, user);
+                    if (role.equalsIgnoreCase("admin")) {
+                        user.setRole(Role.ADMIN);
+                    } else {
+                        user.setRole(Role.USER);
+                    }
+                }
+                if (newUsers.get(getClient().getUsername()) != null) {
+                    hasLoaded.set(true);
+                } else {
+                    throw new NotParticipatingException();
+                }
+            } else if (con.getResponseCode() == 404) {
+                throw new ChatNotFoundException();
+            } else {
+                throw getClient().generateException(con);
             }
-            hasLoaded.set(true);
         } catch (IOException e) {
             throw new ConnectionException("While loading users", e);
         } finally {

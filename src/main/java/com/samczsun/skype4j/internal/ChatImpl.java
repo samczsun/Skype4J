@@ -5,6 +5,7 @@ import com.samczsun.skype4j.ConnectionBuilder;
 import com.samczsun.skype4j.Skype;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.ChatMessage;
+import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.NotLoadedException;
 import com.samczsun.skype4j.formatting.Message;
@@ -27,7 +28,7 @@ public abstract class ChatImpl implements Chat {
     protected static final String MODIFY_MEMBER_URL = "https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/members/8:%s";
     protected static final String MODIFY_PROPERTY_URL = "https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/properties?name=%s";
 
-    public static Chat createChat(Skype client, String identity) throws ConnectionException {
+    public static Chat createChat(Skype client, String identity) throws ConnectionException, ChatNotFoundException {
         Validate.notNull(client, "Client must not be null");
         Validate.isTrue(client instanceof SkypeImpl, String.format("Now is not the time to use that, %s", client.getUsername()));
         Validate.notEmpty(identity, "Identity must not be null/empty");
@@ -54,7 +55,7 @@ public abstract class ChatImpl implements Chat {
     protected final Map<String, User> users = new ConcurrentHashMap<>();
     protected final List<ChatMessage> messages = new CopyOnWriteArrayList<>();
 
-    ChatImpl(SkypeImpl client, String identity) throws ConnectionException {
+    ChatImpl(SkypeImpl client, String identity) throws ConnectionException, ChatNotFoundException {
         this.client = client;
         this.identity = identity;
         load();
@@ -126,7 +127,7 @@ public abstract class ChatImpl implements Chat {
 
     public abstract void removeUser(String username);
 
-    protected abstract void load() throws ConnectionException;
+    protected abstract void load() throws ConnectionException, ChatNotFoundException;
 
     protected void checkLoaded() throws NotLoadedException {
         if (!isLoaded()) {

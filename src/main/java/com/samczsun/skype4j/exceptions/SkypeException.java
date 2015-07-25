@@ -6,6 +6,10 @@ package com.samczsun.skype4j.exceptions;
  * @author samczsun
  */
 public class SkypeException extends Exception {
+    public SkypeException() {
+        super();
+    }
+
     public SkypeException(String message) {
         super(message);
     }

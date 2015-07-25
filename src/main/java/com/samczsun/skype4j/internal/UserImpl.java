@@ -24,7 +24,7 @@ public class UserImpl implements User {
     private final Map<String, ChatMessage> messageMap = new ConcurrentHashMap<>();
 
     public UserImpl(String username, ChatImpl chat) throws ConnectionException {
-        this.contactRep = ContactImpl.createContact(chat.getClient(), username);
+        this.contactRep = chat.getClient().getOrLoadContact(username);
         this.chat = chat;
     }
 

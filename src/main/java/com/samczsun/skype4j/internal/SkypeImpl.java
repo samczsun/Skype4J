@@ -10,9 +10,11 @@ import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.events.EventDispatcher;
 import com.samczsun.skype4j.events.chat.ChatJoinedEvent;
 import com.samczsun.skype4j.events.chat.DisconnectedEvent;
+import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.InvalidCredentialsException;
 import com.samczsun.skype4j.exceptions.ParseException;
+import com.samczsun.skype4j.user.Contact;
 import org.jsoup.Connection.Method;
 import org.jsoup.Connection.Response;
 import org.jsoup.Jsoup;
@@ -67,7 +69,9 @@ public class SkypeImpl extends Skype {
 
     private final ExecutorService scheduler = Executors.newFixedThreadPool(16);
     private final Logger logger = Logger.getLogger("webskype");
+
     private final Map<String, Chat> allChats = new ConcurrentHashMap<>();
+    private final Map<String, Contact> allContacts = new ConcurrentHashMap<>();
 
     public SkypeImpl(String username, String password, Set<String> resources) {
         this.username = username;
@@ -184,7 +188,7 @@ public class SkypeImpl extends Skype {
     }
 
     @Override
-    public Chat loadChat(String name) throws ConnectionException {
+    public Chat loadChat(String name) throws ConnectionException, ChatNotFoundException {
         if (!allChats.containsKey(name)) {
             Chat chat = ChatImpl.createChat(this, name);
             allChats.put(name, chat);
@@ -197,6 +201,36 @@ public class SkypeImpl extends Skype {
     @Override
     public Collection<Chat> getAllChats() {
         return Collections.unmodifiableCollection(this.allChats.values());
+    }
+
+    @Override
+    public Contact getContact(String name) {
+        return this.allContacts.get(name);
+    }
+
+    @Override
+    public Contact loadContact(String name) throws ConnectionException {
+        if (!allContacts.containsKey(name)) {
+            Contact contact = ContactImpl.createContact(this, name);
+            allContacts.put(name, contact);
+            return contact;
+        } else {
+            throw new IllegalArgumentException("Contact already exists");
+        }
+    }
+
+    @Override
+    public Contact getOrLoadContact(String username) throws ConnectionException {
+        if (allContacts.containsKey(username)) {
+            return allContacts.get(username);
+        } else {
+            return loadContact(username);
+        }
+    }
+
+    @Override
+    public Collection<Contact> getAllContacts() {
+        return Collections.unmodifiableCollection(this.allContacts.values());
     }
 
     @Override

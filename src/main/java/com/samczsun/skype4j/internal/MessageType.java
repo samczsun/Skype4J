@@ -13,6 +13,7 @@ import com.samczsun.skype4j.events.chat.user.MultiUserAddEvent;
 import com.samczsun.skype4j.events.chat.user.RoleUpdateEvent;
 import com.samczsun.skype4j.events.chat.user.UserAddEvent;
 import com.samczsun.skype4j.events.chat.user.UserRemoveEvent;
+import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.SkypeException;
 import com.samczsun.skype4j.formatting.Message;
@@ -46,7 +47,7 @@ public enum MessageType {
     },
     RICH_TEXT("RichText") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException {
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException {
             if (resource.get("clientmessageid") != null) { // New message
                 String clientId = resource.get("clientmessageid").asString();
                 String id = resource.get("id").asString();
@@ -134,13 +135,12 @@ public enum MessageType {
     },
     RICH_TEXT_CONTACTS("RichText/Contacts") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException {
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException {
             String from = resource.get("from").asString();
             String url = resource.get("conversationLink").asString();
             String content = resource.get("content").asString();
             Document doc = Parser.xmlParser().parseInput(content, "");
             Element elem = doc.getElementsByTag("c").first();
-            System.out.println("Elem: " + elem.outerHtml());
             Matcher m = CONTACT_PATTERN.matcher(elem.outerHtml());
             m.find();
             String username;
@@ -151,7 +151,7 @@ public enum MessageType {
             }
             ChatImpl c = (ChatImpl) getChat(url, skype);
             User u = getUser(from, c);
-            ContactReceivedEvent event = new ContactReceivedEvent(c, u, ContactImpl.createContact(skype, username));
+            ContactReceivedEvent event = new ContactReceivedEvent(c, u, skype.getOrLoadContact(username));
             skype.getEventDispatcher().callEvent(event);
         }
     },
@@ -256,7 +256,7 @@ public enum MessageType {
     },
     THREAD_ACTIVITY_TOPIC_UPDATE("ThreadActivity/TopicUpdate") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException {
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException {
             String url = resource.get("conversationLink").asString();
             Chat c = getChat(url, skype);
             Document xml = Jsoup.parse(resource.get("content").asString(), "", Parser.xmlParser());
@@ -354,7 +354,7 @@ public enum MessageType {
         return byValue.get(messageType);
     }
 
-    private static Chat getChat(String url, SkypeImpl skype) throws ConnectionException {
+    private static Chat getChat(String url, SkypeImpl skype) throws ConnectionException, ChatNotFoundException {
         Matcher m = URL_PATTERN.matcher(url);
         if (m.find()) {
             Chat find = skype.getChat(m.group(1));

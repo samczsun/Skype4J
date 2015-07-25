@@ -1,6 +1,7 @@
 package com.samczsun.skype4j.internal;
 
 import com.samczsun.skype4j.chat.IndividualChat;
+import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.user.User;
 
@@ -10,7 +11,7 @@ import java.util.Map;
 public class ChatIndividual extends ChatImpl implements IndividualChat {
     private User partner;
 
-    protected ChatIndividual(SkypeImpl skype, String identity) throws ConnectionException {
+    protected ChatIndividual(SkypeImpl skype, String identity) throws ConnectionException, ChatNotFoundException {
         super(skype, identity);
     }
 
