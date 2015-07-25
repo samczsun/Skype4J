@@ -449,4 +449,7 @@ public class SkypeImpl extends Skype {
         return this.username;
     }
 
+    public String getCookieString() {
+        return serializeCookies(cookies);
+    }
 }

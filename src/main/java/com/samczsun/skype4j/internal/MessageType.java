@@ -1,6 +1,8 @@
 package com.samczsun.skype4j.internal;
 
 import com.eclipsesource.json.JsonObject;
+import com.samczsun.skype4j.ConnectionBuilder;
+import com.samczsun.skype4j.StreamUtils;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.ChatMessage;
 import com.samczsun.skype4j.events.chat.ChatJoinedEvent;
@@ -9,6 +11,7 @@ import com.samczsun.skype4j.events.chat.message.MessageEditedByOtherEvent;
 import com.samczsun.skype4j.events.chat.message.MessageEditedEvent;
 import com.samczsun.skype4j.events.chat.message.MessageReceivedEvent;
 import com.samczsun.skype4j.events.chat.sent.ContactReceivedEvent;
+import com.samczsun.skype4j.events.chat.sent.PictureReceivedEvent;
 import com.samczsun.skype4j.events.chat.user.MultiUserAddEvent;
 import com.samczsun.skype4j.events.chat.user.RoleUpdateEvent;
 import com.samczsun.skype4j.events.chat.user.UserAddEvent;
@@ -25,6 +28,12 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.parser.Parser;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -175,8 +184,54 @@ public enum MessageType {
     },
     RICH_TEXT_URI_OBJECT("RichText/UriObject") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) {
-            System.out.println(name() + " " + resource);
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException {
+            String from = resource.get("from").asString();
+            String url = resource.get("conversationLink").asString();
+            ChatImpl c = (ChatImpl) getChat(url, skype);
+            User u = getUser(from, c);
+            String content = resource.get("content").asString();
+            Document doc = Parser.xmlParser().parseInput(content, "");
+            Element meta = doc.getElementsByTag("meta").get(0);
+            if (meta.attr("type").equalsIgnoreCase("photo")) {
+                String blob = doc.getElementsByTag("a").get(0).attr("href");
+                blob = blob.substring(blob.indexOf('?') + 1);
+                try {
+                    ConnectionBuilder builder = new ConnectionBuilder();
+                    builder.setUrl(String.format(PICTURE_STATUS_URL, blob));
+                    builder.addHeader("Cookie", skype.getCookieString());
+                    HttpURLConnection statusCon = builder.build();
+                    if (statusCon.getResponseCode() == 200) {
+                        JsonObject obj = JsonObject.readFrom(StreamUtils.readFully(statusCon.getInputStream()));
+                        builder.setUrl(obj.get("status_location").asString());
+                        while (true) {
+                            statusCon = builder.build();
+                            if (statusCon.getResponseCode() == 200) {
+                                obj = JsonObject.readFrom(StreamUtils.readFully(statusCon.getInputStream()));
+                                if (obj.get("content_state").asString().equalsIgnoreCase("ready")) {
+                                    break;
+                                }
+                            } else {
+                                throw skype.generateException(statusCon);
+                            }
+                        }
+                        builder.setUrl(obj.get("view_location").asString());
+                        HttpURLConnection con = builder.build();
+                        if (con.getResponseCode() == 200) {
+                            ByteArrayInputStream input = StreamUtils.copy(con.getInputStream());
+                            BufferedImage img = ImageIO.read(input);
+                            skype.getEventDispatcher().callEvent(new PictureReceivedEvent(c, u, meta.attr("originalName"), img));
+                        } else {
+                            throw skype.generateException(con);
+                        }
+                    } else {
+                        throw skype.generateException(statusCon);
+                    }
+                } catch (IOException e) {
+                    throw new ConnectionException("While fetching picture", e);
+                }
+            } else {
+                throw new IllegalArgumentException("Unknown meta type " + meta.attr("type"));
+            }
         }
     },
     RICH_TEXT_MEDIA_FLIK_MSG("RichText/Media_FlikMsg") {
@@ -331,6 +386,9 @@ public enum MessageType {
     private static final Pattern STRIP_QUOTE_PATTERN = Pattern.compile("(<(?:/?)(?:quote|legacyquote)[^>]*>)", Pattern.CASE_INSENSITIVE);
     private static final Pattern STRIP_EMOTICON_PATTERN = Pattern.compile("(<(?:/?)(?:ss)[^>]*>)", Pattern.CASE_INSENSITIVE);
     private static final Pattern CONTACT_PATTERN = Pattern.compile("(<c t=\"([^\"]+?)\"( p=\"([^\"]+?)\")?( s=\"([^\"]+?)\")?( f=\"([^\"]+?)\")? */>)");
+
+    private static final String PICTURE_URL = "https://api.asm.skype.com/v1/objects/%s/views/imgpsh_fullsize";
+    private static final String PICTURE_STATUS_URL = "https://api.asm.skype.com/v1/objects/%s/views/imgpsh_fullsize/status";
 
     private final String value;
 
