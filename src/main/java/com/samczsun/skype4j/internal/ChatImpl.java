@@ -97,7 +97,7 @@ public abstract class ChatImpl implements Chat {
     @Override
     public User getUser(String username) {
         checkLoaded();
-        return this.users.get(username);
+        return this.users.get(username.toLowerCase());
     }
 
     @Override

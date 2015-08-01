@@ -48,18 +48,18 @@ public class ChatGroup extends ChatImpl implements GroupChat {
                 for (JsonValue element : members) {
                     String username = element.asObject().get("id").asString().substring(2);
                     String role = element.asObject().get("role").asString();
-                    User user = users.get(username);
+                    User user = users.get(username.toLowerCase());
                     if (user == null) {
                         user = new UserImpl(username, this);
                     }
-                    newUsers.put(username, user);
+                    newUsers.put(username.toLowerCase(), user);
                     if (role.equalsIgnoreCase("admin")) {
                         user.setRole(Role.ADMIN);
                     } else {
                         user.setRole(Role.USER);
                     }
                 }
-                if (newUsers.get(getClient().getUsername()) != null) {
+                if (newUsers.get(getClient().getUsername().toLowerCase()) != null) {
                     hasLoaded.set(true);
                 } else {
                     throw new NotParticipatingException();
@@ -79,16 +79,16 @@ public class ChatGroup extends ChatImpl implements GroupChat {
     }
 
     public void addUser(String username) throws ConnectionException {
-        if (!users.containsKey(username)) {
+        if (!users.containsKey(username.toLowerCase())) {
             User user = new UserImpl(username, this);
-            users.put(username, user);
+            users.put(username.toLowerCase(), user);
         } else {
             throw new IllegalArgumentException(username + " joined the chat even though he was already in it?");
         }
     }
 
     public void removeUser(String username) {
-        users.remove(username);
+        users.remove(username.toLowerCase());
     }
 
     public void kick(String username) throws ConnectionException {

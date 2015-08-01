@@ -23,16 +23,16 @@ public class ChatIndividual extends ChatImpl implements IndividualChat {
         isLoading.set(true);
         Map<String, User> newUsers = new HashMap<>();
         String username = this.getIdentity().substring(2);
-        User user = users.get(username);
+        User user = users.get(username.toLowerCase());
         if (user == null) {
             user = new UserImpl(username, this);
         }
-        newUsers.put(username, user);
+        newUsers.put(username.toLowerCase(), user);
         this.partner = user;
-        User me = users.get(getClient().getUsername());
+        User me = users.get(getClient().getUsername().toLowerCase());
         if (me == null) {
             me = new UserImpl(getClient().getUsername(), this);
-            newUsers.put(getClient().getUsername(), me);
+            newUsers.put(getClient().getUsername().toLowerCase(), me);
         }
         this.users.clear();
         this.users.putAll(newUsers);
