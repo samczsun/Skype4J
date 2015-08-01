@@ -1,5 +1,7 @@
 package com.samczsun.skype4j.formatting;
 
+import org.apache.commons.lang3.StringEscapeUtils;
+
 /**
  * Created by sam on 2015-07-09.
  */
@@ -14,7 +16,7 @@ public abstract class Text {
     }
 
     public static PlainText plain(String text) {
-        return new PlainText(text);
+        return new PlainText(StringEscapeUtils.escapeHtml4(text));
     }
 
     public static PlainText plain(byte text) {
@@ -49,4 +51,7 @@ public abstract class Text {
         return plain(text.toString());
     }
 
+    public static PlainText rawHtml(String html) {
+        return new PlainText(html);
+    }
 }
