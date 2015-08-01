@@ -10,6 +10,7 @@ public class RichText extends Text {
     private boolean italic = false;
     private boolean underline = false;
     private boolean strikethrough = false;
+    private boolean code = false;
     private boolean blink = false;
     private String link = null;
     private String color = null;
@@ -61,6 +62,11 @@ public class RichText extends Text {
         return this;
     }
 
+    public RichText withCode() {
+        this.code = true;
+        return this;
+    }
+
     public RichText with(Text t) {
         this.children.add(t);
         return this;
@@ -91,6 +97,9 @@ public class RichText extends Text {
         if (blink) {
             output.append("<blink>");
         }
+        if (code) {
+            output.append("<pre>");
+        }
         boolean font = size != -1 || color != null;
         if (font) {
             output.append("<font ");
@@ -114,6 +123,9 @@ public class RichText extends Text {
         }
         if (font) {
             output.append("</font>");
+        }
+        if (code) {
+            output.append("</pre>");
         }
         if (blink) {
             output.append("</blink>");
@@ -148,6 +160,7 @@ public class RichText extends Text {
         if (italic != richText.italic) return false;
         if (underline != richText.underline) return false;
         if (strikethrough != richText.strikethrough) return false;
+        if (code != richText.code) return false;
         if (blink != richText.blink) return false;
         if (size != richText.size) return false;
         if (link != null ? !link.equals(richText.link) : richText.link != null) return false;
@@ -162,6 +175,7 @@ public class RichText extends Text {
         result = 31 * result + (italic ? 1 : 0);
         result = 31 * result + (underline ? 1 : 0);
         result = 31 * result + (strikethrough ? 1 : 0);
+        result = 31 * result + (code ? 1 : 0);
         result = 31 * result + (blink ? 1 : 0);
         result = 31 * result + (link != null ? link.hashCode() : 0);
         result = 31 * result + (color != null ? color.hashCode() : 0);

@@ -105,10 +105,16 @@ public class Message {
                             }
                             stack.peek().with(newText);
                             stack.push(newText);
+                        } else if (node.nodeName().equals("pre")) {
+                            RichText newText = Text.rich().withCode();
+                            stack.peek().with(newText);
+                            stack.push(newText);
                         } else if (node.nodeName().equals("#text")) {
                             stack.peek().with(Text.plain(((TextNode) node).getWholeText()));
                         } else {
-                            parsed.with(Text.rich().with(Text.plain("UnsupportedTag" + node.nodeName())));
+                            RichText newText = Text.rich().with(Text.plain("UnsupportedTag(" + node.nodeName() + ")"));
+                            stack.peek().with(newText);
+                            stack.push(newText);
                         }
                     } else {
                         if (node.nodeName().equals("b")) {
@@ -150,10 +156,16 @@ public class Message {
                             }
                             parsed.with(currentText);
                             stack.push(currentText);
+                        } else if (node.nodeName().equals("pre")) {
+                            RichText currentText = Text.rich().withCode();
+                            parsed.with(currentText);
+                            stack.push(currentText);
                         } else if (node.nodeName().equals("#text")) {
                             parsed.with(Text.plain(((TextNode) node).getWholeText()));
                         } else {
-                            parsed.with(Text.rich().with(Text.plain("UnsupportedTag" + node.nodeName())));
+                            RichText currentText = Text.rich().with(Text.plain("UnsupportedTag(" + node.nodeName() + ")"));
+                            parsed.with(currentText);
+                            stack.push(currentText);
                         }
                     }
                 }
