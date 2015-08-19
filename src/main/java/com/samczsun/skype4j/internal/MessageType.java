@@ -13,7 +13,7 @@ import com.samczsun.skype4j.events.chat.message.MessageEditedEvent;
 import com.samczsun.skype4j.events.chat.message.MessageReceivedEvent;
 import com.samczsun.skype4j.events.chat.sent.ContactReceivedEvent;
 import com.samczsun.skype4j.events.chat.sent.TypingReceivedEvent;
-import com.samczsun.skype4j.events.chat.sent.CallReceivedEvent;
+import com.samczsun.skype4j.events.chat.call.CallReceivedEvent;
 import com.samczsun.skype4j.events.chat.sent.PictureReceivedEvent;
 import com.samczsun.skype4j.events.chat.user.MultiUserAddEvent;
 import com.samczsun.skype4j.events.chat.user.RoleUpdateEvent;
