@@ -23,6 +23,7 @@ import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.SkypeException;
 import com.samczsun.skype4j.formatting.Message;
+import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.User;
 import com.samczsun.skype4j.user.User.Role;
 import org.apache.commons.lang3.StringEscapeUtils;
@@ -30,6 +31,7 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.parser.Parser;
+import org.jsoup.select.Elements;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -153,18 +155,22 @@ public enum MessageType {
             String url = resource.get("conversationLink").asString();
             String content = resource.get("content").asString();
             Document doc = Parser.xmlParser().parseInput(content, "");
-            Element elem = doc.getElementsByTag("c").first();
-            Matcher m = CONTACT_PATTERN.matcher(elem.outerHtml());
-            m.find();
-            String username;
-            if (m.group(2).equals("s")) {
-                username = m.group(6);
-            } else {
-                username = m.group(4);
+
+            ArrayList<Contact> contacts = new ArrayList<>();
+            for (Element e : doc.getElementsByTag("c"))
+            {
+                Matcher m = CONTACT_PATTERN.matcher(e.outerHtml());
+                m.find();
+                String username;
+                if (m.group(2).equals("s")) username = m.group(6);
+                else username = m.group(4);
+
+                contacts.add(skype.getOrLoadContact(username));
             }
+
             ChatImpl c = (ChatImpl) getChat(url, skype);
             User u = getUser(from, c);
-            ContactReceivedEvent event = new ContactReceivedEvent(c, u, skype.getOrLoadContact(username));
+            ContactReceivedEvent event = new ContactReceivedEvent(c, u, contacts);
             skype.getEventDispatcher().callEvent(event);
         }
     },
