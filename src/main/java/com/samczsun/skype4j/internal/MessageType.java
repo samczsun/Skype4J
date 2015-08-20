@@ -5,6 +5,7 @@ import com.samczsun.skype4j.ConnectionBuilder;
 import com.samczsun.skype4j.StreamUtils;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.ChatMessage;
+import com.samczsun.skype4j.chat.FileInfo;
 import com.samczsun.skype4j.events.UnsupportedEvent;
 import com.samczsun.skype4j.events.chat.ChatJoinedEvent;
 import com.samczsun.skype4j.events.chat.TopicChangeEvent;
@@ -12,6 +13,7 @@ import com.samczsun.skype4j.events.chat.message.MessageEditedByOtherEvent;
 import com.samczsun.skype4j.events.chat.message.MessageEditedEvent;
 import com.samczsun.skype4j.events.chat.message.MessageReceivedEvent;
 import com.samczsun.skype4j.events.chat.sent.ContactReceivedEvent;
+import com.samczsun.skype4j.events.chat.sent.FileInfoReceivedEvent;
 import com.samczsun.skype4j.events.chat.sent.TypingReceivedEvent;
 import com.samczsun.skype4j.events.chat.call.CallReceivedEvent;
 import com.samczsun.skype4j.events.chat.sent.PictureReceivedEvent;
@@ -39,10 +41,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -176,10 +175,31 @@ public enum MessageType {
     },
     RICH_TEXT_FILES("RichText/Files") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource)
-        {
-            System.out.println(name() + " " + resource);
-            skype.getEventDispatcher().callEvent(new UnsupportedEvent(name(), resource.toString()));
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException {
+            //System.out.println(name() + " " + resource);
+            //skype.getEventDispatcher().callEvent(new UnsupportedEvent(name(), resource.toString()));
+
+            String from = resource.get("from").asString();
+            String url = resource.get("conversationLink").asString();
+            String content = resource.get("content").asString();
+            Document doc = Parser.xmlParser().parseInput(content, "");
+
+            ArrayList<FileInfo> fileInfos = new ArrayList<>();
+            for (Element fe : doc.getElementsByTag("file"))
+            {
+                FileInfo fileInfo = new FileInfo();
+                fileInfo.FileSize = Long.parseLong(fe.attr("size"));
+                fileInfo.TId = Long.parseLong(fe.attr("tid"));
+                fileInfo.OriginalName = fe.text();
+                fileInfo.Cancelled = Objects.equals(fe.attr("status"), "canceled");
+
+                fileInfos.add(fileInfo);
+            }
+
+            ChatImpl c = (ChatImpl) getChat(url, skype);
+            User u = getUser(from, c);
+            FileInfoReceivedEvent event = new FileInfoReceivedEvent(c, u, fileInfos);
+            skype.getEventDispatcher().callEvent(event);
         }
     },
     RICH_TEXT_SMS("RichText/Sms") {
