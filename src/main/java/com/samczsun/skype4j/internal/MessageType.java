@@ -11,7 +11,9 @@ import com.samczsun.skype4j.events.chat.TopicChangeEvent;
 import com.samczsun.skype4j.events.chat.message.MessageEditedByOtherEvent;
 import com.samczsun.skype4j.events.chat.message.MessageEditedEvent;
 import com.samczsun.skype4j.events.chat.message.MessageReceivedEvent;
+import com.samczsun.skype4j.events.chat.message.SmsReceivedEvent;
 import com.samczsun.skype4j.events.chat.sent.ContactReceivedEvent;
+import com.samczsun.skype4j.events.chat.sent.LocationReceivedEvent;
 import com.samczsun.skype4j.events.chat.sent.TypingReceivedEvent;
 import com.samczsun.skype4j.events.chat.call.CallReceivedEvent;
 import com.samczsun.skype4j.events.chat.sent.PictureReceivedEvent;
@@ -147,8 +149,7 @@ public enum MessageType {
     },
     RICH_TEXT_CONTACTS("RichText/Contacts") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException 
-		{
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException {
             String from = resource.get("from").asString();
             String url = resource.get("conversationLink").asString();
             String content = resource.get("content").asString();
@@ -170,24 +171,46 @@ public enum MessageType {
     },
     RICH_TEXT_FILES("RichText/Files") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource)
-        {
+        public void handle(SkypeImpl skype, JsonObject resource) {
             System.out.println(name() + " " + resource);
             skype.getEventDispatcher().callEvent(new UnsupportedEvent(name(), resource.toString()));
         }
     },
     RICH_TEXT_SMS("RichText/Sms") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) {
-            System.out.println(name() + " " + resource);
-            skype.getEventDispatcher().callEvent(new UnsupportedEvent(name(), resource.toString()));
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException { //Implemented via fullExperience
+            String content = resource.get("content").asString();
+            String from = resource.get("from").asString();
+            String url = resource.get("conversationLink").asString();
+            Chat c = getChat(url, skype);
+            User u = getUser(from, c);
+            Matcher m = SMS_PATTERN.matcher(content);
+            if (m.find()) {
+                String message = m.group(1);
+                ChatMessage chatmessage = ChatMessageImpl.createMessage(c, u, null, null, System.currentTimeMillis(), Message.fromHtml(message)); //No clientmessageid?
+                SmsReceivedEvent event = new SmsReceivedEvent(chatmessage);
+                skype.getEventDispatcher().callEvent(event);
+            } else {
+                throw new IllegalArgumentException("Sms event did not conform to format expected");
+            }
         }
     },
     RICH_TEXT_LOCATION("RichText/Location") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) {
-            System.out.println(name() + " " + resource);
-            skype.getEventDispatcher().callEvent(new UnsupportedEvent(name(), resource.toString()));
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException { //Implemented via fullExperience
+            String content = resource.get("content").asString();
+            String from = resource.get("from").asString();
+            String url = resource.get("conversationLink").asString();
+            Chat c = getChat(url, skype);
+            User u = getUser(from, c);
+            Matcher m = LOCATION_PATTERN.matcher(content);
+            if (m.find()) {
+                String location = m.group(1);
+                String text = m.group(2);
+                LocationReceivedEvent event = new LocationReceivedEvent(c, u, new LocationReceivedEvent.LocationInfo(location, text));
+            } else {
+                throw new IllegalArgumentException("Location event did not conform to format expected");
+            }
         }
     },
     RICH_TEXT_URI_OBJECT("RichText/UriObject") {
@@ -371,8 +394,7 @@ public enum MessageType {
     },
     EVENT_CALL("Event/Call") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException
-		{
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException {
             System.out.println(name() + " " + resource);
 
             String from = resource.get("from").asString();
@@ -391,30 +413,28 @@ public enum MessageType {
     },
     CONTROL_TYPING("Control/Typing") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException
-		{
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException {
             System.out.println(name() + " " + resource);
 
             String from = resource.get("from").asString();
             String url = resource.get("conversationLink").asString();
 
-            ChatImpl c = (ChatImpl) getChat(url, skype);
+            Chat c = getChat(url, skype);
             User u = getUser(from, c);
-            TypingReceivedEvent event = new TypingReceivedEvent(c, u, true); //, skype.getOrLoadContact(username));
+            TypingReceivedEvent event = new TypingReceivedEvent(c, u, true);
 			skype.getEventDispatcher().callEvent(event);
 		}
     },
     CONTROL_CLEAR_TYPING("Control/ClearTyping") {
         @Override
 		//YaR
-        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException 
-		{
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException {
             String from = resource.get("from").asString();
             String url = resource.get("conversationLink").asString();
 
-            ChatImpl c = (ChatImpl) getChat(url, skype);
+            Chat c = getChat(url, skype);
             User u = getUser(from, c);
-            TypingReceivedEvent event = new TypingReceivedEvent(c, u, false); //, skype.getOrLoadContact(username));
+            TypingReceivedEvent event = new TypingReceivedEvent(c, u, false);
 			skype.getEventDispatcher().callEvent(event);
 		}
     },
@@ -427,12 +447,14 @@ public enum MessageType {
     };
 
     private static final Map<String, MessageType> byValue = new HashMap<>();
-    private static final Pattern URL_PATTERN = Pattern.compile("conversations/(.*)");
-    private static final Pattern USER_PATTERN = Pattern.compile("8:(.*)");
-    private static final Pattern STRIP_EDIT_PATTERN = Pattern.compile("</?[e_m][^<>]+>");
+    private static final Pattern URL_PATTERN = Pattern.compile("conversations/(.*)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern USER_PATTERN = Pattern.compile("8:(.*)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern STRIP_EDIT_PATTERN = Pattern.compile("</?[e_m][^<>]+>", Pattern.CASE_INSENSITIVE);
     private static final Pattern STRIP_QUOTE_PATTERN = Pattern.compile("(<(?:/?)(?:quote|legacyquote)[^>]*>)", Pattern.CASE_INSENSITIVE);
     private static final Pattern STRIP_EMOTICON_PATTERN = Pattern.compile("(<(?:/?)(?:ss)[^>]*>)", Pattern.CASE_INSENSITIVE);
-    private static final Pattern CONTACT_PATTERN = Pattern.compile("(<c t=\"([^\"]+?)\"( p=\"([^\"]+?)\")?( s=\"([^\"]+?)\")?( f=\"([^\"]+?)\")? */>)");
+    private static final Pattern CONTACT_PATTERN = Pattern.compile("(<c t=\"([^\"]+?)\"( p=\"([^\"]+?)\")?( s=\"([^\"]+?)\")?( f=\"([^\"]+?)\")? */>)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern SMS_PATTERN = Pattern.compile("<sms alt=\"([^\"]+?)\">", Pattern.CASE_INSENSITIVE);
+    private static final Pattern LOCATION_PATTERN = Pattern.compile("<a[^>]+href=\"https://www.bing.com/maps([^\"]+)\"[^>]*>([^<]*)", Pattern.CASE_INSENSITIVE);
 
     private static final String PICTURE_URL = "https://api.asm.skype.com/v1/objects/%s/views/imgpsh_fullsize";
     private static final String PICTURE_STATUS_URL = "https://api.asm.skype.com/v1/objects/%s/views/imgpsh_fullsize/status";
