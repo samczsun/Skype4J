@@ -9,12 +9,12 @@ import java.util.Iterator;
 
 public class ContactReceivedEvent extends ChatEvent {
     private User sender;
-    private Iterable<Contact> sentContacts;
+    private Contact sentContact;
 
-    public ContactReceivedEvent(Chat chat, User sender, Iterable<Contact> sent) {
+    public ContactReceivedEvent(Chat chat, User sender, Contact sent) {
         super(chat);
         this.sender = sender;
-        this.sentContacts = sent;
+        this.sentContact = sent;
     }
 
     public User getSender()
@@ -22,15 +22,8 @@ public class ContactReceivedEvent extends ChatEvent {
         return this.sender;
     }
 
-    @Deprecated
     public Contact getSentContact()
     {
-        Iterator<Contact> i = this.sentContacts.iterator();
-        return i.hasNext() ? this.sentContacts.iterator().next() : null;
-    }
-
-    public Iterable<Contact> getSentContacts()
-    {
-        return this.sentContacts;
+        return this.sentContact;
     }
 }

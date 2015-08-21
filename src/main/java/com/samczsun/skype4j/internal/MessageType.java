@@ -7,16 +7,14 @@ import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.ChatMessage;
 import com.samczsun.skype4j.chat.FileInfo;
 import com.samczsun.skype4j.events.UnsupportedEvent;
+import com.samczsun.skype4j.events.chat.ChatEvent;
 import com.samczsun.skype4j.events.chat.ChatJoinedEvent;
 import com.samczsun.skype4j.events.chat.TopicChangeEvent;
 import com.samczsun.skype4j.events.chat.message.MessageEditedByOtherEvent;
 import com.samczsun.skype4j.events.chat.message.MessageEditedEvent;
 import com.samczsun.skype4j.events.chat.message.MessageReceivedEvent;
-import com.samczsun.skype4j.events.chat.sent.ContactReceivedEvent;
-import com.samczsun.skype4j.events.chat.sent.FileInfoReceivedEvent;
-import com.samczsun.skype4j.events.chat.sent.TypingReceivedEvent;
+import com.samczsun.skype4j.events.chat.sent.*;
 import com.samczsun.skype4j.events.chat.call.CallReceivedEvent;
-import com.samczsun.skype4j.events.chat.sent.PictureReceivedEvent;
 import com.samczsun.skype4j.events.chat.user.MultiUserAddEvent;
 import com.samczsun.skype4j.events.chat.user.RoleUpdateEvent;
 import com.samczsun.skype4j.events.chat.user.UserAddEvent;
@@ -169,7 +167,7 @@ public enum MessageType {
 
             ChatImpl c = (ChatImpl) getChat(url, skype);
             User u = getUser(from, c);
-            ContactReceivedEvent event = new ContactReceivedEvent(c, u, contacts);
+            ChatEvent event = contacts.size() == 1 ? new ContactReceivedEvent(c, u, contacts.get(0)) : new MultiContactReceivedEvent(c, u, contacts);
             skype.getEventDispatcher().callEvent(event);
         }
     },
@@ -187,12 +185,11 @@ public enum MessageType {
             ArrayList<FileInfo> fileInfos = new ArrayList<>();
             for (Element fe : doc.getElementsByTag("file"))
             {
-                FileInfo fileInfo = new FileInfo();
-                fileInfo.FileSize = Long.parseLong(fe.attr("size"));
-                fileInfo.TId = Long.parseLong(fe.attr("tid"));
-                fileInfo.OriginalName = fe.text();
-                fileInfo.Cancelled = Objects.equals(fe.attr("status"), "canceled");
-
+                FileInfo fileInfo = new FileInfo(
+                        fe.text(),
+                        Long.parseLong(fe.attr("size")),
+                        Long.parseLong(fe.attr("tid")),
+                        Objects.equals(fe.attr("status"), "canceled"));
                 fileInfos.add(fileInfo);
             }
 
