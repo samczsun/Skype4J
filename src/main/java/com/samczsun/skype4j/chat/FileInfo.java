@@ -21,5 +21,5 @@ public class FileInfo
     public String getOriginalName() {return originalName;}
     public Long getFileSize() {return fileSize;}
     public Long getTId() {return tId;}
-    public boolean Cancelled() {return cancelled;}
+    public boolean getCancelled() {return cancelled;}
 }
