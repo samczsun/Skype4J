@@ -5,6 +5,8 @@ import com.samczsun.skype4j.events.chat.ChatEvent;
 import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.User;
 
+import java.util.Iterator;
+
 public class ContactReceivedEvent extends ChatEvent {
     private User sender;
     private Contact sentContact;
@@ -15,11 +17,13 @@ public class ContactReceivedEvent extends ChatEvent {
         this.sentContact = sent;
     }
 
-    public User getSender() {
+    public User getSender()
+    {
         return this.sender;
     }
 
-    public Contact getSentContact() {
+    public Contact getSentContact()
+    {
         return this.sentContact;
     }
 }
