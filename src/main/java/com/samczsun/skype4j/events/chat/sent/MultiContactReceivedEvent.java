@@ -6,13 +6,14 @@ import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.User;
 
 import java.util.Iterator;
+import java.util.List;
 
-public class MultiContactReceivedEvent extends ChatEvent {
+public class MultiContactReceivedEvent extends ContactReceivedEvent {
     private User sender;
-    private Iterable<Contact> sentContacts;
+    private List<Contact> sentContacts;
 
-    public MultiContactReceivedEvent(Chat chat, User sender, Iterable<Contact> sent) {
-        super(chat);
+    public MultiContactReceivedEvent(Chat chat, User sender, List<Contact> sent) {
+        super(chat, sender, sent.get(0));
         this.sender = sender;
         this.sentContacts = sent;
     }
@@ -21,15 +22,6 @@ public class MultiContactReceivedEvent extends ChatEvent {
     {
         return this.sender;
     }
-
-    /*
-    @Deprecated
-    public Contact getSentContact()
-    {
-        Iterator<Contact> i = this.sentContacts.iterator();
-        return i.hasNext() ? this.sentContacts.iterator().next() : null;
-    }
-    */
 
     public Iterable<Contact> getSentContacts()
     {

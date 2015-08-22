@@ -167,7 +167,7 @@ public enum MessageType {
 
             ChatImpl c = (ChatImpl) getChat(url, skype);
             User u = getUser(from, c);
-            ChatEvent event = contacts.size() == 1 ? new ContactReceivedEvent(c, u, contacts.get(0)) : new MultiContactReceivedEvent(c, u, contacts);
+            ContactReceivedEvent event = contacts.size() == 1 ? new ContactReceivedEvent(c, u, contacts.get(0)) : new MultiContactReceivedEvent(c, u, contacts);
             skype.getEventDispatcher().callEvent(event);
         }
     },
