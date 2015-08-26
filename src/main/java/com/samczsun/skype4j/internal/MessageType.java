@@ -13,10 +13,7 @@ import com.samczsun.skype4j.events.chat.TopicChangeEvent;
 import com.samczsun.skype4j.events.chat.message.MessageEditedByOtherEvent;
 import com.samczsun.skype4j.events.chat.message.MessageEditedEvent;
 import com.samczsun.skype4j.events.chat.message.MessageReceivedEvent;
-<<<<<<< HEAD
-=======
 import com.samczsun.skype4j.events.chat.message.SmsReceivedEvent;
->>>>>>> a23dcc18cd2d1774b1bd34a29eb3e5a9f18a854f
 import com.samczsun.skype4j.events.chat.sent.*;
 import com.samczsun.skype4j.events.chat.call.CallReceivedEvent;
 import com.samczsun.skype4j.events.chat.user.MultiUserAddEvent;
@@ -170,11 +167,7 @@ public enum MessageType {
 
             ChatImpl c = (ChatImpl) getChat(url, skype);
             User u = getUser(from, c);
-<<<<<<< HEAD
-            ChatEvent event = contacts.size() == 1 ? new ContactReceivedEvent(c, u, contacts.get(0)) : new MultiContactReceivedEvent(c, u, contacts);
-=======
             ContactReceivedEvent event = contacts.size() == 1 ? new ContactReceivedEvent(c, u, contacts.get(0)) : new MultiContactReceivedEvent(c, u, contacts);
->>>>>>> a23dcc18cd2d1774b1bd34a29eb3e5a9f18a854f
             skype.getEventDispatcher().callEvent(event);
         }
     },
