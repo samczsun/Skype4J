@@ -4,25 +4,22 @@ import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.events.chat.ChatEvent;
 import com.samczsun.skype4j.user.User;
 
-public class TypingReceivedEvent extends ChatEvent 
-{
+public class TypingReceivedEvent extends ChatEvent {
     private User sender;
-	private boolean typing;
+    private boolean typing;
 
-    public TypingReceivedEvent(Chat chat, User sender, boolean typing)
-	{
+    public TypingReceivedEvent(Chat chat, User sender, boolean typing) {
         super(chat);
         this.sender = sender;
-		this.typing = typing;
+        this.typing = typing;
     }
 
-    public User getSender()	{
+    public User getSender() {
         return this.sender;
     }
 
-	public boolean isTyping()
-	{
-		return this.typing;
-	}
+    public boolean isTyping() {
+        return this.typing;
+    }
 
 }

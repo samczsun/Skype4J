@@ -6,6 +6,7 @@ import com.eclipsesource.json.JsonValue;
 import com.samczsun.skype4j.ConnectionBuilder;
 import com.samczsun.skype4j.StreamUtils;
 import com.samczsun.skype4j.chat.GroupChat;
+import com.samczsun.skype4j.events.chat.user.action.OptionUpdateEvent;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.NotParticipatingException;
@@ -15,10 +16,14 @@ import com.samczsun.skype4j.user.User.Role;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 public class ChatGroup extends ChatImpl implements GroupChat {
     private String topic;
+    private String pictureUrl;
+    private Set<OptionUpdateEvent.Option> enabledOptions = new HashSet<>();
 
     protected ChatGroup(SkypeImpl skype, String identity) throws ConnectionException, ChatNotFoundException {
         super(skype, identity);
@@ -140,5 +145,16 @@ public class ChatGroup extends ChatImpl implements GroupChat {
 
     public void updateTopic(String topic) {
         this.topic = topic;
+    }
+
+    public void updatePicture(String picture) {
+        this.pictureUrl = picture;
+    }
+
+    public void updateOption(OptionUpdateEvent.Option option, boolean enabled) {
+        if (enabled)
+            enabledOptions.add(option);
+        else
+            enabledOptions.remove(option);
     }
 }
