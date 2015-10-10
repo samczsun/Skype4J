@@ -27,6 +27,8 @@ public abstract class ChatImpl implements Chat {
     protected static final String SEND_MESSAGE_URL = "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/conversations/%s/messages";
     protected static final String MODIFY_MEMBER_URL = "https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/members/8:%s";
     protected static final String MODIFY_PROPERTY_URL = "https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/properties?name=%s";
+    protected static final String GET_JOIN_URL = "https://api.scheduler.skype.com/threads";
+    protected static final String ADD_MEMBER_URL = "https://client-s.gateway.messenger.live.com/v1/threads/%s/members/8:%s";
 
     public static Chat createChat(Skype client, String identity) throws ConnectionException, ChatNotFoundException {
         Validate.notNull(client, "Client must not be null");

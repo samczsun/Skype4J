@@ -38,6 +38,7 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -247,12 +248,12 @@ public enum MessageType {
                     builder.addHeader("Cookie", skype.getCookieString());
                     HttpURLConnection statusCon = builder.build();
                     if (statusCon.getResponseCode() == 200) {
-                        JsonObject obj = JsonObject.readFrom(StreamUtils.readFully(statusCon.getInputStream()));
+                        JsonObject obj = JsonObject.readFrom(new InputStreamReader(statusCon.getInputStream()));
                         builder.setUrl(obj.get("status_location").asString());
                         while (true) {
                             statusCon = builder.build();
                             if (statusCon.getResponseCode() == 200) {
-                                obj = JsonObject.readFrom(StreamUtils.readFully(statusCon.getInputStream()));
+                                obj = JsonObject.readFrom(new InputStreamReader(statusCon.getInputStream()));
                                 if (obj.get("content_state").asString().equalsIgnoreCase("ready")) {
                                     break;
                                 }

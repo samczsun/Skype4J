@@ -10,10 +10,12 @@ import com.samczsun.skype4j.events.chat.user.action.OptionUpdateEvent;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.NotParticipatingException;
+import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.User;
 import com.samczsun.skype4j.user.User.Role;
 
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -42,8 +44,13 @@ public class ChatGroup extends ChatImpl implements GroupChat {
             builder.addHeader("Content-Type", "application/json");
             HttpURLConnection con = builder.build();
             if (con.getResponseCode() == 200) {
-                JsonObject object = JsonObject.readFrom(StreamUtils.readFully(con.getInputStream()));
+                JsonObject object = JsonObject.readFrom(new InputStreamReader(con.getInputStream()));
                 JsonObject props = object.get("properties").asObject();
+                for (OptionUpdateEvent.Option option : OptionUpdateEvent.Option.values()) {
+                    if (props.get(option.getId()) != null && props.get(option.getId()).equals("true")) {
+                        this.enabledOptions.add(option);
+                    }
+                }
                 if (props.get("topic") != null) {
                     this.topic = props.get("topic").asString();
                 } else {
@@ -117,6 +124,34 @@ public class ChatGroup extends ChatImpl implements GroupChat {
     }
 
     @Override
+    public String getJoinUrl() throws ConnectionException {
+        checkLoaded();
+        if (isOptionEnabled(OptionUpdateEvent.Option.JOINING_ENABLED)) {
+            try {
+                JsonObject data = new JsonObject();
+                data.add("baseDomain", "https://join.skype.com/launch/");
+                data.add("threadId", this.getIdentity());
+                ConnectionBuilder builder = new ConnectionBuilder();
+                builder.setUrl(GET_JOIN_URL);
+                builder.setMethod("POST", true);
+                builder.addHeader("X-Skypetoken", getClient().getSkypeToken());
+                builder.addHeader("Content-Type", "application/json");
+                builder.setData(data.toString());
+                HttpURLConnection con = builder.build();
+                if (con.getResponseCode() != 200) {
+                    throw getClient().generateException(con);
+                }
+                JsonObject object = JsonObject.readFrom(new InputStreamReader(con.getInputStream()));
+                return object.get("JoinUrl").asString();
+            } catch (IOException e) {
+                throw new ConnectionException("While getting join url", e);
+            }
+        } else {
+            throw new IllegalArgumentException("Joining is not enabled");
+        }
+    }
+
+    @Override
     public String getTopic() {
         checkLoaded();
         return this.topic;
@@ -124,12 +159,51 @@ public class ChatGroup extends ChatImpl implements GroupChat {
 
     public void setTopic(String topic) throws ConnectionException {
         checkLoaded();
+        putOption("topic", JsonValue.valueOf(topic));
+    }
+
+    @Override
+    public boolean isOptionEnabled(OptionUpdateEvent.Option option) {
+        checkLoaded();
+        return this.enabledOptions.contains(option);
+    }
+
+    @Override
+    public void setOptionEnabled(OptionUpdateEvent.Option option, boolean enabled) throws ConnectionException {
+        checkLoaded();
+        if ((enabled && !enabledOptions.contains(option)) || (!enabled && enabledOptions.contains(option))) {
+            putOption(option.getId(), JsonValue.valueOf(enabled));
+            updateOption(option, enabled);
+        }
+    }
+
+    @Override
+    public void add(Contact contact) throws ConnectionException {
+        checkLoaded();
         try {
-            ;
             JsonObject obj = new JsonObject();
-            obj.add("topic", topic);
+            obj.add("role", "User");
             ConnectionBuilder builder = new ConnectionBuilder();
-            builder.setUrl(getClient().withCloud(MODIFY_PROPERTY_URL, getIdentity(), "topic"));
+            builder.setUrl(String.format(ADD_MEMBER_URL, getIdentity(), contact.getUsername()));
+            builder.setMethod("PUT", true);
+            builder.addHeader("RegistrationToken", getClient().getRegistrationToken());
+            builder.addHeader("Content-Type", "application/json");
+            builder.setData(obj.toString());
+            HttpURLConnection con = builder.build();
+            if (con.getResponseCode() != 200) {
+                throw getClient().generateException(con);
+            }
+        } catch (IOException e) {
+            throw new ConnectionException("While adding an user", e);
+        }
+    }
+
+    private void putOption(String option, JsonValue value) throws ConnectionException {
+        try {
+            JsonObject obj = new JsonObject();
+            obj.add(option, value);
+            ConnectionBuilder builder = new ConnectionBuilder();
+            builder.setUrl(getClient().withCloud(MODIFY_PROPERTY_URL, getIdentity(), option));
             builder.setMethod("PUT", true);
             builder.addHeader("RegistrationToken", getClient().getRegistrationToken());
             builder.addHeader("Content-Type", "application/json");

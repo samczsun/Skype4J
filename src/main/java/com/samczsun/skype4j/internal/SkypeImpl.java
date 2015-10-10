@@ -5,7 +5,6 @@ import com.eclipsesource.json.JsonObject;
 import com.eclipsesource.json.JsonValue;
 import com.samczsun.skype4j.ConnectionBuilder;
 import com.samczsun.skype4j.Skype;
-import com.samczsun.skype4j.StreamUtils;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.events.EventDispatcher;
 import com.samczsun.skype4j.events.chat.ChatJoinedEvent;
@@ -23,7 +22,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.SocketTimeoutException;
 import java.net.URLEncoder;
@@ -129,14 +128,12 @@ public class SkypeImpl extends Skype {
                             throw generateException(c);
                         }
 
-                        InputStream read = c.getInputStream();
-                        String json = StreamUtils.readFully(read);
-                        if (!json.isEmpty()) {
-                            final JsonObject message = JsonObject.readFrom(json);
-                            if (!scheduler.isShutdown()) {
-                                scheduler.execute(new Runnable() {
-                                    public void run() {
-                                        try {
+                        final JsonObject message = JsonObject.readFrom(new InputStreamReader(c.getInputStream()));
+                        if (!scheduler.isShutdown()) {
+                            scheduler.execute(new Runnable() {
+                                public void run() {
+                                    try {
+                                        if (message.get("eventMessages") != null) {
                                             JsonArray arr = message.get("eventMessages").asArray();
                                             for (JsonValue elem : arr) {
                                                 JsonObject eventObj = elem.asObject();
@@ -164,13 +161,13 @@ public class SkypeImpl extends Skype {
                                                     logger.severe(eventObj.toString());
                                                 }
                                             }
-                                        } catch (Exception e) {
-                                            logger.log(Level.SEVERE, "Exception while handling message", e);
-                                            logger.log(Level.SEVERE, message.toString());
                                         }
+                                    } catch (Exception e) {
+                                        logger.log(Level.SEVERE, "Exception while handling message", e);
+                                        logger.log(Level.SEVERE, message.toString());
                                     }
-                                });
-                            }
+                                }
+                            });
                         }
                     } catch (IOException e) {
                         eventDispatcher.callEvent(new DisconnectedEvent(e));

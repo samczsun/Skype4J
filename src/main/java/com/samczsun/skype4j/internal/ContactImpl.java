@@ -10,6 +10,7 @@ import com.samczsun.skype4j.user.Contact;
 import org.jsoup.helper.Validate;
 
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 
 public class ContactImpl implements Contact {
@@ -36,7 +37,7 @@ public class ContactImpl implements Contact {
         try {
             HttpURLConnection con = builder.build();
             if (con.getResponseCode() == 200) {
-                JsonArray array = JsonArray.readFrom(StreamUtils.readFully(con.getInputStream()));
+                JsonArray array = JsonArray.readFrom(new InputStreamReader(con.getInputStream()));
                 JsonObject json = array.get(0).asObject();
                 if (!json.get("displayname").isNull()) {
                     this.displayName = json.get("displayname").asString();

@@ -27,8 +27,18 @@ public class OptionUpdateEvent extends UserEvent {
         return enabled;
     }
 
-    public static enum Option {
-        JOINING_ENABLED,
-        HISTORY_DISCLOSED;
+    public enum Option {
+        JOINING_ENABLED("joiningenabled"),
+        HISTORY_DISCLOSED("historydisclosed");
+
+        private String id;
+
+        Option(String id) {
+            this.id = id;
+        }
+
+        public String getId() {
+            return this.id;
+        }
     }
 }
