@@ -4,7 +4,6 @@ import com.eclipsesource.json.JsonArray;
 import com.eclipsesource.json.JsonObject;
 import com.eclipsesource.json.JsonValue;
 import com.samczsun.skype4j.ConnectionBuilder;
-import com.samczsun.skype4j.StreamUtils;
 import com.samczsun.skype4j.chat.GroupChat;
 import com.samczsun.skype4j.events.chat.user.action.OptionUpdateEvent;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
@@ -94,7 +93,7 @@ public class ChatGroup extends ChatImpl implements GroupChat {
         if (!users.containsKey(username.toLowerCase())) {
             User user = new UserImpl(username, this);
             users.put(username.toLowerCase(), user);
-        } else {
+        } else if (!username.equalsIgnoreCase(getClient().getUsername())) { //Skype...
             throw new IllegalArgumentException(username + " joined the chat even though he was already in it?");
         }
     }

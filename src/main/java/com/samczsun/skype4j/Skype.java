@@ -1,6 +1,7 @@
 package com.samczsun.skype4j;
 
 import com.samczsun.skype4j.chat.Chat;
+import com.samczsun.skype4j.chat.GroupChat;
 import com.samczsun.skype4j.events.EventDispatcher;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
@@ -111,4 +112,15 @@ public abstract class Skype {
      * @return The Logger
      */
     public abstract Logger getLogger();
+
+    /**
+     * Create a new group chat with the selected contacts. You will be automatically added to the group
+     * If an error occurs while creating the chat, an {@link ConnectionException} or an {@link ChatNotFoundException} will be thrown
+     *
+     * @param contacts The contacts to add
+     * @return The newly created group chat
+     * @throws ConnectionException
+     * @throws ChatNotFoundException
+     */
+    public abstract GroupChat createGroupChat(Contact... contacts) throws ConnectionException, ChatNotFoundException;
 }

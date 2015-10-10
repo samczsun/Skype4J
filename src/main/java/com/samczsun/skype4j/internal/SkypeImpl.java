@@ -6,6 +6,7 @@ import com.eclipsesource.json.JsonValue;
 import com.samczsun.skype4j.ConnectionBuilder;
 import com.samczsun.skype4j.Skype;
 import com.samczsun.skype4j.chat.Chat;
+import com.samczsun.skype4j.chat.GroupChat;
 import com.samczsun.skype4j.events.EventDispatcher;
 import com.samczsun.skype4j.events.chat.ChatJoinedEvent;
 import com.samczsun.skype4j.events.chat.DisconnectedEvent;
@@ -44,10 +45,13 @@ public class SkypeImpl extends Skype {
     private static final String TOKEN_AUTH_URL = "https://api.asm.skype.com/v1/skypetokenauth";
     private static final String LOGOUT_URL = "https://login.skype.com/logout?client_id=578134&redirect_uri=https%3A%2F%2Fweb.skype.com&intsrc=client-_-webapp-_-production-_-go-signin";
     private static final String ENDPOINTS_URL = "https://client-s.gateway.messenger.live.com/v1/users/ME/endpoints";
+    private static final String THREAD_URL = "https://client-s.gateway.messenger.live.com/v1/threads";
     // The endpoints below all depend on the cloud the user is in
     private static final String SUBSCRIPTIONS_URL = "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/SELF/subscriptions";
     private static final String MESSAGINGSERVICE_URL = "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/%s/presenceDocs/messagingService";
     private static final String POLL_URL = "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/SELF/subscriptions/0/poll";
+
+    private static final Pattern URL_PATTERN = Pattern.compile("threads/(.*)", Pattern.CASE_INSENSITIVE);
 
     private final AtomicBoolean loggedIn = new AtomicBoolean(false);
 
@@ -134,36 +138,18 @@ public class SkypeImpl extends Skype {
                                 public void run() {
                                     try {
                                         if (message.get("eventMessages") != null) {
-                                            JsonArray arr = message.get("eventMessages").asArray();
-                                            for (JsonValue elem : arr) {
+                                            for (JsonValue elem : message.get("eventMessages").asArray()) {
                                                 JsonObject eventObj = elem.asObject();
-                                                String resourceType = eventObj.get("resourceType").asString();
-                                                if (resourceType.equals("NewMessage")) {
-                                                    JsonObject resource = eventObj.get("resource").asObject();
-                                                    String messageType = resource.get("messagetype").asString();
-                                                    MessageType type = MessageType.getByName(messageType);
-                                                    type.handle(SkypeImpl.this, resource);
-                                                } else if (resourceType.equalsIgnoreCase("EndpointPresence")) {
-                                                } else if (resourceType.equalsIgnoreCase("UserPresence")) {
-                                                } else if (resourceType.equalsIgnoreCase("ConversationUpdate")) { //Not sure what this does
-                                                } else if (resourceType.equalsIgnoreCase("ThreadUpdate")) {
-                                                    JsonObject resource = eventObj.get("resource").asObject();
-                                                    String chatId = resource.get("id").asString();
-                                                    Chat chat = getChat(chatId);
-                                                    if (chat == null) {
-                                                        chat = ChatImpl.createChat(SkypeImpl.this, chatId);
-                                                        allChats.put(chatId, chat);
-                                                        ChatJoinedEvent e = new ChatJoinedEvent(chat);
-                                                        eventDispatcher.callEvent(e);
-                                                    }
+                                                EventType type = EventType.getByName(eventObj.get("resourceType").asString());
+                                                if (type != null) {
+                                                    type.handle(SkypeImpl.this, eventObj);
                                                 } else {
-                                                    logger.severe("Unhandled resourceType " + resourceType);
-                                                    logger.severe(eventObj.toString());
+                                                    throw new IllegalArgumentException("Unknown EventType " + eventObj.get("resourceType").asString());
                                                 }
                                             }
                                         }
-                                    } catch (Exception e) {
-                                        logger.log(Level.SEVERE, "Exception while handling message", e);
+                                    } catch (Throwable t) {
+                                        logger.log(Level.SEVERE, "Exception while handling message", t);
                                         logger.log(Level.SEVERE, message.toString());
                                     }
                                 }
@@ -265,6 +251,47 @@ public class SkypeImpl extends Skype {
 
     public Logger getLogger() {
         return this.logger;
+    }
+
+    @Override
+    public GroupChat createGroupChat(Contact... contacts) throws ConnectionException, ChatNotFoundException {
+        try {
+            JsonObject obj = new JsonObject();
+            JsonArray allContacts = new JsonArray();
+            JsonObject me = new JsonObject();
+            me.add("id", "8:" + this.getUsername());
+            me.add("role", "Admin");
+            allContacts.add(me);
+            for (Contact contact : contacts) {
+                JsonObject other = new JsonObject();
+                other.add("id", "8:" + contact.getUsername());
+                other.add("role", "User");
+                allContacts.add(other);
+            }
+            obj.add("members", allContacts);
+            ConnectionBuilder builder = new ConnectionBuilder();
+            builder.setUrl(THREAD_URL);
+            builder.setMethod("POST", true);
+            builder.addHeader("RegistrationToken", getRegistrationToken());
+            builder.setData(obj.toString());
+            HttpURLConnection con = builder.build();
+            if (con.getResponseCode() != 201) {
+                throw generateException(con);
+            }
+            String url = con.getHeaderField("Location");
+            Matcher chatMatcher = URL_PATTERN.matcher(url);
+            if (chatMatcher.find()) {
+                GroupChat result = (GroupChat) this.getChat(chatMatcher.group(1));
+                while (result == null) {
+                    result = (GroupChat) this.getChat(chatMatcher.group(1));
+                }
+                return result;
+            } else {
+                throw new IllegalArgumentException("Unable to create chat");
+            }
+        } catch (IOException e) {
+            throw new ConnectionException("While creating a new group chat", e);
+        }
     }
 
     private Response postToLogin(String username, String password) throws ConnectionException {

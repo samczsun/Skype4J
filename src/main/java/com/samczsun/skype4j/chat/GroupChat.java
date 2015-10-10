@@ -3,7 +3,6 @@ package com.samczsun.skype4j.chat;
 import com.samczsun.skype4j.events.chat.user.action.OptionUpdateEvent;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.NotLoadedException;
-import com.samczsun.skype4j.exceptions.SkypeException;
 import com.samczsun.skype4j.user.Contact;
 
 /**
