@@ -2,6 +2,7 @@
 /target/
 /scripts/
 /src/other
+/docs
 .settings/
 .idea/
 .classpath

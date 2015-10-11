@@ -1,15 +1,32 @@
+/*
+ * Copyright 2015 Sam Sun <me@samczsun.com>
+ *
+ * This file is part of Skype4J.
+ *
+ * Skype4J is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
+ * License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later
+ * version.
+ *
+ * Skype4J is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
+ * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public
+ * License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with Skype4J.
+ * If not, see http://www.gnu.org/licenses/.
+ */
+
 package com.samczsun.skype4j.internal;
 
 import com.eclipsesource.json.JsonArray;
 import com.eclipsesource.json.JsonObject;
 import com.eclipsesource.json.JsonValue;
-import com.samczsun.skype4j.ConnectionBuilder;
 import com.samczsun.skype4j.Skype;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.GroupChat;
 import com.samczsun.skype4j.events.EventDispatcher;
-import com.samczsun.skype4j.events.chat.ChatJoinedEvent;
 import com.samczsun.skype4j.events.chat.DisconnectedEvent;
+import com.samczsun.skype4j.events.error.MajorErrorEvent;
+import com.samczsun.skype4j.events.error.MinorErrorEvent;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.InvalidCredentialsException;
@@ -55,6 +72,8 @@ public class SkypeImpl extends Skype {
 
     private final AtomicBoolean loggedIn = new AtomicBoolean(false);
 
+    private final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
+
     private final String username;
     private final String password;
     private final Set<String> resources;
@@ -82,87 +101,104 @@ public class SkypeImpl extends Skype {
         this.resources = resources;
     }
 
-    public void subscribe() throws IOException {
-        ConnectionBuilder builder = new ConnectionBuilder();
-        builder.setUrl(withCloud(SUBSCRIPTIONS_URL));
-        builder.setMethod("POST", true);
-        builder.addHeader("RegistrationToken", registrationToken);
-        builder.addHeader("Content-Type", "application/json");
-        builder.setData(buildSubscriptionObject().toString());
-        HttpURLConnection connection = builder.build();
+    public void subscribe() throws ConnectionException {
+        try {
+            ConnectionBuilder builder = new ConnectionBuilder();
+            builder.setUrl(withCloud(SUBSCRIPTIONS_URL));
+            builder.setMethod("POST", true);
+            builder.addHeader("RegistrationToken", registrationToken);
+            builder.addHeader("Content-Type", "application/json");
+            builder.setData(buildSubscriptionObject().toString());
+            HttpURLConnection connection = builder.build();
 
-        int code = connection.getResponseCode();
-        if (code != 201) {
-            throw generateException(connection);
-        }
+            int code = connection.getResponseCode();
+            if (code != 201) {
+                throw generateException("While subscribing", connection);
+            }
 
-        builder.setUrl(withCloud(MESSAGINGSERVICE_URL, URLEncoder.encode(endpointId, "UTF-8")));
-        builder.setMethod("PUT", true);
-        builder.setData(buildRegistrationObject().toString());
-        connection = builder.build();
+            builder.setUrl(withCloud(MESSAGINGSERVICE_URL, URLEncoder.encode(endpointId, "UTF-8")));
+            builder.setMethod("PUT", true);
+            builder.setData(buildRegistrationObject().toString());
+            connection = builder.build();
 
-        code = connection.getResponseCode();
-        if (code != 200) {
-            throw generateException(connection);
-        }
-        pollThread = new Thread(String.format("Skype-%s-PollThread", username)) {
-            public void run() {
-                ConnectionBuilder poll = new ConnectionBuilder();
-                poll.setUrl(withCloud(POLL_URL));
-                poll.setMethod("POST", true);
-                poll.addHeader("RegistrationToken", registrationToken);
-                poll.addHeader("Content-Type", "application/json");
-                poll.setData("");
-                main:
-                while (loggedIn.get()) {
-                    try {
-                        HttpURLConnection c = poll.build();
-                        AtomicInteger code = new AtomicInteger(0);
-                        while (code.get() == 0) {
-                            try {
-                                code.set(c.getResponseCode());
-                            } catch (SocketTimeoutException e) {
-                                if (Thread.currentThread().isInterrupted()) {
-                                    break main;
+            code = connection.getResponseCode();
+            if (code != 200) {
+                throw generateException("While submitting a messaging service", connection);
+            }
+            pollThread = new Thread(String.format("Skype-%s-PollThread", username)) {
+                public void run() {
+                    ConnectionBuilder poll = new ConnectionBuilder();
+                    poll.setUrl(withCloud(POLL_URL));
+                    poll.setMethod("POST", true);
+                    poll.addHeader("RegistrationToken", registrationToken);
+                    poll.addHeader("Content-Type", "application/json");
+                    poll.setData("");
+
+                    main:
+                    while (loggedIn.get()) {
+                        try {
+                            HttpURLConnection connection = poll.build();
+                            AtomicInteger code = new AtomicInteger(0);
+                            while (code.get() == 0) {
+                                try {
+                                    code.set(connection.getResponseCode());
+                                } catch (SocketTimeoutException e) {
+                                    if (Thread.currentThread().isInterrupted()) {
+                                        break main;
+                                    }
                                 }
                             }
-                        }
 
-                        if (code.get() != 200) {
-                            throw generateException(c);
-                        }
+                            if (code.get() != 200) {
+                                MajorErrorEvent event = new MajorErrorEvent();
+                                getEventDispatcher().callEvent(event);
+                                shutdown();
+                                break main;
+                            }
 
-                        final JsonObject message = JsonObject.readFrom(new InputStreamReader(c.getInputStream()));
-                        if (!scheduler.isShutdown()) {
+                            if (scheduler.isShutdown()) {
+                                if (!shutdownRequested.get()) {
+                                    MajorErrorEvent event = new MajorErrorEvent();
+                                    getEventDispatcher().callEvent(event);
+                                    shutdown();
+                                }
+                                break main;
+                            }
+
+                            final JsonObject message = JsonObject.readFrom(new InputStreamReader(connection.getInputStream()));
                             scheduler.execute(new Runnable() {
                                 public void run() {
-                                    try {
-                                        if (message.get("eventMessages") != null) {
-                                            for (JsonValue elem : message.get("eventMessages").asArray()) {
-                                                JsonObject eventObj = elem.asObject();
-                                                EventType type = EventType.getByName(eventObj.get("resourceType").asString());
-                                                if (type != null) {
+                                    if (message.get("eventMessages") != null) {
+                                        for (JsonValue elem : message.get("eventMessages").asArray()) {
+                                            JsonObject eventObj = elem.asObject();
+                                            EventType type = EventType.getByName(eventObj.get("resourceType").asString());
+                                            if (type != null) {
+                                                try {
                                                     type.handle(SkypeImpl.this, eventObj);
-                                                } else {
-                                                    throw new IllegalArgumentException("Unknown EventType " + eventObj.get("resourceType").asString());
+                                                } catch (Throwable t) {
+                                                    MinorErrorEvent event = new MinorErrorEvent();
+                                                    getEventDispatcher().callEvent(event);
                                                 }
+                                            } else {
+                                                MinorErrorEvent event = new MinorErrorEvent();
+                                                getEventDispatcher().callEvent(event);
                                             }
                                         }
-                                    } catch (Throwable t) {
-                                        logger.log(Level.SEVERE, "Exception while handling message", t);
-                                        logger.log(Level.SEVERE, message.toString());
                                     }
                                 }
                             });
+                        } catch (IOException e) {
+                            MajorErrorEvent event = new MajorErrorEvent();
+                            getEventDispatcher().callEvent(event);
+                            shutdown();
                         }
-                    } catch (IOException e) {
-                        eventDispatcher.callEvent(new DisconnectedEvent(e));
-                        loggedIn.set(false);
                     }
                 }
-            }
-        };
-        pollThread.start();
+            };
+            pollThread.start();
+        } catch (IOException io) {
+            throw generateException("While subscribing", io);
+        }
     }
 
     @Override
@@ -224,16 +260,21 @@ public class SkypeImpl extends Skype {
         try {
             HttpURLConnection con = builder.build();
             if (con.getResponseCode() != 302) {
-                throw generateException(con);
+                throw generateException("While logging out", con);
             }
-            loggedIn.set(false);
-            pollThread.interrupt();
-            sessionKeepaliveThread.interrupt();
-            scheduler.shutdownNow();
-            while (!scheduler.isTerminated()) ;
+            shutdown();
         } catch (IOException e) {
-            throw new ConnectionException("While logging out", e);
+            throw generateException("While logging out", e);
         }
+    }
+
+    private void shutdown() {
+        loggedIn.set(false);
+        shutdownRequested.set(true);
+        pollThread.interrupt();
+        sessionKeepaliveThread.interrupt();
+        scheduler.shutdownNow();
+        while (!scheduler.isTerminated()) ;
     }
 
     public String getRegistrationToken() {
@@ -276,7 +317,7 @@ public class SkypeImpl extends Skype {
             builder.setData(obj.toString());
             HttpURLConnection con = builder.build();
             if (con.getResponseCode() != 201) {
-                throw generateException(con);
+                throw generateException("While creating group chat", con);
             }
             String url = con.getHeaderField("Location");
             Matcher chatMatcher = URL_PATTERN.matcher(url);
@@ -290,7 +331,7 @@ public class SkypeImpl extends Skype {
                 throw new IllegalArgumentException("Unable to create chat");
             }
         } catch (IOException e) {
-            throw new ConnectionException("While creating a new group chat", e);
+            throw generateException("While creating group chat", e);
         }
     }
 
@@ -340,10 +381,10 @@ public class SkypeImpl extends Skype {
             if (code == 201) {
                 return connection;
             } else {
-                throw generateException(connection);
+                throw generateException("While registering endpoint", connection);
             }
         } catch (IOException e) {
-            throw new ConnectionException("While registering the endpoint", e);
+            throw generateException("While registering endpoint", e);
         }
     }
 
@@ -369,7 +410,7 @@ public class SkypeImpl extends Skype {
         publicInfo.add("type", 1);
         publicInfo.add("skypeNameVersion", "skype.com");
         publicInfo.add("nodeInfo", "xx");
-        publicInfo.add("version", "908/1.6.0.288//skype.com");
+        publicInfo.add("version", "908/1.12.0.75//skype.com");
         JsonObject privateInfo = new JsonObject();
         privateInfo.add("epname", "Skype4J");
         registrationObject.add("publicInfo", publicInfo);
@@ -437,8 +478,16 @@ public class SkypeImpl extends Skype {
         }
     }
 
-    public IOException generateException(HttpURLConnection connection) throws IOException {
-        return new IOException(String.format("(%s, %s)", connection.getResponseCode(), connection.getResponseMessage()));
+    public ConnectionException generateException(String reason, HttpURLConnection connection) {
+        try {
+            return new ConnectionException(reason, connection.getResponseCode(), connection.getResponseMessage());
+        } catch (IOException e) {
+            throw new RuntimeException(String.format("IOException while constructing exception (%s, %s)", reason, connection));
+        }
+    }
+
+    public ConnectionException generateException(String reason, IOException nested) {
+        return new ConnectionException(reason, nested);
     }
 
     private void updateCloud(String anyLocation) {

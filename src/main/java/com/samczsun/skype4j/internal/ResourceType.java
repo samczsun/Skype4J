@@ -15,20 +15,8 @@
  * If not, see http://www.gnu.org/licenses/.
  */
 
-package com.samczsun.skype4j.events.chat.message;
+package com.samczsun.skype4j.internal;
 
-import com.samczsun.skype4j.chat.ChatMessage;
-import com.samczsun.skype4j.events.chat.ChatEvent;
+public class ResourceType {
 
-public abstract class MessageEvent extends ChatEvent {
-    private final ChatMessage message;
-
-    public MessageEvent(ChatMessage message) {
-        super(message.getChat());
-        this.message = message;
-    }
-
-    public ChatMessage getMessage() {
-        return this.message;
-    }
 }
