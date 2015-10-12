@@ -1,15 +1,31 @@
+/*
+ * Copyright 2015 Sam Sun <me@samczsun.com>
+ *
+ * This file is part of Skype4J.
+ *
+ * Skype4J is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
+ * License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later
+ * version.
+ *
+ * Skype4J is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
+ * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public
+ * License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with Skype4J.
+ * If not, see http://www.gnu.org/licenses/.
+ */
+
 package com.samczsun.skype4j.internal;
 
 import com.eclipsesource.json.JsonArray;
 import com.eclipsesource.json.JsonObject;
-import com.samczsun.skype4j.ConnectionBuilder;
 import com.samczsun.skype4j.Skype;
-import com.samczsun.skype4j.StreamUtils;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.user.Contact;
 import org.jsoup.helper.Validate;
 
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 
 public class ContactImpl implements Contact {
@@ -36,7 +52,7 @@ public class ContactImpl implements Contact {
         try {
             HttpURLConnection con = builder.build();
             if (con.getResponseCode() == 200) {
-                JsonArray array = JsonArray.readFrom(StreamUtils.readFully(con.getInputStream()));
+                JsonArray array = JsonArray.readFrom(new InputStreamReader(con.getInputStream()));
                 JsonObject json = array.get(0).asObject();
                 if (!json.get("displayname").isNull()) {
                     this.displayName = json.get("displayname").asString();

@@ -1,9 +1,27 @@
+/*
+ * Copyright 2015 Sam Sun <me@samczsun.com>
+ *
+ * This file is part of Skype4J.
+ *
+ * Skype4J is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
+ * License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later
+ * version.
+ *
+ * Skype4J is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
+ * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public
+ * License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with Skype4J.
+ * If not, see http://www.gnu.org/licenses/.
+ */
+
 package com.samczsun.skype4j.internal;
 
 import com.samczsun.skype4j.events.Event;
 import com.samczsun.skype4j.events.EventDispatcher;
 import com.samczsun.skype4j.events.EventHandler;
 import com.samczsun.skype4j.events.Listener;
+import com.samczsun.skype4j.events.error.MinorErrorEvent;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -43,6 +61,10 @@ public class SkypeEventDispatcher implements EventDispatcher {
     }
 
     public void callEvent(Event e) {
+        callEvent(e, true);
+    }
+
+    private void callEvent(Event e, boolean tryNotify) {
         List<RegisteredListener> methods = new ArrayList<>();
         Class<?> eventClass = e.getClass();
         while (true) {
@@ -58,8 +80,11 @@ public class SkypeEventDispatcher implements EventDispatcher {
             for (RegisteredListener method : methods) {
                 try {
                     method.handleEvent(e);
-                } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e1) {
-                    e1.printStackTrace();
+                } catch (Throwable t) {
+                    if (tryNotify) {
+                        MinorErrorEvent event = new MinorErrorEvent();
+                        callEvent(event, false);
+                    }
                 }
             }
         }

@@ -15,8 +15,12 @@
  * If not, see http://www.gnu.org/licenses/.
  */
 
-package com.samczsun.skype4j.internal;
+package com.samczsun.skype4j.events.error;
 
-public class ResourceType {
+/**
+ * Represents an error which cannot be recovered from.
+ * This event should be handled accordingly.
+ */
+public class MajorErrorEvent extends ErrorEvent {
 
 }

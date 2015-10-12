@@ -15,8 +15,15 @@
  * If not, see http://www.gnu.org/licenses/.
  */
 
-package com.samczsun.skype4j.internal;
+package com.samczsun.skype4j.events.error;
 
-public class ResourceType {
+import com.samczsun.skype4j.events.Event;
 
+/**
+ * Represents an error which has occured within the internal API
+ * Most likely this error was caused through some action performed on the API, hence it is disclosed to you
+ * Some errors are non-important - they can be safely ignored.
+ * Others should be handled properly as they signal the API will no longer function at all
+ */
+public class ErrorEvent extends Event {
 }

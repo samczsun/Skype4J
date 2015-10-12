@@ -1,4 +1,21 @@
-package com.samczsun.skype4j;
+/*
+ * Copyright 2015 Sam Sun <me@samczsun.com>
+ *
+ * This file is part of Skype4J.
+ *
+ * Skype4J is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
+ * License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later
+ * version.
+ *
+ * Skype4J is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
+ * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public
+ * License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with Skype4J.
+ * If not, see http://www.gnu.org/licenses/.
+ */
+
+package com.samczsun.skype4j.internal;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
@@ -17,6 +34,8 @@ public class ConnectionBuilder {
     private String data;
 
     private boolean output;
+
+    private volatile URL builtUrl;
 
     public void setUrl(String url) {
         this.url = url;
@@ -47,7 +66,10 @@ public class ConnectionBuilder {
     }
 
     public HttpURLConnection build(int timeout) throws IOException {
-        HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
+        if (builtUrl == null) {
+            builtUrl = new URL(url);
+        }
+        HttpURLConnection con = (HttpURLConnection) builtUrl.openConnection();
         con.setReadTimeout(timeout);
         con.setInstanceFollowRedirects(false);
         for (Map.Entry<String, List<String>> ent : headers.entrySet()) {
