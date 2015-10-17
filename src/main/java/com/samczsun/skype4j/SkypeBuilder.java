@@ -22,13 +22,19 @@ import com.samczsun.skype4j.internal.SkypeImpl;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.logging.Logger;
 
+/**
+ * This class is used to construct a new {@link Skype} instance.
+ */
 public class SkypeBuilder {
 
     private final String username;
     private final String password;
 
     private Set<String> resources = new HashSet<>();
+
+    private Logger customLogger;
 
     public SkypeBuilder(String username, String password) {
         this.username = username;
@@ -60,10 +66,15 @@ public class SkypeBuilder {
         return this;
     }
 
+    public SkypeBuilder withLogger(Logger logger) {
+        this.customLogger = logger;
+        return this;
+    }
+
     public Skype build() {
         if (resources.isEmpty()) {
             throw new IllegalArgumentException("No resources selected");
         }
-        return new SkypeImpl(username, password, resources);
+        return new SkypeImpl(username, password, resources, customLogger);
     }
 }

@@ -69,7 +69,7 @@ public abstract class Skype {
      * @throws ConnectionException If an error occurs during connection
      * @throws ChatNotFoundException If this skype account is not a member of the chat
      */
-    public abstract Chat loadChat(String name) throws ConnectionException, ChatNotFoundException;
+    public abstract Chat loadChat(String name) throws ConnectionException, ChatNotFoundException, IOException;
 
     /**
      * Get a contact based on the username. The contact must already be loaded
@@ -86,7 +86,7 @@ public abstract class Skype {
      * @return The contact that was loaded
      * @throws ConnectionException If an exception occured while fetching contact details
      */
-    public abstract Contact loadContact(String username) throws ConnectionException;
+    public abstract Contact loadContact(String username) throws ConnectionException, IOException;
 
     /**
      * Get a contact, and if said contact doesn't exist, load it
@@ -95,7 +95,7 @@ public abstract class Skype {
      * @return The contact
      * @throws ConnectionException If an exception occured while fetching contact details
      */
-    public abstract Contact getOrLoadContact(String username) throws ConnectionException;
+    public abstract Contact getOrLoadContact(String username) throws ConnectionException, IOException;
 
     /**
      * Get all the chats loaded by this API

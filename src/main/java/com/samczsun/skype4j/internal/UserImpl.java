@@ -23,6 +23,7 @@ import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.User;
 
+import java.io.IOException;
 import java.sql.Connection;
 import java.util.Collections;
 import java.util.List;
@@ -40,7 +41,7 @@ public class UserImpl implements User {
     private final List<ChatMessage> messages = new CopyOnWriteArrayList<>();
     private final Map<String, ChatMessage> messageMap = new ConcurrentHashMap<>();
 
-    public UserImpl(String username, ChatImpl chat) throws ConnectionException {
+    public UserImpl(String username, ChatImpl chat) throws ConnectionException, IOException {
         this.contactRep = chat.getClient().getOrLoadContact(username);
         this.chat = chat;
     }

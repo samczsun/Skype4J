@@ -39,6 +39,7 @@ public class ConnectionBuilder {
 
     public void setUrl(String url) {
         this.url = url;
+        builtUrl = null;
     }
 
     public void addHeader(String header, String value) {

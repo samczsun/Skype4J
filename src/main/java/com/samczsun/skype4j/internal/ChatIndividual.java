@@ -22,18 +22,19 @@ import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.user.User;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
 public class ChatIndividual extends ChatImpl implements IndividualChat {
     private User partner;
 
-    protected ChatIndividual(SkypeImpl skype, String identity) throws ConnectionException, ChatNotFoundException {
+    protected ChatIndividual(SkypeImpl skype, String identity) throws ConnectionException, ChatNotFoundException, IOException {
         super(skype, identity);
     }
 
     @Override
-    protected void load() throws ConnectionException {
+    protected void load() throws ConnectionException, IOException {
         if (isLoaded()) {
             return;
         }

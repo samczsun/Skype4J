@@ -17,34 +17,38 @@
 
 package com.samczsun.skype4j.chat;
 
+import com.samczsun.skype4j.Skype;
+import com.samczsun.skype4j.exceptions.ConnectionException;
+import com.samczsun.skype4j.exceptions.NotLoadedException;
 import com.samczsun.skype4j.exceptions.SkypeException;
 import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.user.User;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 
 /**
  * Represents a single chat. This can be a private message or a group chat.
- *
- * @author samczsun
  */
 public interface Chat {
     /**
-     * Sends a formatted message to this chat
+     * Sends a formatted message to this chat.
      *
      * @param message The rich text to send
-     * @return The {@link ChatMessage ChatMessage} object representing the
-     * message
-     * @throws SkypeException
+     * @return The {@link ChatMessage ChatMessage} object representing the message
+     * @throws ConnectionException If an error occurs while connecting to the endpoint
+     * @throws IOException If an unexpected error occurs
+     * @throws NotLoadedException If the chat has not yet been loaded
      */
-    ChatMessage sendMessage(Message message) throws SkypeException;
+    ChatMessage sendMessage(Message message) throws ConnectionException, IOException;
 
     /**
-     * Get the {@link User User} object represented by that username
+     * Get the {@link User} object represented by that username. Usernames are case insensitive
      *
      * @param username The username of the user
-     * @return The user object
+     * @return The user object, or null if not found
+     * @throws NotLoadedException If the chat has not yet been loaded
      */
     User getUser(String username);
 
@@ -70,10 +74,17 @@ public interface Chat {
     List<ChatMessage> getAllMessages();
 
     /**
-     * Returns whether this chat has finished loading. Any calls to act upon the
-     * chat will throw a {@link com.samczsun.skype4j.exceptions.NotLoadedException NotLoadedException} if the chat is not loaded
+     * Get the {@link Skype} instance associated with this chat
      *
-     * @return The loaded state
+     * @return The Skype instance
+     */
+    Skype getClient();
+
+    /**
+     * Returns whether this chat has finished loading
+     * Any calls to act upon the chat will throw a {@link NotLoadedException} if the chat is not loaded
+     *
+     * @return Whether the chat is loaded
      */
     boolean isLoaded();
 }

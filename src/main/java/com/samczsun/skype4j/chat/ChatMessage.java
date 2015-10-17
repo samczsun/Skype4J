@@ -22,8 +22,6 @@ import com.samczsun.skype4j.user.User;
 
 /**
  * Represents a single message
- *
- * @author samczsun
  */
 public interface ChatMessage {
 

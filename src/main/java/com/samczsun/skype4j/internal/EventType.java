@@ -20,6 +20,7 @@ package com.samczsun.skype4j.internal;
 import com.eclipsesource.json.JsonObject;
 import com.samczsun.skype4j.exceptions.SkypeException;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -29,7 +30,7 @@ import java.util.Map;
 public enum EventType {
     NEW_MESSAGE("NewMessage") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject eventObj) throws SkypeException {
+        public void handle(SkypeImpl skype, JsonObject eventObj) throws SkypeException, IOException {
             JsonObject resource = eventObj.get("resource").asObject();
             MessageType.getByName(resource.get("messagetype").asString()).handle(skype, resource);
         }
@@ -75,7 +76,7 @@ public enum EventType {
         return byValue.get(eventType);
     }
 
-    public abstract void handle(SkypeImpl skype, JsonObject resource) throws SkypeException;
+    public abstract void handle(SkypeImpl skype, JsonObject resource) throws SkypeException, IOException;
 
     static {
         for (EventType type : values()) {

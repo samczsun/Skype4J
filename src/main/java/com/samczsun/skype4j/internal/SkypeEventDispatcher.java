@@ -23,27 +23,34 @@ import com.samczsun.skype4j.events.EventHandler;
 import com.samczsun.skype4j.events.Listener;
 import com.samczsun.skype4j.events.error.MinorErrorEvent;
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.logging.Level;
 
 public class SkypeEventDispatcher implements EventDispatcher {
-    private final Map<Class<? extends Event>, List<RegisteredListener>> listeners = new HashMap<>();
+    private SkypeImpl instance;
+
+    public SkypeEventDispatcher(SkypeImpl instance) {
+        this.instance = instance;
+    }
+
+    private final Map<Class<?>, List<RegisteredListener>> listeners = Collections.synchronizedMap(new HashMap<Class<?>, List<RegisteredListener>>());
 
     public void registerListener(Listener l) {
         Class<?> c = l.getClass();
         for (Method m : c.getMethods()) {
             if (m.getAnnotation(EventHandler.class) != null && m.getParameterTypes().length == 1 && Event.class.isAssignableFrom(m.getParameterTypes()[0])) {
-                Class<? extends Event> eventType = m.getParameterTypes()[0].asSubclass(Event.class);
-                List<RegisteredListener> methods = listeners.get(eventType);
-                if (methods == null) {
-                    methods = new ArrayList<>();
-                    listeners.put(eventType, methods);
+                Class<?> eventType = m.getParameterTypes()[0];
+                while (eventType != Event.class) {
+                    List<RegisteredListener> methods = listeners.get(eventType);
+                    if (methods == null) {
+                        methods = new ArrayList<>();
+                        listeners.put(eventType, methods);
+                    }
+                    RegisteredListener reglistener = new RegisteredListener(l, m);
+                    methods.add(reglistener);
+                    eventType = eventType.getSuperclass();
                 }
-                methods.add(new RegisteredListener(l, m));
             }
         }
     }
@@ -53,17 +60,7 @@ public class SkypeEventDispatcher implements EventDispatcher {
     }
 
     private void callEvent(Event e, boolean tryNotify) {
-        List<RegisteredListener> methods = new ArrayList<>();
-        Class<?> eventClass = e.getClass();
-        while (true) {
-            if (listeners.containsKey(eventClass)) {
-                methods.addAll(listeners.get(eventClass));
-            }
-            eventClass = eventClass.getSuperclass();
-            if (eventClass == Event.class) {
-                break;
-            }
-        }
+        List<RegisteredListener> methods = listeners.get(e.getClass());
         if (methods != null) {
             for (RegisteredListener method : methods) {
                 try {
@@ -73,6 +70,7 @@ public class SkypeEventDispatcher implements EventDispatcher {
                         MinorErrorEvent event = new MinorErrorEvent();
                         callEvent(event, false);
                     }
+                    instance.getLogger().log(Level.SEVERE, "Error while handling event", t);
                 }
             }
         }

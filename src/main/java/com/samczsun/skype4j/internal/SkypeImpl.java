@@ -65,7 +65,7 @@ public class SkypeImpl extends Skype {
     private static final String THREAD_URL = "https://client-s.gateway.messenger.live.com/v1/threads";
     // The endpoints below all depend on the cloud the user is in
     private static final String SUBSCRIPTIONS_URL = "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/SELF/subscriptions";
-    private static final String MESSAGINGSERVICE_URL = "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/%s/presenceDocs/messagingService";
+    private static final String MESSAGINGSERVICE_URL = "https://client-s.gateway.messenger.live.com/v1/users/ME/endpoints/%s/presenceDocs/messagingService";
     private static final String POLL_URL = "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/SELF/subscriptions/0/poll";
 
     private static final Pattern URL_PATTERN = Pattern.compile("threads/(.*)", Pattern.CASE_INSENSITIVE);
@@ -90,15 +90,19 @@ public class SkypeImpl extends Skype {
     private Thread pollThread;
 
     private final ExecutorService scheduler = Executors.newFixedThreadPool(16);
-    private final Logger logger = Logger.getLogger("webskype");
 
     private final Map<String, Chat> allChats = new ConcurrentHashMap<>();
     private final Map<String, Contact> allContacts = new ConcurrentHashMap<>();
 
-    public SkypeImpl(String username, String password, Set<String> resources) {
+    private Logger logger = Logger.getLogger(Skype.class.getCanonicalName());
+
+    public SkypeImpl(String username, String password, Set<String> resources, Logger customLogger) {
         this.username = username;
         this.password = password;
         this.resources = resources;
+        if (customLogger != null) {
+            this.logger = customLogger;
+        }
     }
 
     public void subscribe() throws ConnectionException {
@@ -116,7 +120,7 @@ public class SkypeImpl extends Skype {
                 throw generateException("While subscribing", connection);
             }
 
-            builder.setUrl(withCloud(MESSAGINGSERVICE_URL, URLEncoder.encode(endpointId, "UTF-8")));
+            builder.setUrl(String.format(MESSAGINGSERVICE_URL, URLEncoder.encode(endpointId, "UTF-8")));
             builder.setMethod("PUT", true);
             builder.setData(buildRegistrationObject().toString());
             connection = builder.build();
@@ -207,7 +211,7 @@ public class SkypeImpl extends Skype {
     }
 
     @Override
-    public Chat loadChat(String name) throws ConnectionException, ChatNotFoundException {
+    public Chat loadChat(String name) throws ConnectionException, ChatNotFoundException, IOException {
         if (!allChats.containsKey(name)) {
             Chat chat = ChatImpl.createChat(this, name);
             allChats.put(name, chat);
@@ -228,7 +232,7 @@ public class SkypeImpl extends Skype {
     }
 
     @Override
-    public Contact loadContact(String name) throws ConnectionException {
+    public Contact loadContact(String name) throws ConnectionException, IOException {
         if (!allContacts.containsKey(name)) {
             Contact contact = ContactImpl.createContact(this, name);
             allContacts.put(name, contact);
@@ -239,7 +243,7 @@ public class SkypeImpl extends Skype {
     }
 
     @Override
-    public Contact getOrLoadContact(String username) throws ConnectionException {
+    public Contact getOrLoadContact(String username) throws ConnectionException, IOException {
         if (allContacts.containsKey(username)) {
             return allContacts.get(username);
         } else {
@@ -410,7 +414,7 @@ public class SkypeImpl extends Skype {
         publicInfo.add("type", 1);
         publicInfo.add("skypeNameVersion", "skype.com");
         publicInfo.add("nodeInfo", "xx");
-        publicInfo.add("version", "908/1.12.0.75//skype.com");
+        publicInfo.add("version", "908/1.13.0.79//skype.com");
         JsonObject privateInfo = new JsonObject();
         privateInfo.add("epname", "Skype4J");
         registrationObject.add("publicInfo", publicInfo);
@@ -463,7 +467,7 @@ public class SkypeImpl extends Skype {
                 }
             };
             sessionKeepaliveThread.start();
-            this.eventDispatcher = new SkypeEventDispatcher();
+            this.eventDispatcher = new SkypeEventDispatcher(this);
             loggedIn.set(true);
         } else {
             Elements elements = loginResponseDocument.select(".message_error");

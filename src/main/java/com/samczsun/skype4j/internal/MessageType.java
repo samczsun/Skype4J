@@ -31,11 +31,11 @@ import com.samczsun.skype4j.events.chat.message.MessageReceivedEvent;
 import com.samczsun.skype4j.events.chat.message.SmsReceivedEvent;
 import com.samczsun.skype4j.events.chat.sent.*;
 import com.samczsun.skype4j.events.chat.user.MultiUserAddEvent;
-import com.samczsun.skype4j.events.chat.user.action.RoleUpdateEvent;
 import com.samczsun.skype4j.events.chat.user.UserAddEvent;
 import com.samczsun.skype4j.events.chat.user.UserRemoveEvent;
 import com.samczsun.skype4j.events.chat.user.action.OptionUpdateEvent;
 import com.samczsun.skype4j.events.chat.user.action.PictureUpdateEvent;
+import com.samczsun.skype4j.events.chat.user.action.RoleUpdateEvent;
 import com.samczsun.skype4j.events.chat.user.action.TopicUpdateEvent;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
@@ -69,13 +69,13 @@ public enum MessageType {
     },
     TEXT("Text") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) throws SkypeException {
+        public void handle(SkypeImpl skype, JsonObject resource) throws SkypeException, IOException {
             MessageType.RICH_TEXT.handle(skype, resource);
         }
     },
     RICH_TEXT("RichText") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException {
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
             if (resource.get("clientmessageid") != null) { // New message
                 String clientId = resource.get("clientmessageid").asString();
                 String id = resource.get("id").asString();
@@ -163,7 +163,7 @@ public enum MessageType {
     },
     RICH_TEXT_CONTACTS("RichText/Contacts") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException {
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
             String from = resource.get("from").asString();
             String url = resource.get("conversationLink").asString();
             String content = resource.get("content").asString();
@@ -188,7 +188,7 @@ public enum MessageType {
     },
     RICH_TEXT_FILES("RichText/Files") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException {
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
             String from = resource.get("from").asString();
             String url = resource.get("conversationLink").asString();
             String content = resource.get("content").asString();
@@ -212,7 +212,7 @@ public enum MessageType {
     },
     RICH_TEXT_SMS("RichText/Sms") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException { //Implemented via fullExperience
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException { //Implemented via fullExperience
             String content = resource.get("content").asString();
             String from = resource.get("from").asString();
             String url = resource.get("conversationLink").asString();
@@ -231,7 +231,7 @@ public enum MessageType {
     },
     RICH_TEXT_LOCATION("RichText/Location") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException { //Implemented via fullExperience
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException { //Implemented via fullExperience
             String content = resource.get("content").asString();
             Chat c = getChat(resource.get("conversationLink").asString(), skype);
             User u = getUser(resource.get("from").asString(), c);
@@ -247,7 +247,7 @@ public enum MessageType {
     },
     RICH_TEXT_URI_OBJECT("RichText/UriObject") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException {
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
             String from = resource.get("from").asString();
             String url = resource.get("conversationLink").asString();
             ChatImpl c = (ChatImpl) getChat(url, skype);
@@ -274,7 +274,7 @@ public enum MessageType {
                                     break;
                                 }
                             } else {
-                                throw skype.generateException(statusCon);
+                                throw skype.generateException("While getting URI object", statusCon);
                             }
                         }
                         builder.setUrl(obj.get("view_location").asString());
@@ -284,10 +284,10 @@ public enum MessageType {
                             BufferedImage img = ImageIO.read(input);
                             skype.getEventDispatcher().callEvent(new PictureReceivedEvent(c, u, meta.attr("originalName"), img));
                         } else {
-                            throw skype.generateException(con);
+                            throw skype.generateException("While getting URI object", con);
                         }
                     } else {
-                        throw skype.generateException(statusCon);
+                        throw skype.generateException("While getting URI object", statusCon);
                     }
                 } catch (IOException e) {
                     throw new ConnectionException("While fetching picture", e);
@@ -313,7 +313,7 @@ public enum MessageType {
     },
     THREAD_ACTIVITY_ADD_MEMBER("ThreadActivity/AddMember") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException {
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
             String url = resource.get("conversationLink").asString();
             Chat c = getChat(url, skype);
             List<User> usersAdded = new ArrayList<>();
@@ -341,7 +341,7 @@ public enum MessageType {
     },
     THREAD_ACTIVITY_DELETE_MEMBER("ThreadActivity/DeleteMember") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException {
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
             String url = resource.get("conversationLink").asString();
             Chat c = getChat(url, skype);
             List<User> usersRemoved = new ArrayList<>();
@@ -363,7 +363,7 @@ public enum MessageType {
     },
     THREAD_ACTIVITY_ROLE_UPDATE("ThreadActivity/RoleUpdate") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException {
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
             String content = resource.get("content").asString();
             Chat chat = getChat(resource.get("conversationLink").asString(), skype);
             Matcher initiatorMatcher = INITIATOR_PATTERN.matcher(content);
@@ -383,7 +383,7 @@ public enum MessageType {
     },
     THREAD_ACTIVITY_TOPIC_UPDATE("ThreadActivity/TopicUpdate") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException {
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
             String content = resource.get("content").asString();
             Chat chat = getChat(resource.get("conversationLink").asString(), skype);
             Matcher initiatorMatcher = INITIATOR_PATTERN.matcher(content);
@@ -403,7 +403,7 @@ public enum MessageType {
     },
     THREAD_ACTIVITY_PICTURE_UPDATE("ThreadActivity/PictureUpdate") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException {
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
             String content = resource.get("content").asString();
             Chat chat = getChat(resource.get("conversationLink").asString(), skype);
             Matcher initiatorMatcher = INITIATOR_PATTERN.matcher(content);
@@ -423,7 +423,7 @@ public enum MessageType {
     },
     THREAD_ACTIVITY_HISTORY_DISCLOSED_UPDATE("ThreadActivity/HistoryDisclosedUpdate") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException {
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
             String content = resource.get("content").asString();
             Chat chat = getChat(resource.get("conversationLink").asString(), skype);
             Matcher initiatorMatcher = INITIATOR_PATTERN.matcher(content);
@@ -443,7 +443,7 @@ public enum MessageType {
     },
     THREAD_ACTIVITY_JOINING_ENABLED_UPDATE("ThreadActivity/JoiningEnabledUpdate") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException {
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
             String content = resource.get("content").asString();
             Chat chat = getChat(resource.get("conversationLink").asString(), skype);
             Matcher initiatorMatcher = INITIATOR_PATTERN.matcher(content);
@@ -477,7 +477,7 @@ public enum MessageType {
     },
     EVENT_CALL("Event/Call") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException {
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
             System.out.println(name() + " " + resource);
 
             String from = resource.get("from").asString();
@@ -496,7 +496,7 @@ public enum MessageType {
     },
     CONTROL_TYPING("Control/Typing") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException {
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
             System.out.println(name() + " " + resource);
 
             String from = resource.get("from").asString();
@@ -511,7 +511,7 @@ public enum MessageType {
     CONTROL_CLEAR_TYPING("Control/ClearTyping") {
         //YaR
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException {
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
             Chat c = getChat(resource.get("conversationLink").asString(), skype);
             User u = getUser(resource.get("from").asString(), c);
             TypingReceivedEvent event = new TypingReceivedEvent(c, u, false);
@@ -553,7 +553,7 @@ public enum MessageType {
         return this.value;
     }
 
-    public abstract void handle(SkypeImpl skype, JsonObject resource) throws SkypeException;
+    public abstract void handle(SkypeImpl skype, JsonObject resource) throws SkypeException, IOException;
 
     static {
         for (MessageType type : values()) {
@@ -565,7 +565,7 @@ public enum MessageType {
         return byValue.get(messageType);
     }
 
-    private static Chat getChat(String url, SkypeImpl skype) throws ConnectionException, ChatNotFoundException {
+    private static Chat getChat(String url, SkypeImpl skype) throws ConnectionException, ChatNotFoundException, IOException {
         Matcher m = URL_PATTERN.matcher(url);
         if (m.find()) {
             Chat find = skype.getChat(m.group(1));
