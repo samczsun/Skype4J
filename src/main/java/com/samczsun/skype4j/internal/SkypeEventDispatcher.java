@@ -55,6 +55,18 @@ public class SkypeEventDispatcher implements EventDispatcher {
         }
     }
 
+    public void unregisterListener(final Listener l)
+    {
+        for(Map.Entry<Class<? extends Event>, List<RegisteredListener>> m: listeners.entrySet())
+        {
+            ArrayList<RegisteredListener> toremove = new ArrayList<>();
+            for(RegisteredListener rl: m.getValue())
+                if (rl.isListenerEquals(l)) toremove.add(rl);
+            if (toremove.size() > 0)
+                m.getValue().removeAll(toremove);
+        }
+    }
+
     public void callEvent(Event e) {
         callEvent(e, true);
     }

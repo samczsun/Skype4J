@@ -36,4 +36,9 @@ public class RegisteredListener {
     public void handleEvent(Event e) throws IllegalAccessException, IllegalArgumentException, InvocationTargetException {
         this.method.invoke(listener, e);
     }
+
+    public boolean isListenerEquals(Listener l)
+    {
+        return listener == l;
+    }
 }
