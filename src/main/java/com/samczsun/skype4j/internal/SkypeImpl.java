@@ -21,6 +21,7 @@ import com.eclipsesource.json.JsonArray;
 import com.eclipsesource.json.JsonObject;
 import com.eclipsesource.json.JsonValue;
 import com.samczsun.skype4j.Skype;
+import com.samczsun.skype4j.StreamUtils;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.GroupChat;
 import com.samczsun.skype4j.events.EventDispatcher;
@@ -32,6 +33,10 @@ import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.InvalidCredentialsException;
 import com.samczsun.skype4j.exceptions.ParseException;
 import com.samczsun.skype4j.user.Contact;
+import com.samczsun.skype4j.user.ContactRequest;
+import org.java_websocket.client.WebSocketClient;
+import org.java_websocket.drafts.Draft_17;
+import org.java_websocket.handshake.ServerHandshake;
 import org.jsoup.Connection.Method;
 import org.jsoup.Connection.Response;
 import org.jsoup.Jsoup;
@@ -39,11 +44,16 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.SocketTimeoutException;
+import java.net.URI;
 import java.net.URLEncoder;
+import java.security.cert.X509Certificate;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -63,6 +73,9 @@ public class SkypeImpl extends Skype {
     private static final String LOGOUT_URL = "https://login.skype.com/logout?client_id=578134&redirect_uri=https%3A%2F%2Fweb.skype.com&intsrc=client-_-webapp-_-production-_-go-signin";
     private static final String ENDPOINTS_URL = "https://client-s.gateway.messenger.live.com/v1/users/ME/endpoints";
     private static final String THREAD_URL = "https://client-s.gateway.messenger.live.com/v1/threads";
+    private static final String AUTH_REQUESTS_URL = "https://api.skype.com/users/self/contacts/auth-request";
+    private static final String TROUTER_URL = "https://go.trouter.io/v2/a";
+    private static final String POLICIES_URL = "https://prod.tpc.skype.com/v1/policies";
     // The endpoints below all depend on the cloud the user is in
     private static final String SUBSCRIPTIONS_URL = "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/SELF/subscriptions";
     private static final String MESSAGINGSERVICE_URL = "https://client-s.gateway.messenger.live.com/v1/users/ME/endpoints/%s/presenceDocs/messagingService";
@@ -88,11 +101,14 @@ public class SkypeImpl extends Skype {
 
     private Thread sessionKeepaliveThread;
     private Thread pollThread;
+    private WebSocketClient wss;
 
     private final ExecutorService scheduler = Executors.newFixedThreadPool(16);
 
     private final Map<String, Chat> allChats = new ConcurrentHashMap<>();
     private final Map<String, Contact> allContacts = new ConcurrentHashMap<>();
+
+    private final List<ContactRequest> allContactRequests = new ArrayList<>();
 
     private Logger logger = Logger.getLogger(Skype.class.getCanonicalName());
 
@@ -129,6 +145,148 @@ public class SkypeImpl extends Skype {
             if (code != 200) {
                 throw generateException("While submitting a messaging service", connection);
             }
+
+            builder.setUrl(AUTH_REQUESTS_URL);
+            builder.setMethod("GET", false);
+            builder.addHeader("X-Skypetoken", this.skypeToken);
+            connection = builder.build();
+
+            code = connection.getResponseCode();
+            if (code != 200) {
+                throw generateException("While fetching contact requests", connection);
+            }
+
+            JsonArray contactRequests = JsonArray.readFrom(new InputStreamReader(connection.getInputStream()));
+            for (JsonValue contactRequest : contactRequests) {
+                JsonObject contactRequestObj = contactRequest.asObject();
+                try {
+                    this.allContactRequests.add(new ContactRequestImpl(contactRequestObj.get("event_time").asString(), getOrLoadContact(contactRequestObj.get("sender").asString()), contactRequestObj.get("greeting").asString()));
+                } catch (java.text.ParseException e) {
+                    getLogger().log(Level.WARNING, "Could not parse date for contact request", e);
+                }
+            }
+
+            builder.setUrl(TROUTER_URL);
+
+            connection = builder.build();
+            code = connection.getResponseCode();
+            if (code != 200) {
+                throw generateException("While fetching trouter data", connection);
+            }
+
+            JsonObject trouter = JsonObject.readFrom(new InputStreamReader(connection.getInputStream()));
+
+            builder = new ConnectionBuilder();
+            builder.setUrl(POLICIES_URL);
+            builder.setMethod("POST", true);
+            builder.addHeader("X-Skypetoken", getSkypeToken());
+            builder.addHeader("User-Agent", "Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36");
+            JsonObject policyData = new JsonObject();
+            policyData.add("sr", trouter.get("connId"));
+            builder.setData(policyData.toString());
+
+            connection = builder.build();
+            code = connection.getResponseCode();
+
+            if (code != 200) {
+                throw generateException("While fetching policy data", connection);
+            }
+
+            JsonObject policyResponse = JsonObject.readFrom(new InputStreamReader(connection.getInputStream()));
+
+            Map<String, String> data = new HashMap<>();
+            for (JsonObject.Member value : policyResponse) {
+                data.put(value.getName(), value.getValue().asString());
+            }
+            data.put("r", trouter.get("instance").asString());
+            data.put("p", String.valueOf(trouter.get("instancePort").asInt()));
+            data.put("ccid", trouter.get("ccid").asString());
+            data.put("v", "v2"); //TODO: MAGIC VALUE
+            data.put("dom", "web.skype.com"); //TODO: MAGIC VALUE
+            data.put("auth", "true"); //TODO: MAGIC VALUE
+            data.put("tc", new JsonObject().add("cv", "2015.8.18").add("hr", "").add("v", "1.15.133").toString()); //TODO: MAGIC VALUE
+            data.put("timeout", "55");
+            data.put("t", String.valueOf(System.currentTimeMillis()));
+            StringBuilder args = new StringBuilder();
+            for (Map.Entry<String, String> entry : data.entrySet()) {
+                args.append(URLEncoder.encode(entry.getKey(), "UTF-8")).append("=").append(URLEncoder.encode(entry.getValue(), "UTF-8")).append("&");
+            }
+
+            String socketURL = trouter.get("socketio").asString();
+            socketURL = socketURL.substring(socketURL.indexOf('/') + 2);
+            socketURL = socketURL.substring(0, socketURL.indexOf(':'));
+
+            builder.setUrl(String.format("%s/socket.io/1/?%s",
+                    "https://" + socketURL,
+                    args.toString()
+            ));
+            builder.setMethod("GET", false);
+            connection = builder.build();
+            code = connection.getResponseCode();
+            if (code != 200) {
+                throw generateException("While fetching websocket details", connection);
+            }
+
+            String websocketData = StreamUtils.readFully(connection.getInputStream()); //77842ff3cbe35a6c-4d53faea1d968fc6:65:65:websocket,xhr-polling,jsonp-polling
+            this.wss = new WebSocketClient(new URI(String.format("%s/socket.io/1/websocket/%s?%s",
+                    "wss://" + socketURL,
+                    websocketData.split(":")[0],
+                    args.toString())), new Draft_17(), null, 2000) {
+                @Override
+                public void onOpen(ServerHandshake serverHandshake) {
+                    getLogger().log(Level.INFO, "Connected to websocket server");
+                    this.send("1::");
+                    new Thread() {
+                        AtomicInteger currentPing = new AtomicInteger(1);
+
+                        public void run() {
+                            while (true) {
+                                try {
+                                    Thread.sleep(55 * 1000);
+                                    send("5:" + currentPing.getAndIncrement() + "+::{\"name\":\"ping\"}");
+                                } catch (InterruptedException e) {
+                                    break;
+                                }
+                            }
+                        }
+                    }.start();
+                }
+
+                @Override
+                public void onMessage(String s) {
+                    System.out.println(s);
+                }
+
+                @Override
+                public void onClose(int i, String s, boolean b) {
+                    getLogger().log(Level.INFO, "Connection closed: {0} {1} {2}", new Object[]{i, s, b});
+                }
+
+                @Override
+                public void onError(Exception e) {
+                    getLogger().log(Level.SEVERE, "Exception in websocket client", e);
+                }
+            };
+            TrustManager[] trustAllCerts = new TrustManager[]{
+                    new X509TrustManager() {
+                        public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                            return new X509Certificate[0];
+                        }
+
+                        public void checkClientTrusted(
+                                java.security.cert.X509Certificate[] certs, String authType) {
+                        }
+
+                        public void checkServerTrusted(
+                                java.security.cert.X509Certificate[] certs, String authType) {
+                        }
+                    }
+            };
+            SSLContext sc = SSLContext.getInstance("SSL");
+            sc.init(null, trustAllCerts, new java.security.SecureRandom());
+            this.wss.setSocket(sc.getSocketFactory().createSocket()); //Shhh.... todo fix
+            this.wss.connectBlocking();
+
             pollThread = new Thread(String.format("Skype-%s-PollThread", username)) {
                 public void run() {
                     ConnectionBuilder poll = new ConnectionBuilder();
@@ -202,6 +360,10 @@ public class SkypeImpl extends Skype {
             pollThread.start();
         } catch (IOException io) {
             throw generateException("While subscribing", io);
+        } catch (ConnectionException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 

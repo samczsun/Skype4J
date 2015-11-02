@@ -80,7 +80,7 @@ public class ConnectionBuilder {
         }
         con.setRequestMethod(method);
         con.setDoOutput(output);
-        if (data != null) {
+        if (data != null && output) {
             con.getOutputStream().write(data.getBytes(Charset.forName("UTF-8")));
         }
         return con;
