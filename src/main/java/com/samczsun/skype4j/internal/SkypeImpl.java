@@ -26,6 +26,7 @@ import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.GroupChat;
 import com.samczsun.skype4j.events.EventDispatcher;
 import com.samczsun.skype4j.events.chat.DisconnectedEvent;
+import com.samczsun.skype4j.events.contact.ContactRequestEvent;
 import com.samczsun.skype4j.events.error.MajorErrorEvent;
 import com.samczsun.skype4j.events.error.MinorErrorEvent;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
@@ -75,6 +76,7 @@ public class SkypeImpl extends Skype {
     private static final String AUTH_REQUESTS_URL = "https://api.skype.com/users/self/contacts/auth-request";
     private static final String TROUTER_URL = "https://go.trouter.io/v2/a";
     private static final String POLICIES_URL = "https://prod.tpc.skype.com/v1/policies";
+    private static final String REGISTRATIONS = "https://prod.registrar.skype.com/v2/registrations";
     // The endpoints below all depend on the cloud the user is in
     private static final String THREAD_URL = "https://%sclient-s.gateway.messenger.live.com/v1/threads";
     private static final String SUBSCRIPTIONS_URL = "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/SELF/subscriptions";
@@ -227,11 +229,49 @@ public class SkypeImpl extends Skype {
                 throw generateException("While fetching websocket details", connection);
             }
 
-            String websocketData = StreamUtils.readFully(connection.getInputStream()); //77842ff3cbe35a6c-4d53faea1d968fc6:65:65:websocket,xhr-polling,jsonp-polling
+            String websocketData = StreamUtils.readFully(connection.getInputStream());
+
+            builder = new ConnectionBuilder();
+            builder.setUrl(REGISTRATIONS);
+            builder.setMethod("POST", true);
+            builder.addHeader("X-Skypetoken", getSkypeToken());
+            builder.addHeader("Content-Type", "application/json");
+
+            JsonObject clientDescription = new JsonObject();
+            clientDescription.add("aesKey", "");
+            clientDescription.add("languageId", "en-US");
+            clientDescription.add("platform", "Chrome");
+            clientDescription.add("platformUIVersion", "908/1.16.0.82//skype.com");
+            clientDescription.add("templateKey", "SkypeWeb_1.1");
+
+            JsonObject trouterObject = new JsonObject();
+            trouterObject.add("context", "");
+            trouterObject.add("ttl", 3600);
+            trouterObject.add("path", trouter.get("surl"));
+
+            JsonArray trouterArray = new JsonArray();
+            trouterArray.add(trouterObject);
+
+            JsonObject transports = new JsonObject();
+            transports.add("TROUTER", trouterArray);
+
+            JsonObject registrationObject = new JsonObject();
+            registrationObject.add("clientDescription", clientDescription);
+            registrationObject.add("registrationId", UUID.randomUUID().toString());
+            registrationObject.add("nodeId", "");
+            registrationObject.add("transports", transports);
+
+            builder.setData(registrationObject.toString());
+
+            connection = builder.build();
+            if (connection.getResponseCode() != 202) {
+                throw generateException("While registering websocket", connection);
+            }
+
             this.wss = new WebSocketClient(new URI(String.format("%s/socket.io/1/websocket/%s?%s",
                     "wss://" + socketURL,
                     websocketData.split(":")[0],
-                    args.toString())), new Draft_17(), null, 2000) {
+                    args.toString()))) {
                 @Override
                 public void onOpen(ServerHandshake serverHandshake) {
                     getLogger().log(Level.INFO, "Connected to websocket server");
@@ -254,7 +294,40 @@ public class SkypeImpl extends Skype {
 
                 @Override
                 public void onMessage(String s) {
-                    System.out.println(s);
+                    if (s.startsWith("3:::")) {
+                        JsonObject message = JsonObject.readFrom(s.substring(4));
+                        JsonObject body = JsonObject.readFrom(message.get("body").asString());
+                        int event = body.get("evt").asInt();
+                        if (event == 6) {
+                            getLogger().log(Level.SEVERE, "Unhandled websocket message '{0}'", s);
+                        } else if (event == 14) {
+                            try {
+                                checkForNewContactRequests();
+                            } catch (ConnectionException | IOException e) {
+                                getLogger().log(Level.SEVERE, String.format("Unhandled exception while parsing websocket message '%s'", s), e);
+                            }
+                        } else {
+                            getLogger().log(Level.SEVERE, "Unhandled websocket message '{0}'", s);
+                        }
+
+                        JsonObject trouterRequest = new JsonObject();
+                        trouterRequest.add("ts", System.currentTimeMillis());
+                        trouterRequest.add("auth", true);
+
+                        JsonObject headers = new JsonObject();
+                        headers.add("trouter-request", trouterRequest);
+
+                        JsonObject trouterClient = new JsonObject();
+                        trouterClient.add("cd", 0);
+
+                        JsonObject response = new JsonObject();
+                        response.add("id", message.get("id").asInt());
+                        response.add("status", 200);
+                        response.add("headers", headers);
+                        response.add("trouter-client", trouterClient);
+                        response.add("body", "");
+                        this.send(response.toString());
+                    }
                 }
 
                 @Override
@@ -431,6 +504,34 @@ public class SkypeImpl extends Skype {
             shutdown();
         } catch (IOException e) {
             throw generateException("While logging out", e);
+        }
+    }
+
+    private void checkForNewContactRequests() throws ConnectionException, IOException {
+        ConnectionBuilder builder = new ConnectionBuilder();
+        builder.setUrl(AUTH_REQUESTS_URL);
+        builder.setMethod("GET", false);
+        builder.addHeader("X-Skypetoken", this.skypeToken);
+        HttpURLConnection connection = builder.build();
+
+        int code = connection.getResponseCode();
+        if (code != 200) {
+            throw generateException("While fetching contact requests", connection);
+        }
+
+        JsonArray contactRequests = JsonArray.readFrom(new InputStreamReader(connection.getInputStream()));
+        for (JsonValue contactRequest : contactRequests) {
+            JsonObject contactRequestObj = contactRequest.asObject();
+            try {
+                ContactRequestImpl request = new ContactRequestImpl(contactRequestObj.get("event_time").asString(), getOrLoadContact(contactRequestObj.get("sender").asString()), contactRequestObj.get("greeting").asString());
+                if (!this.allContactRequests.contains(request)) {
+                    ContactRequestEvent event = new ContactRequestEvent(request);
+                    getEventDispatcher().callEvent(event);
+                    this.allContactRequests.add(request);
+                }
+            } catch (java.text.ParseException e) {
+                getLogger().log(Level.WARNING, "Could not parse date for contact request", e);
+            }
         }
     }
 
