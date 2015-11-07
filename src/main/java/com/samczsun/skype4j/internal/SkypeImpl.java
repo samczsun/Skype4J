@@ -326,7 +326,7 @@ public class SkypeImpl extends Skype {
                         response.add("headers", headers);
                         response.add("trouter-client", trouterClient);
                         response.add("body", "");
-                        this.send(response.toString());
+                        this.send("3:::" + response.toString());
                     }
                 }
 
