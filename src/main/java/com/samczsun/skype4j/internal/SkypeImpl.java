@@ -72,13 +72,13 @@ public class SkypeImpl extends Skype {
     private static final String TOKEN_AUTH_URL = "https://api.asm.skype.com/v1/skypetokenauth";
     private static final String LOGOUT_URL = "https://login.skype.com/logout?client_id=578134&redirect_uri=https%3A%2F%2Fweb.skype.com&intsrc=client-_-webapp-_-production-_-go-signin";
     private static final String ENDPOINTS_URL = "https://client-s.gateway.messenger.live.com/v1/users/ME/endpoints";
-    private static final String THREAD_URL = "https://client-s.gateway.messenger.live.com/v1/threads";
     private static final String AUTH_REQUESTS_URL = "https://api.skype.com/users/self/contacts/auth-request";
     private static final String TROUTER_URL = "https://go.trouter.io/v2/a";
     private static final String POLICIES_URL = "https://prod.tpc.skype.com/v1/policies";
     // The endpoints below all depend on the cloud the user is in
+    private static final String THREAD_URL = "https://%sclient-s.gateway.messenger.live.com/v1/threads";
     private static final String SUBSCRIPTIONS_URL = "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/SELF/subscriptions";
-    private static final String MESSAGINGSERVICE_URL = "https://client-s.gateway.messenger.live.com/v1/users/ME/endpoints/%s/presenceDocs/messagingService";
+    private static final String MESSAGINGSERVICE_URL = "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/%s/presenceDocs/messagingService";
     private static final String POLL_URL = "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/SELF/subscriptions/0/poll";
 
     private static final Pattern URL_PATTERN = Pattern.compile("threads/(.*)", Pattern.CASE_INSENSITIVE);
@@ -136,7 +136,7 @@ public class SkypeImpl extends Skype {
                 throw generateException("While subscribing", connection);
             }
 
-            builder.setUrl(String.format(MESSAGINGSERVICE_URL, URLEncoder.encode(endpointId, "UTF-8")));
+            builder.setUrl(withCloud(MESSAGINGSERVICE_URL, URLEncoder.encode(endpointId, "UTF-8")));
             builder.setMethod("PUT", true);
             builder.setData(buildRegistrationObject().toString());
             connection = builder.build();
@@ -477,7 +477,7 @@ public class SkypeImpl extends Skype {
             }
             obj.add("members", allContacts);
             ConnectionBuilder builder = new ConnectionBuilder();
-            builder.setUrl(THREAD_URL);
+            builder.setUrl(withCloud(THREAD_URL));
             builder.setMethod("POST", true);
             builder.addHeader("RegistrationToken", getRegistrationToken());
             builder.setData(obj.toString());
@@ -576,7 +576,7 @@ public class SkypeImpl extends Skype {
         publicInfo.add("type", 1);
         publicInfo.add("skypeNameVersion", "skype.com");
         publicInfo.add("nodeInfo", "xx");
-        publicInfo.add("version", "908/1.13.0.79//skype.com");
+        publicInfo.add("version", "908/1.16.0.82//skype.com");
         JsonObject privateInfo = new JsonObject();
         privateInfo.add("epname", "Skype4J");
         registrationObject.add("publicInfo", publicInfo);
