@@ -18,10 +18,12 @@
 package com.samczsun.skype4j.internal;
 
 import com.eclipsesource.json.JsonObject;
+import com.samczsun.skype4j.Skype;
 import com.samczsun.skype4j.StreamUtils;
 import com.samczsun.skype4j.chat.Chat;
-import com.samczsun.skype4j.chat.ChatMessage;
-import com.samczsun.skype4j.chat.FileInfo;
+import com.samczsun.skype4j.chat.messages.ChatMessage;
+import com.samczsun.skype4j.chat.messages.ReceivedMessage;
+import com.samczsun.skype4j.chat.objects.ReceivedFile;
 import com.samczsun.skype4j.events.UnsupportedEvent;
 import com.samczsun.skype4j.events.chat.ChatJoinedEvent;
 import com.samczsun.skype4j.events.chat.call.CallReceivedEvent;
@@ -41,6 +43,10 @@ import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.SkypeException;
 import com.samczsun.skype4j.formatting.Message;
+import com.samczsun.skype4j.internal.chat.ChatGroup;
+import com.samczsun.skype4j.internal.chat.ChatImpl;
+import com.samczsun.skype4j.internal.chat.messages.ChatMessageImpl;
+import com.samczsun.skype4j.internal.chat.objects.ReceivedFileImpl;
 import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.User;
 import com.samczsun.skype4j.user.User.Role;
@@ -75,7 +81,7 @@ public enum MessageType {
     },
     RICH_TEXT("RichText") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
+        public void handle(final SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
             if (resource.get("clientmessageid") != null) { // New message
                 String clientId = resource.get("clientmessageid").asString();
                 String id = resource.get("id").asString();
@@ -84,9 +90,9 @@ public enum MessageType {
                 String url = resource.get("conversationLink").asString();
                 ChatImpl c = (ChatImpl) getChat(url, skype);
                 User u = getUser(from, c);
-                ChatMessage m = ChatMessageImpl.createMessage(c, u, id, clientId, System.currentTimeMillis(), Message.fromHtml(stripMetadata(content)));
+                ChatMessage m = ChatMessageImpl.createMessage(c, u, id, clientId, System.currentTimeMillis(), Message.fromHtml(stripMetadata(content)), skype);
                 c.onMessage(m);
-                MessageReceivedEvent event = new MessageReceivedEvent(m);
+                MessageReceivedEvent event = new MessageReceivedEvent((ReceivedMessage) m);
                 skype.getEventDispatcher().callEvent(event);
             } else if (resource.get("skypeeditedid") != null) { // Edited
                 // message
@@ -106,7 +112,7 @@ public enum MessageType {
                     if (m != null) {
                         MessageEditedEvent evnt = new MessageEditedEvent(m, content);
                         skype.getEventDispatcher().callEvent(evnt);
-                        ((ChatMessageImpl) m).setContent(Message.fromHtml(content));
+                        ((ChatMessageImpl) m).edit0(Message.fromHtml(content));
                     } else {
                         faker = true;
                     }
@@ -130,7 +136,7 @@ public enum MessageType {
                             return finalOriginalContent;
                         }
 
-                        public long getTime() {
+                        public long getSentTime() {
                             return System.currentTimeMillis();
                         }
 
@@ -148,6 +154,11 @@ public enum MessageType {
 
                         public Chat getChat() {
                             return c;
+                        }
+
+                        @Override
+                        public Skype getClient() {
+                            return skype;
                         }
 
                         public String getId() {
@@ -194,19 +205,14 @@ public enum MessageType {
             String content = resource.get("content").asString();
             Document doc = Parser.xmlParser().parseInput(content, "");
 
-            List<FileInfo> fileInfos = new ArrayList<>();
+            List<ReceivedFile> receivedFiles = new ArrayList<>();
             for (Element fe : doc.getElementsByTag("file")) {
-                FileInfo fileInfo = new FileInfo(
-                        fe.text(),
-                        Long.parseLong(fe.attr("size")),
-                        Long.parseLong(fe.attr("tid")),
-                        Objects.equals(fe.attr("status"), "canceled"));
-                fileInfos.add(fileInfo);
+                receivedFiles.add(new ReceivedFileImpl(fe.text(), Long.parseLong(fe.attr("size")), Long.parseLong(fe.attr("tid"))));
             }
 
             Chat c = getChat(url, skype);
             User u = getUser(from, c);
-            FileInfoReceivedEvent event = new FileInfoReceivedEvent(c, u, fileInfos);
+            FileReceivedEvent event = new FileReceivedEvent(c, u, Collections.unmodifiableList(receivedFiles));
             skype.getEventDispatcher().callEvent(event);
         }
     },
@@ -221,8 +227,8 @@ public enum MessageType {
             Matcher m = SMS_PATTERN.matcher(content);
             if (m.find()) {
                 String message = m.group(1);
-                ChatMessage chatmessage = ChatMessageImpl.createMessage(c, u, null, null, System.currentTimeMillis(), Message.fromHtml(message)); //No clientmessageid?
-                SmsReceivedEvent event = new SmsReceivedEvent(chatmessage);
+                ChatMessage chatmessage = ChatMessageImpl.createMessage(c, u, null, null, System.currentTimeMillis(), Message.fromHtml(message), skype); //No clientmessageid?
+                SmsReceivedEvent event = new SmsReceivedEvent((ReceivedMessage) chatmessage);
                 skype.getEventDispatcher().callEvent(event);
             } else {
                 throw new IllegalArgumentException("Sms event did not conform to format expected");

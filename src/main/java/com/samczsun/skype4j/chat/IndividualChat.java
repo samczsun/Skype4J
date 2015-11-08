@@ -22,8 +22,6 @@ import com.samczsun.skype4j.user.User;
 /**
  * Represents a private conversation between the user logged in and one other
  * user
- *
- * @author samczsun
  */
 public interface IndividualChat extends Chat {
     /**

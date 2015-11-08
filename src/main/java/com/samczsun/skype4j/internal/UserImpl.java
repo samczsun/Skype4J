@@ -18,13 +18,13 @@
 package com.samczsun.skype4j.internal;
 
 import com.samczsun.skype4j.chat.Chat;
-import com.samczsun.skype4j.chat.ChatMessage;
+import com.samczsun.skype4j.chat.messages.ChatMessage;
 import com.samczsun.skype4j.exceptions.ConnectionException;
+import com.samczsun.skype4j.internal.chat.ChatImpl;
 import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.User;
 
 import java.io.IOException;
-import java.sql.Connection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +41,7 @@ public class UserImpl implements User {
     private final List<ChatMessage> messages = new CopyOnWriteArrayList<>();
     private final Map<String, ChatMessage> messageMap = new ConcurrentHashMap<>();
 
-    public UserImpl(String username, ChatImpl chat) throws ConnectionException, IOException {
+    public UserImpl(String username, ChatImpl chat) throws ConnectionException {
         this.contactRep = chat.getClient().getOrLoadContact(username);
         this.chat = chat;
     }

@@ -18,13 +18,12 @@
 package com.samczsun.skype4j.chat;
 
 import com.samczsun.skype4j.Skype;
+import com.samczsun.skype4j.chat.messages.ChatMessage;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.NotLoadedException;
-import com.samczsun.skype4j.exceptions.SkypeException;
 import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.user.User;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 
@@ -36,12 +35,21 @@ public interface Chat {
      * Sends a formatted message to this chat.
      *
      * @param message The rich text to send
-     * @return The {@link ChatMessage ChatMessage} object representing the message
+     * @return The {@link ChatMessage} object representing the message
      * @throws ConnectionException If an error occurs while connecting to the endpoint
-     * @throws IOException If an unexpected error occurs
-     * @throws NotLoadedException If the chat has not yet been loaded
+     * @throws NotLoadedException  If the chat has not yet been loaded
      */
-    ChatMessage sendMessage(Message message) throws ConnectionException, IOException;
+    ChatMessage sendMessage(Message message) throws ConnectionException;
+
+    /**
+     * Sends a plain message to this chat.
+     *
+     * @param plainMessage The plain message to send
+     * @return The {@link ChatMessage} object representing the message
+     * @throws ConnectionException If an error occurs while connecting to the endpoint
+     * @throws NotLoadedException  If the chat has not yet been loaded
+     */
+    ChatMessage sendMessage(String plainMessage) throws ConnectionException;
 
     /**
      * Get the {@link User} object represented by that username. Usernames are case insensitive

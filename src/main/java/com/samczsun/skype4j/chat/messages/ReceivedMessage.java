@@ -15,20 +15,12 @@
  * If not, see http://www.gnu.org/licenses/.
  */
 
-package com.samczsun.skype4j.events.chat.message;
+package com.samczsun.skype4j.chat.messages;
 
-import com.samczsun.skype4j.chat.messages.ChatMessage;
-import com.samczsun.skype4j.events.chat.ChatEvent;
+import com.samczsun.skype4j.user.User;
 
-public abstract class MessageEvent extends ChatEvent {
-    private final ChatMessage message;
-
-    public MessageEvent(ChatMessage message) {
-        super(message.getChat());
-        this.message = message;
-    }
-
-    public ChatMessage getMessage() {
-        return this.message;
-    }
+/**
+ * Represents a message that was received
+ */
+public interface ReceivedMessage extends ChatMessage {
 }

@@ -17,10 +17,15 @@
 
 package com.samczsun.skype4j.events.chat.message;
 
-import com.samczsun.skype4j.chat.ChatMessage;
+import com.samczsun.skype4j.chat.messages.ReceivedMessage;
 
 public class MessageReceivedEvent extends MessageEvent {
-    public MessageReceivedEvent(ChatMessage message) {
+    public MessageReceivedEvent(ReceivedMessage message) {
         super(message);
+    }
+
+    @Override
+    public ReceivedMessage getMessage() {
+        return (ReceivedMessage) super.getMessage();
     }
 }

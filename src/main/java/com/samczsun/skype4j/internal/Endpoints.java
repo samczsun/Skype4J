@@ -19,4 +19,11 @@ package com.samczsun.skype4j.internal;
 
 public class Endpoints {
     public static final String ACCEPT_CONTACT_REQUEST = "https://api.skype.com/users/self/contacts/auth-request/%s/accept";
+
+    public static final String GET_JOIN_URL = "https://api.scheduler.skype.com/threads";
+    public static final String CHAT_INFO_URL = "https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/?view=msnp24Equivalent";
+    public static final String SEND_MESSAGE_URL = "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/conversations/%s/messages";
+    public static final String MODIFY_MEMBER_URL = "https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/members/8:%s";
+    public static final String MODIFY_PROPERTY_URL = "https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/properties?name=%s";
+    public static final String ADD_MEMBER_URL = "https://client-s.gateway.messenger.live.com/v1/threads/%s/members/8:%s";
 }

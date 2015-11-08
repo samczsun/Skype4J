@@ -15,11 +15,13 @@
  * If not, see http://www.gnu.org/licenses/.
  */
 
-package com.samczsun.skype4j.internal;
+package com.samczsun.skype4j.internal.chat;
 
 import com.samczsun.skype4j.chat.IndividualChat;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
+import com.samczsun.skype4j.internal.SkypeImpl;
+import com.samczsun.skype4j.internal.UserImpl;
 import com.samczsun.skype4j.user.User;
 
 import java.io.IOException;
@@ -34,7 +36,7 @@ public class ChatIndividual extends ChatImpl implements IndividualChat {
     }
 
     @Override
-    protected void load() throws ConnectionException, IOException {
+    protected void load() throws ConnectionException {
         if (isLoaded()) {
             return;
         }

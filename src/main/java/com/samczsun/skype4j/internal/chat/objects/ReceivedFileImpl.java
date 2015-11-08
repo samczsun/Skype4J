@@ -15,13 +15,33 @@
  * If not, see http://www.gnu.org/licenses/.
  */
 
-package com.samczsun.skype4j.chat;
+package com.samczsun.skype4j.internal.chat.objects;
 
-/**
- * Represents a message you received
- *
- * @author samczsun
- */
-public interface ReceivedMessage extends ChatMessage {
-    // There's not much you can do with someone else's message
+import com.samczsun.skype4j.chat.objects.ReceivedFile;
+
+public class ReceivedFileImpl implements ReceivedFile {
+    private String name;
+    private long size;
+    private long tid;
+
+    public ReceivedFileImpl(String name, long size, long tid) {
+        this.name = name;
+        this.size = size;
+        this.tid = tid;
+    }
+
+    @Override
+    public String getName() {
+        return name;
+    }
+
+    @Override
+    public long getSize() {
+        return size;
+    }
+
+    @Override
+    public long getTid() {
+        return tid;
+    }
 }

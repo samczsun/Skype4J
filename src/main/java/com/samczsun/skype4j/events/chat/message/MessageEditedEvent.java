@@ -17,7 +17,7 @@
 
 package com.samczsun.skype4j.events.chat.message;
 
-import com.samczsun.skype4j.chat.ChatMessage;
+import com.samczsun.skype4j.chat.messages.ChatMessage;
 
 public class MessageEditedEvent extends MessageEvent {
     private final String newContent;

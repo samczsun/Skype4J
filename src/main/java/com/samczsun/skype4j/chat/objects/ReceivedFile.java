@@ -15,20 +15,29 @@
  * If not, see http://www.gnu.org/licenses/.
  */
 
-package com.samczsun.skype4j.events.chat.message;
+package com.samczsun.skype4j.chat.objects;
 
-import com.samczsun.skype4j.chat.messages.ChatMessage;
-import com.samczsun.skype4j.events.chat.ChatEvent;
+/**
+ * Represents a file which has been sent by a user in the chat
+ * Note that downloading files is not supported on Skype for Web, even if the chat is cloud-based
+ */
+public interface ReceivedFile {
 
-public abstract class MessageEvent extends ChatEvent {
-    private final ChatMessage message;
+    /**
+     * Get the name of the file which has been sent
+     * @return The name of the file
+     */
+    String getName();
 
-    public MessageEvent(ChatMessage message) {
-        super(message.getChat());
-        this.message = message;
-    }
+    /**
+     * Get the size of the file
+     * @return The filesize
+     */
+    long getSize();
 
-    public ChatMessage getMessage() {
-        return this.message;
-    }
+    /**
+     * Get the tid. Not sure what this does
+     * @return
+     */
+    long getTid();
 }

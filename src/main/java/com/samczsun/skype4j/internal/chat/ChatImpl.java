@@ -15,16 +15,19 @@
  * If not, see http://www.gnu.org/licenses/.
  */
 
-package com.samczsun.skype4j.internal;
+package com.samczsun.skype4j.internal.chat;
 
 import com.eclipsesource.json.JsonObject;
 import com.samczsun.skype4j.Skype;
 import com.samczsun.skype4j.chat.Chat;
-import com.samczsun.skype4j.chat.ChatMessage;
+import com.samczsun.skype4j.chat.messages.ChatMessage;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.NotLoadedException;
 import com.samczsun.skype4j.formatting.Message;
+import com.samczsun.skype4j.formatting.Text;
+import com.samczsun.skype4j.internal.*;
+import com.samczsun.skype4j.internal.chat.messages.ChatMessageImpl;
 import com.samczsun.skype4j.user.User;
 import org.jsoup.helper.Validate;
 
@@ -37,16 +40,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Level;
 
 public abstract class ChatImpl implements Chat {
-    protected static final String CHAT_INFO_URL = "https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/?view=msnp24Equivalent";
-    protected static final String SEND_MESSAGE_URL = "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/conversations/%s/messages";
-    protected static final String MODIFY_MEMBER_URL = "https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/members/8:%s";
-    protected static final String MODIFY_PROPERTY_URL = "https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/properties?name=%s";
-    protected static final String GET_JOIN_URL = "https://api.scheduler.skype.com/threads";
-    protected static final String ADD_MEMBER_URL = "https://client-s.gateway.messenger.live.com/v1/threads/%s/members/8:%s";
-
     protected final AtomicBoolean isLoading = new AtomicBoolean(false);
     protected final AtomicBoolean hasLoaded = new AtomicBoolean(false);
 
@@ -56,35 +51,45 @@ public abstract class ChatImpl implements Chat {
     private final SkypeImpl client;
     private final String identity;
 
-    ChatImpl(SkypeImpl client, String identity) throws ConnectionException, ChatNotFoundException, IOException {
+    ChatImpl(SkypeImpl client, String identity) throws ConnectionException, ChatNotFoundException {
         this.client = client;
         this.identity = identity;
         load();
     }
 
     @Override
-    public ChatMessage sendMessage(Message message) throws ConnectionException, IOException {
+    public ChatMessage sendMessage(Message message) throws ConnectionException {
         checkLoaded();
-        long ms = System.currentTimeMillis();
-        JsonObject obj = new JsonObject();
-        obj.add("content", message.write());
-        obj.add("messagetype", "RichText");
-        obj.add("contenttype", "text");
-        obj.add("clientmessageid", String.valueOf(ms));
+        try {
+            long ms = System.currentTimeMillis();
 
-        ConnectionBuilder builder = new ConnectionBuilder();
-        builder.setUrl(client.withCloud(SEND_MESSAGE_URL, getIdentity()));
-        builder.setMethod("POST", true);
-        builder.addHeader("RegistrationToken", client.getRegistrationToken());
-        builder.addHeader("Content-Type", "application/json");
-        builder.setData(obj.toString());
-        HttpURLConnection con = builder.build();
+            JsonObject obj = new JsonObject();
+            obj.add("content", message.write());
+            obj.add("messagetype", "RichText");
+            obj.add("contenttype", "text");
+            obj.add("clientmessageid", String.valueOf(ms));
 
-        if (con.getResponseCode() != 201) {
-            throw client.generateException("While sending message", con);
+            ConnectionBuilder builder = new ConnectionBuilder();
+            builder.setUrl(client.withCloud(Endpoints.SEND_MESSAGE_URL, getIdentity()));
+            builder.setMethod("POST", true);
+            builder.addHeader("RegistrationToken", client.getRegistrationToken());
+            builder.addHeader("Content-Type", "application/json");
+            builder.setData(obj.toString());
+            HttpURLConnection con = builder.build();
+
+            if (con.getResponseCode() != 201) {
+                throw client.generateException("While sending message", con);
+            }
+
+            return ChatMessageImpl.createMessage(this, getUser(client.getUsername()), null, String.valueOf(ms), ms, message, getClient());
+        } catch (IOException e) {
+            throw this.client.generateException("While sending message", e);
         }
+    }
 
-        return ChatMessageImpl.createMessage(this, getUser(client.getUsername()), null, String.valueOf(ms), ms, message);
+    @Override
+    public ChatMessage sendMessage(String plainMessage) throws ConnectionException {
+        return sendMessage(Message.create().with(Text.plain(plainMessage)));
     }
 
     @Override
@@ -143,11 +148,11 @@ public abstract class ChatImpl implements Chat {
         return !isLoading.get() && hasLoaded.get();
     }
 
-    public abstract void addUser(String username) throws ConnectionException, IOException;
+    public abstract void addUser(String username) throws ConnectionException;
 
     public abstract void removeUser(String username);
 
-    protected abstract void load() throws ConnectionException, ChatNotFoundException, IOException;
+    protected abstract void load() throws ConnectionException, ChatNotFoundException;
 
     protected void checkLoaded() {
         if (!isLoaded()) {

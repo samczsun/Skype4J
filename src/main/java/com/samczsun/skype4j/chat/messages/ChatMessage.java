@@ -15,8 +15,10 @@
  * If not, see http://www.gnu.org/licenses/.
  */
 
-package com.samczsun.skype4j.chat;
+package com.samczsun.skype4j.chat.messages;
 
+import com.samczsun.skype4j.Skype;
+import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.user.User;
 
@@ -26,7 +28,7 @@ import com.samczsun.skype4j.user.User;
 public interface ChatMessage {
 
     /**
-     * Get the message object sent or received
+     * Get the message object associated with this ChatMessage
      *
      * @return The message
      */
@@ -37,26 +39,33 @@ public interface ChatMessage {
      *
      * @return The time
      */
-    long getTime();
+    long getSentTime();
 
     /**
-     * Get the user that sent this message
+     * Get the person who sent this message
      *
-     * @return The user
+     * @return The user who sent this message
      */
     User getSender();
 
     /**
-     * Get the chat this message was sent in. See {@link User#getChat() User#getChat()}
+     * Get the chat this message was sent in. See {@link User#getChat()}
      *
      * @return The chat that the user belongs to
      */
     Chat getChat();
 
     /**
+     * Get the {@link Skype} instance associated with this chat
+     *
+     * @return The Skype instance
+     */
+    Skype getClient();
+
+    /**
      * Get the ID assigned to this message by the client. This is not guarenteed to be unique
      *
-     * @return The ID
+     * @return The ClientID
      */
     String getClientId();
 

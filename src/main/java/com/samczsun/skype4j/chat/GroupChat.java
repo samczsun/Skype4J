@@ -22,8 +22,6 @@ import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.NotLoadedException;
 import com.samczsun.skype4j.user.Contact;
 
-import java.io.IOException;
-
 /**
  * Represents a group chat with one or more people
  */
@@ -43,7 +41,7 @@ public interface GroupChat extends Chat {
      * @throws ConnectionException If an error occurs while connecting to the endpoint
      * @throws NotLoadedException If the chat is not yet loaded
      */
-    void setTopic(String topic) throws ConnectionException, IOException;
+    void setTopic(String topic) throws ConnectionException;
 
     /**
      * Get whether an option is enabled.
@@ -63,7 +61,7 @@ public interface GroupChat extends Chat {
      * @throws ConnectionException If an error occurs while connecting to the endpoint
      * @throws NotLoadedException If the chat is not yet loaded
      */
-    void setOptionEnabled(OptionUpdateEvent.Option option, boolean enabled) throws ConnectionException, IOException;
+    void setOptionEnabled(OptionUpdateEvent.Option option, boolean enabled) throws ConnectionException;
 
     /**
      * Add a contact into this chat. This will occur in real time
@@ -72,7 +70,7 @@ public interface GroupChat extends Chat {
      * @throws ConnectionException If an error occurs while connecting to the endpoint
      * @throws NotLoadedException If the chat is not yet loaded
      */
-    void add(Contact contact) throws ConnectionException, IOException;
+    void add(Contact contact) throws ConnectionException;
 
     /**
      * Kick a user from this chat. This will occur in real time.
@@ -81,7 +79,7 @@ public interface GroupChat extends Chat {
      * @throws ConnectionException If an error occurs while connecting to the endpoint
      * @throws NotLoadedException If the chat is not yet loaded
      */
-    void kick(String username) throws ConnectionException, IOException;
+    void kick(String username) throws ConnectionException;
 
     /**
      * Leave the chat. This will occur in real time.
@@ -89,7 +87,7 @@ public interface GroupChat extends Chat {
      * @throws ConnectionException If an error occurs while connecting to the endpoint
      * @throws NotLoadedException If the chat is not yet loaded
      */
-    void leave() throws ConnectionException, IOException;
+    void leave() throws ConnectionException;
 
     /**
      * Gets the join url for people to join.
@@ -99,5 +97,5 @@ public interface GroupChat extends Chat {
      * @throws NotLoadedException If the chat is not yet loaded
      * @throws IllegalStateException If joining is not enabled
      */
-    String getJoinUrl() throws ConnectionException, IOException;
+    String getJoinUrl() throws ConnectionException;
 }

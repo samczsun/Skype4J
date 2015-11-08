@@ -33,6 +33,7 @@ import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.InvalidCredentialsException;
 import com.samczsun.skype4j.exceptions.ParseException;
+import com.samczsun.skype4j.internal.chat.ChatImpl;
 import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.ContactRequest;
 import org.java_websocket.client.DefaultSSLWebSocketClientFactory;
@@ -466,7 +467,7 @@ public class SkypeImpl extends Skype {
     }
 
     @Override
-    public Contact loadContact(String name) throws ConnectionException, IOException {
+    public Contact loadContact(String name) throws ConnectionException {
         if (!allContacts.containsKey(name)) {
             Contact contact = ContactImpl.createContact(this, name);
             allContacts.put(name, contact);
@@ -477,7 +478,7 @@ public class SkypeImpl extends Skype {
     }
 
     @Override
-    public Contact getOrLoadContact(String username) throws ConnectionException, IOException {
+    public Contact getOrLoadContact(String username) throws ConnectionException {
         if (allContacts.containsKey(username)) {
             return allContacts.get(username);
         } else {

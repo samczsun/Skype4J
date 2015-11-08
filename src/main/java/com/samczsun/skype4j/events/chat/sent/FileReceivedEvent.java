@@ -15,20 +15,30 @@
  * If not, see http://www.gnu.org/licenses/.
  */
 
-package com.samczsun.skype4j.events.chat.message;
+package com.samczsun.skype4j.events.chat.sent;
 
-import com.samczsun.skype4j.chat.messages.ChatMessage;
+import com.samczsun.skype4j.chat.Chat;
+import com.samczsun.skype4j.chat.objects.ReceivedFile;
 import com.samczsun.skype4j.events.chat.ChatEvent;
+import com.samczsun.skype4j.user.User;
 
-public abstract class MessageEvent extends ChatEvent {
-    private final ChatMessage message;
+import java.util.List;
 
-    public MessageEvent(ChatMessage message) {
-        super(message.getChat());
-        this.message = message;
+public class FileReceivedEvent extends ChatEvent {
+    private User sender;
+    private List<ReceivedFile> files;
+
+    public FileReceivedEvent(Chat chat, User sender, List<ReceivedFile> files) {
+        super(chat);
+        this.sender = sender;
+        this.files = files;
     }
 
-    public ChatMessage getMessage() {
-        return this.message;
+    public User getSender() {
+        return this.sender;
+    }
+
+    public List<ReceivedFile> getSentFiles() {
+        return this.files;
     }
 }

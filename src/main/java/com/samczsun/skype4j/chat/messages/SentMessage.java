@@ -15,15 +15,13 @@
  * If not, see http://www.gnu.org/licenses/.
  */
 
-package com.samczsun.skype4j.chat;
+package com.samczsun.skype4j.chat.messages;
 
-import com.samczsun.skype4j.exceptions.SkypeException;
+import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.formatting.Message;
 
 /**
  * Represents a message you sent
- *
- * @author samczsun
  */
 public interface SentMessage extends ChatMessage {
 
@@ -31,14 +29,14 @@ public interface SentMessage extends ChatMessage {
      * Edit this message
      *
      * @param newMessage The message to edit it to
-     * @throws SkypeException If something goes wrong during the editing
+     * @throws ConnectionException If an exception occurs while connecting to the endpoint
      */
-    void edit(Message newMessage) throws SkypeException;
+    void edit(Message newMessage) throws ConnectionException;
 
     /**
      * Delete this message
      *
-     * @throws SkypeException If something goes wrong while deleting
+     * @throws ConnectionException If an exception occurs while connecting to the endpoint
      */
-    void delete() throws SkypeException;
+    void delete() throws ConnectionException;
 }

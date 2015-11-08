@@ -33,7 +33,7 @@ public abstract class Text {
     }
 
     public static PlainText plain(String text) {
-        return new PlainText(HtmlEscape.unescapeHtml(text));
+        return new PlainText(HtmlEscape.escapeHtml5(text));
     }
 
     public static PlainText plain(byte text) {

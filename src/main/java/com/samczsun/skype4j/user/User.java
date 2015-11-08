@@ -18,7 +18,7 @@
 package com.samczsun.skype4j.user;
 
 import com.samczsun.skype4j.chat.Chat;
-import com.samczsun.skype4j.chat.ChatMessage;
+import com.samczsun.skype4j.chat.messages.ChatMessage;
 
 import java.util.List;
 

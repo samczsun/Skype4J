@@ -15,29 +15,16 @@
  * If not, see http://www.gnu.org/licenses/.
  */
 
-package com.samczsun.skype4j.events.chat.sent;
+package com.samczsun.skype4j.internal.chat.messages;
 
 import com.samczsun.skype4j.chat.Chat;
-import com.samczsun.skype4j.chat.FileInfo;
-import com.samczsun.skype4j.events.chat.ChatEvent;
+import com.samczsun.skype4j.chat.messages.ReceivedMessage;
+import com.samczsun.skype4j.formatting.Message;
+import com.samczsun.skype4j.internal.SkypeImpl;
 import com.samczsun.skype4j.user.User;
 
-import java.awt.image.BufferedImage;
-
-public class FileInfoReceivedEvent extends ChatEvent
-{
-    private User sender;
-    private Iterable<FileInfo> sentFileInfos;
-
-    public FileInfoReceivedEvent(Chat chat, User sender, Iterable<FileInfo> sent) {
-        super(chat);
-        this.sender = sender;
-        this.sentFileInfos = sent;
+public class ReceivedMessageImpl extends ChatMessageImpl implements ReceivedMessage {
+    public ReceivedMessageImpl(Chat chat, User user, String id, String clientId, long time, Message message, SkypeImpl skype) {
+        super(chat, user, id, clientId, time, message, skype);
     }
-
-    public User getSender() {
-        return this.sender;
-    }
-
-    public Iterable<FileInfo> getSentFiles() { return this.sentFileInfos; }
 }
