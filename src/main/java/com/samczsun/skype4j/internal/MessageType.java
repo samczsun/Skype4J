@@ -44,11 +44,11 @@ import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.User;
 import com.samczsun.skype4j.user.User.Role;
-import org.apache.commons.lang3.StringEscapeUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.parser.Parser;
+import org.unbescape.html.HtmlEscape;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -392,7 +392,7 @@ public enum MessageType {
             if (initiatorMatcher.find() && timeMatcher.find() && valueMatcher.find()) {
                 User user = getUser(initiatorMatcher.group(1), chat);
                 long time = Long.parseLong(timeMatcher.group(1));
-                String topic = valueMatcher.groupCount() > 0 ? StringEscapeUtils.unescapeHtml4(valueMatcher.group(1)) : "";
+                String topic = valueMatcher.groupCount() > 0 ? HtmlEscape.unescapeHtml(valueMatcher.group(1)) : "";
                 TopicUpdateEvent event = new TopicUpdateEvent(user, time, topic);
                 skype.getEventDispatcher().callEvent(event);
                 ((ChatGroup) chat).updateTopic(topic);

@@ -35,6 +35,7 @@ import com.samczsun.skype4j.exceptions.InvalidCredentialsException;
 import com.samczsun.skype4j.exceptions.ParseException;
 import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.ContactRequest;
+import org.java_websocket.client.DefaultSSLWebSocketClientFactory;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.drafts.Draft_17;
 import org.java_websocket.handshake.ServerHandshake;
@@ -162,7 +163,7 @@ public class SkypeImpl extends Skype {
             for (JsonValue contactRequest : contactRequests) {
                 JsonObject contactRequestObj = contactRequest.asObject();
                 try {
-                    this.allContactRequests.add(new ContactRequestImpl(contactRequestObj.get("event_time").asString(), getOrLoadContact(contactRequestObj.get("sender").asString()), contactRequestObj.get("greeting").asString()));
+                    this.allContactRequests.add(new ContactRequestImpl(contactRequestObj.get("event_time").asString(), getOrLoadContact(contactRequestObj.get("sender").asString()), contactRequestObj.get("greeting").asString(), this));
                 } catch (java.text.ParseException e) {
                     getLogger().log(Level.WARNING, "Could not parse date for contact request", e);
                 }
@@ -271,11 +272,9 @@ public class SkypeImpl extends Skype {
             this.wss = new WebSocketClient(new URI(String.format("%s/socket.io/1/websocket/%s?%s",
                     "wss://" + socketURL,
                     websocketData.split(":")[0],
-                    args.toString()))) {
+                    args.toString())), new Draft_17(), null, 2000) {
                 @Override
                 public void onOpen(ServerHandshake serverHandshake) {
-                    getLogger().log(Level.INFO, "Connected to websocket server");
-                    this.send("1::");
                     new Thread() {
                         AtomicInteger currentPing = new AtomicInteger(1);
 
@@ -357,7 +356,7 @@ public class SkypeImpl extends Skype {
             };
             SSLContext sc = SSLContext.getInstance("SSL");
             sc.init(null, trustAllCerts, new java.security.SecureRandom());
-            this.wss.setSocket(sc.getSocketFactory().createSocket()); //Shhh.... todo fix
+            this.wss.setWebSocketFactory(new DefaultSSLWebSocketClientFactory(sc));
             this.wss.connectBlocking();
 
             pollThread = new Thread(String.format("Skype-%s-PollThread", username)) {
@@ -523,7 +522,7 @@ public class SkypeImpl extends Skype {
         for (JsonValue contactRequest : contactRequests) {
             JsonObject contactRequestObj = contactRequest.asObject();
             try {
-                ContactRequestImpl request = new ContactRequestImpl(contactRequestObj.get("event_time").asString(), getOrLoadContact(contactRequestObj.get("sender").asString()), contactRequestObj.get("greeting").asString());
+                ContactRequestImpl request = new ContactRequestImpl(contactRequestObj.get("event_time").asString(), getOrLoadContact(contactRequestObj.get("sender").asString()), contactRequestObj.get("greeting").asString(), this);
                 if (!this.allContactRequests.contains(request)) {
                     ContactRequestEvent event = new ContactRequestEvent(request);
                     getEventDispatcher().callEvent(event);

@@ -17,7 +17,7 @@
 
 package com.samczsun.skype4j.formatting;
 
-import org.apache.commons.lang3.StringEscapeUtils;
+import org.unbescape.html.HtmlEscape;
 
 /**
  * Created by sam on 2015-07-09.
@@ -33,7 +33,7 @@ public abstract class Text {
     }
 
     public static PlainText plain(String text) {
-        return new PlainText(StringEscapeUtils.escapeHtml4(text));
+        return new PlainText(HtmlEscape.unescapeHtml(text));
     }
 
     public static PlainText plain(byte text) {
