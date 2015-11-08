@@ -15,7 +15,7 @@
  * If not, see http://www.gnu.org/licenses/.
  */
 
-package com.samczsun.skype4j;
+package com.samczsun.skype4j.internal;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
