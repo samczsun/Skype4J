@@ -19,7 +19,6 @@ package com.samczsun.skype4j.internal;
 
 import com.eclipsesource.json.JsonObject;
 import com.samczsun.skype4j.Skype;
-import com.samczsun.skype4j.StreamUtils;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.messages.ChatMessage;
 import com.samczsun.skype4j.chat.messages.ReceivedMessage;
@@ -270,12 +269,12 @@ public enum MessageType {
                     builder.addHeader("Cookie", skype.getCookieString());
                     HttpURLConnection statusCon = builder.build();
                     if (statusCon.getResponseCode() == 200) {
-                        JsonObject obj = JsonObject.readFrom(new InputStreamReader(statusCon.getInputStream()));
+                        JsonObject obj = JsonObject.readFrom(new InputStreamReader(statusCon.getInputStream(), "UTF-8"));
                         builder.setUrl(obj.get("status_location").asString());
                         while (true) {
                             statusCon = builder.build();
                             if (statusCon.getResponseCode() == 200) {
-                                obj = JsonObject.readFrom(new InputStreamReader(statusCon.getInputStream()));
+                                obj = JsonObject.readFrom(new InputStreamReader(statusCon.getInputStream(), "UTF-8"));
                                 if (obj.get("content_state").asString().equalsIgnoreCase("ready")) {
                                     break;
                                 }

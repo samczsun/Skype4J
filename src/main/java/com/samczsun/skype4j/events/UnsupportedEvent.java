@@ -17,25 +17,35 @@
 
 package com.samczsun.skype4j.events;
 
-import com.samczsun.skype4j.chat.Chat;
-import com.samczsun.skype4j.events.chat.ChatEvent;
-import com.samczsun.skype4j.user.Contact;
-import com.samczsun.skype4j.user.User;
-
-public class UnsupportedEvent extends Event
-{
+/**
+ * Represents a message from Skype which is not implemented within this API
+ */
+public class UnsupportedEvent extends Event {
     private String name;
     private final String content;
 
 
-    public UnsupportedEvent(String name, String content)
-    {
+    public UnsupportedEvent(String name, String content) {
         super();
         this.name = name;
         this.content = content;
     }
 
-    public String getName() { return this.name; }
+    /**
+     * Get the name of this event assigned by Skype
+     *
+     * @return The name
+     */
+    public String getName() {
+        return this.name;
+    }
 
-    public String getContent() { return this.content; }
+    /**
+     * Get the content of the message from Skype
+     *
+     * @return The content
+     */
+    public String getContent() {
+        return this.content;
+    }
 }

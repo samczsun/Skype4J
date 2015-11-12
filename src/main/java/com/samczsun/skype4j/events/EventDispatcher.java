@@ -17,8 +17,21 @@
 
 package com.samczsun.skype4j.events;
 
+/**
+ * Represents the event dispatcher that will dispatch events to all registered listeners
+ */
 public interface EventDispatcher {
-    void registerListener(Listener l);
+    /**
+     * Register a listener
+     *
+     * @param listener The listener to register
+     */
+    void registerListener(Listener listener);
 
-    void callEvent(Event l);
+    /**
+     * Notify all listeners that an event has occured
+     *
+     * @param event The event to call
+     */
+    void callEvent(Event event);
 }

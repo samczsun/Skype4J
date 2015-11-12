@@ -121,7 +121,7 @@ public abstract class ChatImpl implements Chat {
     }
 
     // Begin internal access methods
-    public static Chat createChat(Skype client, String identity) throws ConnectionException, ChatNotFoundException, IOException{
+    public static Chat createChat(Skype client, String identity) throws ConnectionException, ChatNotFoundException {
         Validate.notNull(client, "Client must not be null");
         Validate.isTrue(client instanceof SkypeImpl, String.format("Now is not the time to use that, %s", client.getUsername()));
         Validate.notEmpty(identity, "Identity must not be null/empty");

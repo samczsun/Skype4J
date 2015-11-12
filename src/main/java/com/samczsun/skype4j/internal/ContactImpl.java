@@ -52,7 +52,7 @@ public class ContactImpl implements Contact {
             builder.setData("contacts[]=" + username);
             HttpURLConnection con = builder.build();
             if (con.getResponseCode() == 200) {
-                JsonArray array = JsonArray.readFrom(new InputStreamReader(con.getInputStream()));
+                JsonArray array = JsonArray.readFrom(new InputStreamReader(con.getInputStream(), "UTF-8"));
                 JsonObject json = array.get(0).asObject();
                 if (!json.get("displayname").isNull()) {
                     this.displayName = json.get("displayname").asString();

@@ -71,10 +71,10 @@ public class ChatGroup extends ChatImpl implements GroupChat {
             if (con.getResponseCode() != 200) {
                 throw getClient().generateException("While loading users", con);
             }
-            JsonObject object = JsonObject.readFrom(new InputStreamReader(con.getInputStream()));
+            JsonObject object = JsonObject.readFrom(new InputStreamReader(con.getInputStream(), "UTF-8"));
             JsonObject props = object.get("properties").asObject();
             for (OptionUpdateEvent.Option option : OptionUpdateEvent.Option.values()) {
-                if (props.get(option.getId()) != null && props.get(option.getId()).equals("true")) {
+                if (props.get(option.getId()) != null && props.get(option.getId()).asString().equals("true")) {
                     this.enabledOptions.add(option);
                 }
             }
@@ -167,7 +167,7 @@ public class ChatGroup extends ChatImpl implements GroupChat {
                 if (con.getResponseCode() != 200) {
                     throw getClient().generateException("While getting join URL", con);
                 }
-                JsonObject object = JsonObject.readFrom(new InputStreamReader(con.getInputStream()));
+                JsonObject object = JsonObject.readFrom(new InputStreamReader(con.getInputStream(), "UTF-8"));
                 return object.get("JoinUrl").asString();
             } catch (IOException e) {
                 throw getClient().generateException("While getting join URL", e);

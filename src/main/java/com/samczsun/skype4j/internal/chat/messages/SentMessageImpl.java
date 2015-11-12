@@ -50,7 +50,7 @@ public class SentMessageImpl extends ChatMessageImpl implements SentMessage {
             obj.add("skypeeditedid", this.getClientId());
 
             ConnectionBuilder builder = new ConnectionBuilder();
-            builder.setUrl(String.format(Endpoints.SEND_MESSAGE_URL, this.getChat().getIdentity()));
+            builder.setUrl(getClient().withCloud(Endpoints.SEND_MESSAGE_URL, this.getChat().getIdentity()));
             builder.setMethod("POST", true);
             builder.addHeader("RegistrationToken", getClient().getRegistrationToken());
             builder.setData(obj);

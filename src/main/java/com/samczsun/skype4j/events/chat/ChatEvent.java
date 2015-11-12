@@ -20,6 +20,9 @@ package com.samczsun.skype4j.events.chat;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.events.Event;
 
+/**
+ * Represents an event which involves a particular chat
+ */
 public abstract class ChatEvent extends Event {
     private final Chat chat;
 
@@ -27,6 +30,11 @@ public abstract class ChatEvent extends Event {
         this.chat = c;
     }
 
+    /**
+     * Get the chat associated with this event
+     *
+     * @return The chat
+     */
     public Chat getChat() {
         return chat;
     }

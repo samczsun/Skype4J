@@ -26,8 +26,6 @@ import com.samczsun.skype4j.exceptions.InvalidCredentialsException;
 import com.samczsun.skype4j.exceptions.ParseException;
 import com.samczsun.skype4j.user.Contact;
 
-import java.io.IOException;
-import java.sql.Connection;
 import java.util.Collection;
 import java.util.logging.Logger;
 
@@ -40,7 +38,7 @@ public abstract class Skype {
      * Subscribe to the HTTP long polling service
      * This will start reading events from Skype and calling events within this API
      *
-     * @throws IOException If an connection error occurs during subscription
+     * @throws ConnectionException If an connection error occurs during subscription
      */
     public abstract void subscribe() throws ConnectionException;
 
@@ -66,10 +64,10 @@ public abstract class Skype {
      *
      * @param name The identity of the chat
      * @return The newly loaded {@link Chat}
-     * @throws ConnectionException If an error occurs during connection
+     * @throws ConnectionException   If an error occurs during connection
      * @throws ChatNotFoundException If this skype account is not a member of the chat
      */
-    public abstract Chat loadChat(String name) throws ConnectionException, ChatNotFoundException, IOException;
+    public abstract Chat loadChat(String name) throws ConnectionException, ChatNotFoundException;
 
     /**
      * Get a contact based on the username. The contact must already be loaded
@@ -86,7 +84,7 @@ public abstract class Skype {
      * @return The contact that was loaded
      * @throws ConnectionException If an exception occured while fetching contact details
      */
-    public abstract Contact loadContact(String username) throws ConnectionException, IOException;
+    public abstract Contact loadContact(String username) throws ConnectionException;
 
     /**
      * Get a contact, and if said contact doesn't exist, load it
@@ -95,7 +93,7 @@ public abstract class Skype {
      * @return The contact
      * @throws ConnectionException If an exception occured while fetching contact details
      */
-    public abstract Contact getOrLoadContact(String username) throws ConnectionException, IOException;
+    public abstract Contact getOrLoadContact(String username) throws ConnectionException;
 
     /**
      * Get all the chats loaded by this API
@@ -123,7 +121,7 @@ public abstract class Skype {
     /**
      * Log out and stop all threads
      *
-     * @throws IOException
+     * @throws ConnectionException If an error occurs while logging out
      */
     public abstract void logout() throws ConnectionException;
 

@@ -21,11 +21,9 @@ import com.eclipsesource.json.JsonArray;
 import com.eclipsesource.json.JsonObject;
 import com.eclipsesource.json.JsonValue;
 import com.samczsun.skype4j.Skype;
-import com.samczsun.skype4j.StreamUtils;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.GroupChat;
 import com.samczsun.skype4j.events.EventDispatcher;
-import com.samczsun.skype4j.events.chat.DisconnectedEvent;
 import com.samczsun.skype4j.events.contact.ContactRequestEvent;
 import com.samczsun.skype4j.events.error.MajorErrorEvent;
 import com.samczsun.skype4j.events.error.MinorErrorEvent;
@@ -160,7 +158,7 @@ public class SkypeImpl extends Skype {
                 throw generateException("While fetching contact requests", connection);
             }
 
-            JsonArray contactRequests = JsonArray.readFrom(new InputStreamReader(connection.getInputStream()));
+            JsonArray contactRequests = JsonArray.readFrom(new InputStreamReader(connection.getInputStream(), "UTF-8"));
             for (JsonValue contactRequest : contactRequests) {
                 JsonObject contactRequestObj = contactRequest.asObject();
                 try {
@@ -178,7 +176,7 @@ public class SkypeImpl extends Skype {
                 throw generateException("While fetching trouter data", connection);
             }
 
-            JsonObject trouter = JsonObject.readFrom(new InputStreamReader(connection.getInputStream()));
+            JsonObject trouter = JsonObject.readFrom(new InputStreamReader(connection.getInputStream(), "UTF-8"));
 
             builder = new ConnectionBuilder();
             builder.setUrl(POLICIES_URL);
@@ -196,7 +194,7 @@ public class SkypeImpl extends Skype {
                 throw generateException("While fetching policy data", connection);
             }
 
-            JsonObject policyResponse = JsonObject.readFrom(new InputStreamReader(connection.getInputStream()));
+            JsonObject policyResponse = JsonObject.readFrom(new InputStreamReader(connection.getInputStream(), "UTF-8"));
 
             Map<String, String> data = new HashMap<>();
             for (JsonObject.Member value : policyResponse) {
@@ -400,7 +398,7 @@ public class SkypeImpl extends Skype {
                                 break main;
                             }
 
-                            final JsonObject message = JsonObject.readFrom(new InputStreamReader(connection.getInputStream()));
+                            final JsonObject message = JsonObject.readFrom(new InputStreamReader(connection.getInputStream(), "UTF-8"));
                             scheduler.execute(new Runnable() {
                                 public void run() {
                                     if (message.get("eventMessages") != null) {
@@ -446,7 +444,7 @@ public class SkypeImpl extends Skype {
     }
 
     @Override
-    public Chat loadChat(String name) throws ConnectionException, ChatNotFoundException, IOException {
+    public Chat loadChat(String name) throws ConnectionException, ChatNotFoundException {
         if (!allChats.containsKey(name)) {
             Chat chat = ChatImpl.createChat(this, name);
             allChats.put(name, chat);
@@ -519,7 +517,7 @@ public class SkypeImpl extends Skype {
             throw generateException("While fetching contact requests", connection);
         }
 
-        JsonArray contactRequests = JsonArray.readFrom(new InputStreamReader(connection.getInputStream()));
+        JsonArray contactRequests = JsonArray.readFrom(new InputStreamReader(connection.getInputStream(), "UTF-8"));
         for (JsonValue contactRequest : contactRequests) {
             JsonObject contactRequestObj = contactRequest.asObject();
             try {
@@ -542,6 +540,11 @@ public class SkypeImpl extends Skype {
         sessionKeepaliveThread.interrupt();
         scheduler.shutdownNow();
         while (!scheduler.isTerminated()) ;
+        try {
+            this.wss.closeBlocking();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public String getRegistrationToken() {
@@ -719,7 +722,9 @@ public class SkypeImpl extends Skype {
                         try {
                             Jsoup.connect(PING_URL).header("X-Skypetoken", skypeToken).cookies(cookies).data("sessionId", guid.toString()).post();
                         } catch (IOException e) {
-                            eventDispatcher.callEvent(new DisconnectedEvent(e));
+                            MajorErrorEvent event = new MajorErrorEvent();
+                            getEventDispatcher().callEvent(event);
+                            shutdown();
                         }
                         try {
                             Thread.sleep(300000);

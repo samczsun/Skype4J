@@ -17,6 +17,9 @@
 
 package com.samczsun.skype4j.events;
 
+/**
+ * Represents an event
+ */
 public abstract class Event {
 
 }

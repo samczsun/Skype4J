@@ -36,41 +36,54 @@ public class SkypeBuilder {
 
     private Logger customLogger;
 
+    /**
+     * Construct a SkypeBuilder with the given username and password
+     *
+     * @param username The username
+     * @param password The password
+     */
     public SkypeBuilder(String username, String password) {
         this.username = username;
         this.password = password;
     }
 
+    /**
+     * Subscribe to all known resources
+     *
+     * @return The same SkypeBuilder
+     */
     public SkypeBuilder withAllResources() {
         resources.addAll(Arrays.asList("/v1/users/ME/conversations/ALL/properties", "/v1/users/ME/conversations/ALL/messages", "/v1/users/ME/contacts/ALL", "/v1/threads/ALL"));
         return this;
     }
 
-    public SkypeBuilder withConversationProperties() {
-        resources.add("/v1/users/ME/conversations/ALL/properties");
+    /**
+     * Subscribe to a resource which has not been added into the API
+     *
+     * @param resource The resource to subscribe to
+     * @return The same SkypeBuilder
+     */
+    public SkypeBuilder withResource(String resource) {
+        resources.add(resource);
         return this;
     }
 
-    public SkypeBuilder withConversationMessages() {
-        resources.add("/v1/users/ME/conversations/ALL/messages");
-        return this;
-    }
-
-    public SkypeBuilder withContacts() {
-        resources.add("/v1/users/ME/contacts/ALL");
-        return this;
-    }
-
-    public SkypeBuilder withThreads() {
-        resources.add("/v1/threads/ALL");
-        return this;
-    }
-
+    /**
+     * Use a custom logger for this Skype instance
+     *
+     * @param logger The custom logger to use
+     * @return The same SkypeBuilder
+     */
     public SkypeBuilder withLogger(Logger logger) {
         this.customLogger = logger;
         return this;
     }
 
+    /**
+     * Build the Skype instance!
+     *
+     * @return The Skype instance
+     */
     public Skype build() {
         if (resources.isEmpty()) {
             throw new IllegalArgumentException("No resources selected");

@@ -28,7 +28,7 @@ public class StreamUtils {
         byte[] chunk = new byte[2048];
         int read = 0;
         while ((read = in.read(chunk)) > 0) out.write(chunk, 0, read);
-        return out.toString();
+        return out.toString("UTF-8");
     }
 
     public static ByteArrayInputStream copy(InputStream in) throws IOException {

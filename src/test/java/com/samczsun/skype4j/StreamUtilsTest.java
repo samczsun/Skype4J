@@ -1,5 +1,6 @@
 package com.samczsun.skype4j;
 
+import com.samczsun.skype4j.internal.StreamUtils;
 import junit.framework.TestCase;
 import org.junit.*;
 

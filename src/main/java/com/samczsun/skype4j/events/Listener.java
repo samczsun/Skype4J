@@ -17,6 +17,9 @@
 
 package com.samczsun.skype4j.events;
 
+/**
+ * Represents a listener that will handle events. Methods which handle events must be annotated with an {@link EventHandler}
+ */
 public interface Listener {
 
 }
