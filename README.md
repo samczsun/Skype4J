@@ -5,7 +5,7 @@ This is a Skype API for Java. It does not support P2P chats. You can tell whethe
 Here is an example of this API in action
 
 ```java
-Skype skype = Skype.login(username, password);
+Skype skype = new SkypeBuilder(username, password).withAllResources().build();
 skype.getEventDispatcher().registerListener(new Listener() {
   @EventHandler
   public void onMessage(MessageReceivedEvent e) {
