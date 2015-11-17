@@ -17,7 +17,7 @@
 package com.samczsun.skype4j.formatting;
 
 /**
- * Created by sam on 2015-07-09.
+ * Represents a plaintext component
  */
 public class PlainText extends Text {
 
@@ -27,12 +27,9 @@ public class PlainText extends Text {
         this.value = value;
     }
 
+    @Override
     public String write() {
         return this.value;
-    }
-
-    public String toString() {
-        return this.write();
     }
 
     @Override
@@ -41,13 +38,11 @@ public class PlainText extends Text {
         if (o == null || getClass() != o.getClass()) return false;
 
         PlainText plainText = (PlainText) o;
-
-        return !(value != null ? !value.equals(plainText.value) : plainText.value != null);
-
+        return value.equals(plainText.value);
     }
 
     @Override
     public int hashCode() {
-        return value != null ? value.hashCode() : 0;
+        return value.hashCode();
     }
 }

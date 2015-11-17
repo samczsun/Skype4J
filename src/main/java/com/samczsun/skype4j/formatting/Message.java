@@ -23,35 +23,44 @@ import org.jsoup.nodes.Node;
 import org.jsoup.nodes.TextNode;
 import org.jsoup.select.NodeVisitor;
 
-import java.awt.*;
+import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Stack;
 
+/**
+ * Represents a formatted message
+ */
 public class Message {
-    private final ArrayList<Text> components = new ArrayList<>();
+    private final List<Text> components = new ArrayList<>();
 
     private Message() {
     }
 
+    /**
+     * Create a new message
+     * @return The message object
+     */
     public static Message create() {
         return new Message();
     }
 
+    /**
+     * Add a child to this message
+     *
+     * @return The same message instance
+     */
     public Message with(Text text) {
         this.components.add(text);
         return this;
     }
 
-    public List<Text> children() {
-        return Collections.unmodifiableList(components);
-    }
-
-    public Text child(int x) {
-        return components.get(x);
-    }
-
+    /**
+     * Get the HTML of this text
+     *
+     * @return The HTML
+     */
     public String write() {
         StringBuilder result = new StringBuilder();
         for (Text t : components) {
@@ -60,24 +69,52 @@ public class Message {
         return result.toString();
     }
 
-    public String asHtml() {
-        return this.write();
-    }
-
+    /**
+     * The equivilant of calling {@code Text#write}
+     *
+     * @return The HTML of this text
+     */
     public String toString() {
         return this.write();
     }
 
+    /**
+     * Get the value of this message as plaintext
+     *
+     * @return
+     */
     public String asPlaintext() {
         return Jsoup.parse(write()).text();
     }
 
+    /**
+     * Get the child component at the given index
+     *
+     * @return The same text component at the given index
+     */
+    public Text child(int index) {
+        return this.components.get(index);
+    }
+
+    /**
+     * Get all the children of this message
+     *
+     * @return A view of all the children
+     */
+    public List<Text> children() {
+        return Collections.unmodifiableList(this.components);
+    }
+
+    /**
+     * Parse a message from raw HTML
+     * @param text The HTML to parse from
+     * @return The message object
+     */
     public static Message fromHtml(String text) {
         final Message parsed = create();
         Document doc = Jsoup.parse(text);
         doc.getElementsByTag("body").get(0).traverse(new NodeVisitor() {
             Stack<RichText> stack = new Stack<>();
-
             @Override
             public void head(Node node, int depth) {
                 if (!node.nodeName().equals("body")) {

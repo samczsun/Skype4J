@@ -16,11 +16,15 @@
 
 package com.samczsun.skype4j.formatting;
 
-import java.awt.*;
+import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Represents a rich text component. This component can be formatted.
+ * All children will also have the specified formats.
+ */
 public class RichText extends Text {
     private boolean bold = false;
     private boolean italic = false;
@@ -37,61 +41,124 @@ public class RichText extends Text {
     RichText() {
     }
 
+    /**
+     * Make this text component bold
+     *
+     * @return The same RichText instance
+     */
     public RichText withBold() {
         this.bold = true;
         return this;
     }
 
+    /**
+     * Make this text component underlined
+     *
+     * @return The same RichText instance
+     */
     public RichText withUnderline() {
         this.underline = true;
         return this;
     }
 
+    /**
+     * Make this text component italicized
+     *
+     * @return The same RichText instance
+     */
     public RichText withItalic() {
         this.italic = true;
         return this;
     }
 
+    /**
+     * Make this text component struck through
+     *
+     * @return The same RichText instance
+     */
     public RichText withStrikethrough() {
         this.strikethrough = true;
         return this;
     }
 
+    /**
+     * Make this text component blink
+     *
+     * @return The same RichText instance
+     */
     public RichText withBlink() {
         this.blink = true;
         return this;
     }
 
+    /**
+     * Make this text component link to the supplied URL
+     *
+     * @param link The URL to link to
+     * @return The same RichText instance
+     */
     public RichText withLink(String link) {
         this.link = link;
         return this;
     }
 
+    /**
+     * Give this text component a color
+     *
+     * @param color The color to use
+     * @return The same RichText instance
+     */
     public RichText withColor(Color color) {
         this.color = Integer.toHexString(color.getRGB());
         this.color = this.color.substring(2, this.color.length());
         return this;
     }
 
+    /**
+     * Give this text component a size
+     *
+     * @param size The size to use
+     * @return The same RichText instance
+     */
     public RichText withSize(int size) {
         this.size = size;
         return this;
     }
 
+    /**
+     * Make this text component code-formatted
+     *
+     * @return The same RichText instance
+     */
     public RichText withCode() {
         this.code = true;
         return this;
     }
 
+    /**
+     * Add a child to this text component
+     *
+     * @return The same RichText instance
+     */
     public RichText with(Text t) {
         this.children.add(t);
         return this;
     }
 
+    /**
+     * Get the child component at the given index
+     *
+     * @return The same text component at the given index
+     */
     public Text child(int index) {
         return this.children.get(index);
     }
 
+    /**
+     * Get all the children of this text component
+     *
+     * @return A view of all the children
+     */
     public List<Text> children() {
         return Collections.unmodifiableList(this.children);
     }
