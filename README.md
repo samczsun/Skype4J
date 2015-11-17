@@ -34,8 +34,15 @@ Then add the following dependency
 
 ## Licensing
 
-This project is licensed under the GPLv3 licence
+This project is licensed under the Apache 2.0 license
 
 ## Contributing
 
-If you want to help out, thanks a lot! Please make sure you license your contributions under the GPLv3 license though.
+If you want to help out, thanks a lot! However, there are a few legalities to work out first.
+
+Any contributions you wish to make must be accompanied by a Contributer License Agreement ("CLA").
+This simply gives myself, or whoever is maintaining the project, the right to redistribute your contributions.
+
+The CLA can be found in the root directory of the project, in the file called "CLA". Please read it carefully.
+
+You only need to submit your CLA once, so if you've already signed a CLA there's no need to do it again.
