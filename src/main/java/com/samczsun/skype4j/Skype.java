@@ -70,6 +70,15 @@ public abstract class Skype {
     public abstract Chat loadChat(String name) throws ConnectionException, ChatNotFoundException;
 
     /**
+     * Get a chat, and if said chat doesn't exist, load it
+     *
+     * @param name The name of the chat
+     * @return The chat
+     * @throws ConnectionException If an exception occured while fetching chat details
+     */
+    public abstract Chat getOrLoadChat(String name) throws ConnectionException, ChatNotFoundException;
+
+    /**
      * Get a contact based on the username. The contact must already be loaded
      *
      * @param username The username of the contact
