@@ -61,7 +61,7 @@ public abstract class Text {
      */
     public static PlainText plain(String text) {
         Validate.notNull(text, "The message cannot be null");
-        return new PlainText(HtmlEscape.escapeHtml5(text));
+        return new PlainText(HtmlEscape.escapeHtml5Xml(text));
     }
 
     /**
