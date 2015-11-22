@@ -43,7 +43,7 @@ import java.util.Set;
 public class ChatGroup extends ChatImpl implements GroupChat {
     private String topic;
     private String pictureUrl;
-    private Set<OptionUpdateEvent.Option> enabledOptions = new HashSet<>();
+    private Set<OptionUpdateEvent.Option> enabledOptions;
 
     protected ChatGroup(SkypeImpl skype, String identity) throws ConnectionException, ChatNotFoundException {
         super(skype, identity);
@@ -53,6 +53,7 @@ public class ChatGroup extends ChatImpl implements GroupChat {
         if (isLoaded()) {
             return;
         }
+        enabledOptions = new HashSet<>();
         boolean thrown = false;
         try {
             isLoading.set(true);
