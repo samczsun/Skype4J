@@ -61,6 +61,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.util.*;
+import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -469,21 +470,21 @@ public enum MessageType {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) {
             skype.getEventDispatcher().callEvent(new UnsupportedEvent(name(), resource.toString()));
-            throw new IllegalArgumentException("This event is in need of implementation! Please open a ticket with this stacktrace");
+            skype.getLogger().log(Level.SEVERE, name() + " is in need of implementation! Please open a ticket with the following JSON data");
+            skype.getLogger().log(Level.SEVERE, resource.toString());
         }
     },
     THREAD_ACTIVITY_LEGACY_MEMBER_UPGRADED("ThreadActivity/LegacyMemberUpgraded") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) {
             skype.getEventDispatcher().callEvent(new UnsupportedEvent(name(), resource.toString()));
-            throw new IllegalArgumentException("This event is in need of implementation! Please open a ticket with this stacktrace");
+            skype.getLogger().log(Level.SEVERE, name() + " is in need of implementation! Please open a ticket with the following JSON data");
+            skype.getLogger().log(Level.SEVERE, resource.toString());
         }
     },
     EVENT_CALL("Event/Call") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
-            System.out.println(name() + " " + resource);
-
             String from = resource.get("from").asString();
             String url = resource.get("conversationLink").asString();
             String content = resource.get("content").asString();
@@ -501,8 +502,6 @@ public enum MessageType {
     CONTROL_TYPING("Control/Typing") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
-            System.out.println(name() + " " + resource);
-
             String from = resource.get("from").asString();
             String url = resource.get("conversationLink").asString();
 
@@ -526,7 +525,8 @@ public enum MessageType {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) {
             skype.getEventDispatcher().callEvent(new UnsupportedEvent(name(), resource.toString()));
-            throw new IllegalArgumentException("This event is in need of implementation! Please open a ticket with this stacktrace");
+            skype.getLogger().log(Level.SEVERE, name() + " is in need of implementation! Please open a ticket with the following JSON data");
+            skype.getLogger().log(Level.SEVERE, resource.toString());
         }
     };
 

@@ -21,5 +21,29 @@ package com.samczsun.skype4j.events.error;
  * This event should be handled accordingly.
  */
 public class MajorErrorEvent extends ErrorEvent {
+    private Throwable error;
+    private ErrorSource source;
 
+    public MajorErrorEvent(ErrorSource source) {
+        this(source, null);
+    }
+
+    public MajorErrorEvent(ErrorSource source, Throwable error) {
+        this.source = source;
+        this.error = error;
+    }
+
+    public Throwable getError() {
+        return this.error;
+    }
+
+    public ErrorSource getSource() {
+        return this.source;
+    }
+
+    public enum ErrorSource {
+        POLLING_SKYPE,
+        SESSION_KEEPALIVE,
+        THREAD_POOL_DEAD
+    }
 }

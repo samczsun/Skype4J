@@ -22,4 +22,30 @@ package com.samczsun.skype4j.events.error;
  * Errors may be ignored but is recommended to take logs of regardless
  */
 public class MinorErrorEvent extends ErrorEvent {
+
+    private Throwable error;
+    private ErrorSource source;
+
+    public MinorErrorEvent(ErrorSource source) {
+        this(source, null);
+    }
+
+    public MinorErrorEvent(ErrorSource source, Throwable error) {
+        this.source = source;
+        this.error = error;
+    }
+
+    public Throwable getError() {
+        return this.error;
+    }
+
+    public ErrorSource getSource() {
+        return this.source;
+    }
+
+    public enum ErrorSource {
+        PARSING_MESSAGE,
+        NO_MESSAGE_TYPE,
+        DISPATCHING_EVENT;
+    }
 }

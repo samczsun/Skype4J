@@ -382,7 +382,7 @@ public class SkypeImpl extends Skype {
                             }
 
                             if (code.get() != 200) {
-                                MajorErrorEvent event = new MajorErrorEvent();
+                                MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.POLLING_SKYPE, generateException("While polling Skype", connection));
                                 getEventDispatcher().callEvent(event);
                                 shutdown();
                                 break main;
@@ -390,7 +390,7 @@ public class SkypeImpl extends Skype {
 
                             if (scheduler.isShutdown()) {
                                 if (!shutdownRequested.get()) {
-                                    MajorErrorEvent event = new MajorErrorEvent();
+                                    MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.THREAD_POOL_DEAD);
                                     getEventDispatcher().callEvent(event);
                                     shutdown();
                                 }
@@ -408,11 +408,11 @@ public class SkypeImpl extends Skype {
                                                 try {
                                                     type.handle(SkypeImpl.this, eventObj);
                                                 } catch (Throwable t) {
-                                                    MinorErrorEvent event = new MinorErrorEvent();
+                                                    MinorErrorEvent event = new MinorErrorEvent(MinorErrorEvent.ErrorSource.PARSING_MESSAGE, t);
                                                     getEventDispatcher().callEvent(event);
                                                 }
                                             } else {
-                                                MinorErrorEvent event = new MinorErrorEvent();
+                                                MinorErrorEvent event = new MinorErrorEvent(MinorErrorEvent.ErrorSource.NO_MESSAGE_TYPE);
                                                 getEventDispatcher().callEvent(event);
                                             }
                                         }
@@ -420,7 +420,7 @@ public class SkypeImpl extends Skype {
                                 }
                             });
                         } catch (IOException e) {
-                            MajorErrorEvent event = new MajorErrorEvent();
+                            MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.POLLING_SKYPE, e);
                             getEventDispatcher().callEvent(event);
                             shutdown();
                         }
@@ -721,7 +721,7 @@ public class SkypeImpl extends Skype {
                         try {
                             Jsoup.connect(PING_URL).header("X-Skypetoken", skypeToken).cookies(cookies).data("sessionId", guid.toString()).post();
                         } catch (IOException e) {
-                            MajorErrorEvent event = new MajorErrorEvent();
+                            MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.SESSION_KEEPALIVE, e);
                             getEventDispatcher().callEvent(event);
                             shutdown();
                         }

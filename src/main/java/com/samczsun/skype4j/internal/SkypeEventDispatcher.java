@@ -66,7 +66,7 @@ public class SkypeEventDispatcher implements EventDispatcher {
                     method.handleEvent(e);
                 } catch (Throwable t) {
                     if (tryNotify) {
-                        MinorErrorEvent event = new MinorErrorEvent();
+                        MinorErrorEvent event = new MinorErrorEvent(MinorErrorEvent.ErrorSource.DISPATCHING_EVENT, t);
                         callEvent(event, false);
                     }
                     instance.getLogger().log(Level.SEVERE, "Error while handling event", t);
