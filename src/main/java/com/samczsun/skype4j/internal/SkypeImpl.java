@@ -452,6 +452,15 @@ public class SkypeImpl extends Skype {
             throw new IllegalArgumentException("Chat already exists");
         }
     }
+    
+    @Override
+    public Chat getOrLoadChat(String name) throws ConnectionException, ChatNotFoundException {
+        if (allChats.containsKey(name)) {
+            return allChats.get(name);
+        } else {
+            return loadChat(name);
+        }
+    }
 
     @Override
     public Collection<Chat> getAllChats() {
