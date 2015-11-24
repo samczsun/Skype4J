@@ -16,14 +16,19 @@
 
 package com.samczsun.skype4j.internal;
 
+import com.eclipsesource.json.JsonObject;
 import com.samczsun.skype4j.chat.Chat;
+import com.samczsun.skype4j.chat.GroupChat;
 import com.samczsun.skype4j.chat.messages.ChatMessage;
 import com.samczsun.skype4j.exceptions.ConnectionException;
+import com.samczsun.skype4j.exceptions.NoPermissionException;
 import com.samczsun.skype4j.internal.chat.ChatImpl;
 import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.User;
+import com.sun.org.apache.bcel.internal.generic.NOP;
 
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -34,15 +39,17 @@ public class UserImpl implements User {
 
     private final Contact contactRep;
     private final ChatImpl chat;
+    private final SkypeImpl client;
 
     private Role role = Role.USER;
 
     private final List<ChatMessage> messages = new CopyOnWriteArrayList<>();
     private final Map<String, ChatMessage> messageMap = new ConcurrentHashMap<>();
 
-    public UserImpl(String username, ChatImpl chat) throws ConnectionException {
+    public UserImpl(String username, ChatImpl chat, SkypeImpl client) throws ConnectionException {
         this.contactRep = chat.getClient().getOrLoadContact(username);
         this.chat = chat;
+        this.client = client;
     }
 
     @Override
@@ -61,8 +68,31 @@ public class UserImpl implements User {
     }
 
     @Override
-    public void setRole(Role role) {
-        this.role = role;
+    public void setRole(Role role) throws ConnectionException, NoPermissionException {
+        if (!(getChat() instanceof GroupChat))
+            throw new NoPermissionException();
+        try {
+            ConnectionBuilder builder = new ConnectionBuilder();
+            builder.setUrl(getClient().withCloud(Endpoints.MODIFY_MEMBER_URL, getChat().getIdentity(), getUsername()));
+            builder.setMethod("PUT", true);
+            builder.setData(new JsonObject().add("role", role.name().toLowerCase()));
+
+            HttpURLConnection connection = builder.build();
+            if (connection.getResponseCode() != 400) {
+                throw new NoPermissionException();
+            } else if (connection.getResponseCode() != 200) {
+                throw getClient().generateException("While updating role", connection);
+            } else {
+                updateRole(role);
+            }
+        } catch (IOException e) {
+            throw getClient().generateException("While updating role", e);
+        }
+    }
+
+    @Override
+    public SkypeImpl getClient() {
+        return this.client;
     }
 
     @Override
@@ -104,5 +134,9 @@ public class UserImpl implements User {
         result = 31 * result + chat.hashCode();
         result = 31 * result + role.hashCode();
         return result;
+    }
+
+    public void updateRole(Role role) {
+        this.role = role;
     }
 }

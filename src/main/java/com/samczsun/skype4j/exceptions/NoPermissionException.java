@@ -14,23 +14,10 @@
  *    limitations under the License.
  */
 
-package com.samczsun.skype4j.user;
+package com.samczsun.skype4j.exceptions;
 
 /**
- * Represents a contact
+ * Thrown if an operation was attempted which required admin privileges
  */
-public interface Contact {
-    /**
-     * Get the username of this contact
-     *
-     * @return the username
-     */
-    String getUsername();
-
-    /**
-     * Get the displayname of this contact. Can return null if it cannot be found
-     *
-     * @return the displayname
-     */
-    String getDisplayName();
+public class NoPermissionException extends SkypeException {
 }

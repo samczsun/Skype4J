@@ -104,6 +104,11 @@ public abstract class ChatImpl implements Chat {
     }
 
     @Override
+    public User getSelf() {
+        return getUser(getClient().getUsername());
+    }
+
+    @Override
     public List<ChatMessage> getAllMessages() {
         checkLoaded();
         return Collections.unmodifiableList(messages);

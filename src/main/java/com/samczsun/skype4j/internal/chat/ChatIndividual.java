@@ -44,13 +44,13 @@ public class ChatIndividual extends ChatImpl implements IndividualChat {
         String username = this.getIdentity().substring(2);
         User user = users.get(username.toLowerCase());
         if (user == null) {
-            user = new UserImpl(username, this);
+            user = new UserImpl(username, this, getClient());
         }
         newUsers.put(username.toLowerCase(), user);
         this.partner = user;
         User me = users.get(getClient().getUsername().toLowerCase());
         if (me == null) {
-            me = new UserImpl(getClient().getUsername(), this);
+            me = new UserImpl(getClient().getUsername(), this, getClient());
             newUsers.put(getClient().getUsername().toLowerCase(), me);
         }
         this.users.clear();

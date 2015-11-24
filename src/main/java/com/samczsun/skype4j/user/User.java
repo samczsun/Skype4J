@@ -16,24 +16,70 @@
 
 package com.samczsun.skype4j.user;
 
+import com.samczsun.skype4j.Skype;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.messages.ChatMessage;
+import com.samczsun.skype4j.exceptions.ConnectionException;
+import com.samczsun.skype4j.exceptions.NoPermissionException;
 
 import java.util.List;
 
+/**
+ * Represents a user in a chat.
+ * Multiple user instances may exist for a single contact
+ */
 public interface User {
+    /**
+     * Get the username of this user
+     * @return The username
+     */
     String getUsername();
 
+    /**
+     * Get the displayname of this user
+     * @return The displayname
+     */
     String getDisplayName();
 
+    /**
+     * Get the role of this user
+     * @return The role
+     */
     Role getRole();
 
-    void setRole(Role role);
+    /**
+     * Set the role of this user
+     * @param role
+     * @throws ConnectionException If an error occurs while connecting to the endpoint
+     * @throws NoPermissionException If a permission error occurs
+     */
+    void setRole(Role role) throws ConnectionException, NoPermissionException;
 
+    /**
+     * Get the chat this user is currently in
+     * @return The chat this user belongs to
+     */
     Chat getChat();
 
+    /**
+     * Get the {@link Skype} instance associated with this user
+     *
+     * @return The Skype instance
+     */
+    Skype getClient();
+
+    /**
+     * Get all the messages sent by this user, in sequential order.
+     * Messages sent when this API was not loaded will not be returned
+     * @return The sent messages
+     */
     List<ChatMessage> getSentMessages();
 
+    /**
+     * Get the message based on the id
+     * @param id The id issued by Skype
+     * @return The message
+     */
     ChatMessage getMessageById(String id);
 
     enum Role {

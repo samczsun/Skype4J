@@ -87,15 +87,15 @@ public class ChatGroup extends ChatImpl implements GroupChat {
             for (JsonValue element : members) {
                 String username = element.asObject().get("id").asString().substring(2);
                 String role = element.asObject().get("role").asString();
-                User user = users.get(username.toLowerCase());
+                UserImpl user = (UserImpl) users.get(username.toLowerCase());
                 if (user == null) {
-                    user = new UserImpl(username, this);
+                    user = new UserImpl(username, this, getClient());
                 }
                 newUsers.put(username.toLowerCase(), user);
                 if (role.equalsIgnoreCase("admin")) {
-                    user.setRole(Role.ADMIN);
+                    user.updateRole(Role.ADMIN);
                 } else {
-                    user.setRole(Role.USER);
+                    user.updateRole(Role.USER);
                 }
             }
 
@@ -118,7 +118,7 @@ public class ChatGroup extends ChatImpl implements GroupChat {
 
     public void addUser(String username) throws ConnectionException {
         if (!users.containsKey(username.toLowerCase())) {
-            User user = new UserImpl(username, this);
+            User user = new UserImpl(username, this, getClient());
             users.put(username.toLowerCase(), user);
         } else if (!username.equalsIgnoreCase(getClient().getUsername())) { //Skype...
             throw new IllegalArgumentException(username + " joined the chat even though he was already in it?");

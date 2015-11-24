@@ -60,6 +60,12 @@ public interface Chat {
     User getUser(String username);
 
     /**
+     * Get yourself!
+     * @return Your user object!
+     */
+    User getSelf();
+
+    /**
      * Get the identity of the chat. Persistent across restarts
      *
      * @return The identity of this chat
