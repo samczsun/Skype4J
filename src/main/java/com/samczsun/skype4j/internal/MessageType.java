@@ -21,6 +21,7 @@ import com.samczsun.skype4j.Skype;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.messages.ChatMessage;
 import com.samczsun.skype4j.chat.messages.ReceivedMessage;
+import com.samczsun.skype4j.chat.messages.SentMessage;
 import com.samczsun.skype4j.chat.objects.ReceivedFile;
 import com.samczsun.skype4j.events.UnsupportedEvent;
 import com.samczsun.skype4j.events.chat.ChatJoinedEvent;
@@ -28,6 +29,7 @@ import com.samczsun.skype4j.events.chat.call.CallReceivedEvent;
 import com.samczsun.skype4j.events.chat.message.MessageEditedByOtherEvent;
 import com.samczsun.skype4j.events.chat.message.MessageEditedEvent;
 import com.samczsun.skype4j.events.chat.message.MessageReceivedEvent;
+import com.samczsun.skype4j.events.chat.message.MessageSentEvent;
 import com.samczsun.skype4j.events.chat.message.SmsReceivedEvent;
 import com.samczsun.skype4j.events.chat.sent.*;
 import com.samczsun.skype4j.events.chat.user.MultiUserAddEvent;
@@ -91,8 +93,13 @@ public enum MessageType {
                 User u = getUser(from, c);
                 ChatMessage m = ChatMessageImpl.createMessage(c, u, id, clientId, System.currentTimeMillis(), Message.fromHtml(stripMetadata(content)), skype);
                 c.onMessage(m);
-                MessageReceivedEvent event = new MessageReceivedEvent((ReceivedMessage) m);
-                skype.getEventDispatcher().callEvent(event);
+                if (m instanceof ReceivedMessage) {
+                    MessageReceivedEvent event = new MessageReceivedEvent((ReceivedMessage) m);
+                    skype.getEventDispatcher().callEvent(event);
+                } else {
+                    MessageSentEvent event = new MessageSentEvent((SentMessage) m);
+                    skype.getEventDispatcher().callEvent(event);
+                }
             } else if (resource.get("skypeeditedid") != null) { // Edited
                 // message
                 String url = resource.get("conversationLink").asString();
@@ -264,35 +271,31 @@ public enum MessageType {
                 String blob = doc.getElementsByTag("a").get(0).attr("href");
                 blob = blob.substring(blob.indexOf('?') + 1);
                 try {
-                    ConnectionBuilder builder = new ConnectionBuilder();
-                    builder.setUrl(String.format(PICTURE_STATUS_URL, blob));
-                    builder.addHeader("Cookie", skype.getCookieString());
-                    HttpURLConnection statusCon = builder.build();
+                    HttpURLConnection statusCon = Endpoints.PICTURE_STATUS_URL.open(skype, blob).cookies(skype.getCookies()).get();
                     if (statusCon.getResponseCode() == 200) {
                         JsonObject obj = JsonObject.readFrom(new InputStreamReader(statusCon.getInputStream(), "UTF-8"));
-                        builder.setUrl(obj.get("status_location").asString());
+                        Endpoints.EndpointConnection econn = Endpoints.custom(obj.get("status_location").asString(), skype);
                         while (true) {
-                            statusCon = builder.build();
+                            statusCon = econn.get();
                             if (statusCon.getResponseCode() == 200) {
                                 obj = JsonObject.readFrom(new InputStreamReader(statusCon.getInputStream(), "UTF-8"));
                                 if (obj.get("content_state").asString().equalsIgnoreCase("ready")) {
                                     break;
                                 }
                             } else {
-                                throw skype.generateException("While getting URI object", statusCon);
+                                throw ExceptionHandler.generateException("While getting URI object", statusCon);
                             }
                         }
-                        builder.setUrl(obj.get("view_location").asString());
-                        HttpURLConnection con = builder.build();
+                        HttpURLConnection con = Endpoints.custom(obj.get("view_location").asString(), skype).get();
                         if (con.getResponseCode() == 200) {
                             ByteArrayInputStream input = StreamUtils.copy(con.getInputStream());
                             BufferedImage img = ImageIO.read(input);
                             skype.getEventDispatcher().callEvent(new PictureReceivedEvent(c, u, meta.attr("originalName"), img));
                         } else {
-                            throw skype.generateException("While getting URI object", con);
+                            throw ExceptionHandler.generateException("While getting URI object", con);
                         }
                     } else {
-                        throw skype.generateException("While getting URI object", statusCon);
+                        throw ExceptionHandler.generateException("While getting URI object", statusCon);
                     }
                 } catch (IOException e) {
                     throw new ConnectionException("While fetching picture", e);
@@ -545,7 +548,6 @@ public enum MessageType {
     private static final Pattern ROLE_UPDATE_PATTERN = Pattern.compile("<target><id>(\\d+:.+)</id><role>(.+)</role></target>", Pattern.CASE_INSENSITIVE);
 
     private static final String PICTURE_URL = "https://api.asm.skype.com/v1/objects/%s/views/imgpsh_fullsize";
-    private static final String PICTURE_STATUS_URL = "https://api.asm.skype.com/v1/objects/%s/views/imgpsh_fullsize/status";
 
     private final String value;
 
@@ -569,7 +571,7 @@ public enum MessageType {
         return byValue.get(messageType);
     }
 
-    private static Chat getChat(String url, SkypeImpl skype) throws ConnectionException, ChatNotFoundException, IOException {
+    private static Chat getChat(String url, Skype skype) throws ConnectionException, ChatNotFoundException, IOException {
         Matcher m = URL_PATTERN.matcher(url);
         if (m.find()) {
             Chat find = skype.getChat(m.group(1));

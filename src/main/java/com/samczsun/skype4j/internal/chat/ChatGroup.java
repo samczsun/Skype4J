@@ -24,8 +24,9 @@ import com.samczsun.skype4j.events.chat.user.action.OptionUpdateEvent;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.NotParticipatingException;
-import com.samczsun.skype4j.internal.ConnectionBuilder;
 import com.samczsun.skype4j.internal.Endpoints;
+import com.samczsun.skype4j.internal.ExceptionHandler;
+import com.samczsun.skype4j.internal.client.GuestClient;
 import com.samczsun.skype4j.internal.SkypeImpl;
 import com.samczsun.skype4j.internal.UserImpl;
 import com.samczsun.skype4j.user.Contact;
@@ -58,18 +59,13 @@ public class ChatGroup extends ChatImpl implements GroupChat {
         try {
             isLoading.set(true);
             Map<String, User> newUsers = new HashMap<>();
-
-            ConnectionBuilder builder = new ConnectionBuilder();
-            builder.setUrl(getClient().withCloud(Endpoints.CHAT_INFO_URL, getIdentity()));
-            builder.addHeader("RegistrationToken", getClient().getRegistrationToken());
-            builder.addHeader("Content-Type", "application/json");
-            HttpURLConnection con = builder.build();
+            HttpURLConnection con = Endpoints.CHAT_INFO_URL.open(getClient(), getIdentity()).get();
 
             if (con.getResponseCode() == 404) {
                 throw new ChatNotFoundException();
             }
             if (con.getResponseCode() != 200) {
-                throw getClient().generateException("While loading users", con);
+                throw ExceptionHandler.generateException("While loading users", con);
             }
             JsonObject object = JsonObject.readFrom(new InputStreamReader(con.getInputStream(), "UTF-8"));
             JsonObject props = object.get("properties").asObject();
@@ -99,7 +95,7 @@ public class ChatGroup extends ChatImpl implements GroupChat {
                 }
             }
 
-            if (newUsers.get(getClient().getUsername().toLowerCase()) == null) {
+            if (newUsers.get(getClient().getUsername().toLowerCase()) == null && !(getClient() instanceof GuestClient)) {
                 throw new NotParticipatingException();
             }
 
@@ -107,7 +103,7 @@ public class ChatGroup extends ChatImpl implements GroupChat {
             this.users.putAll(newUsers);
         } catch (IOException e) {
             thrown = true;
-            throw getClient().generateException("While loading", e);
+            throw ExceptionHandler.generateException("While loading", e);
         } finally {
             if (!thrown) {
                 hasLoaded.set(true);
@@ -132,16 +128,12 @@ public class ChatGroup extends ChatImpl implements GroupChat {
     public void kick(String username) throws ConnectionException {
         checkLoaded();
         try {
-            ConnectionBuilder builder = new ConnectionBuilder();
-            builder.setUrl(getClient().withCloud(Endpoints.MODIFY_MEMBER_URL, getIdentity(), username));
-            builder.setMethod("DELETE", false);
-            builder.addHeader("RegistrationToken", getClient().getRegistrationToken());
-            HttpURLConnection con = builder.build();
+            HttpURLConnection con = Endpoints.MODIFY_MEMBER_URL.open(getClient(), getIdentity(), username).delete();
             if (con.getResponseCode() != 200) {
-                throw getClient().generateException("While kicking user", con);
+                throw ExceptionHandler.generateException("While kicking user", con);
             }
         } catch (IOException e) {
-            throw getClient().generateException("While kicking user", e);
+            throw ExceptionHandler.generateException("While kicking user", e);
         }
     }
 
@@ -157,20 +149,14 @@ public class ChatGroup extends ChatImpl implements GroupChat {
                 JsonObject data = new JsonObject();
                 data.add("baseDomain", "https://join.skype.com/launch/");
                 data.add("threadId", this.getIdentity());
-                ConnectionBuilder builder = new ConnectionBuilder();
-                builder.setUrl(Endpoints.GET_JOIN_URL);
-                builder.setMethod("POST", true);
-                builder.addHeader("X-Skypetoken", getClient().getSkypeToken());
-                builder.addHeader("Content-Type", "application/json");
-                builder.setData(data.toString());
-                HttpURLConnection con = builder.build();
-                if (con.getResponseCode() != 200) {
-                    throw getClient().generateException("While getting join URL", con);
+                HttpURLConnection connection = Endpoints.GET_JOIN_URL.open(getClient()).post(data);
+                if (connection.getResponseCode() != 200) {
+                    throw ExceptionHandler.generateException("While getting join URL", connection);
                 }
-                JsonObject object = JsonObject.readFrom(new InputStreamReader(con.getInputStream(), "UTF-8"));
+                JsonObject object = JsonObject.readFrom(new InputStreamReader(connection.getInputStream(), "UTF-8"));
                 return object.get("JoinUrl").asString();
             } catch (IOException e) {
-                throw getClient().generateException("While getting join URL", e);
+                throw ExceptionHandler.generateException("While getting join URL", e);
             }
         } else {
             throw new IllegalStateException("Joining is not enabled");
@@ -207,18 +193,12 @@ public class ChatGroup extends ChatImpl implements GroupChat {
         try {
             JsonObject obj = new JsonObject();
             obj.add("role", "User");
-            ConnectionBuilder builder = new ConnectionBuilder();
-            builder.setUrl(String.format(Endpoints.ADD_MEMBER_URL, getIdentity(), contact.getUsername()));
-            builder.setMethod("PUT", true);
-            builder.addHeader("RegistrationToken", getClient().getRegistrationToken());
-            builder.addHeader("Content-Type", "application/json");
-            builder.setData(obj.toString());
-            HttpURLConnection con = builder.build();
+            HttpURLConnection con = Endpoints.ADD_MEMBER_URL.open(getClient(), getIdentity(), contact.getUsername()).put();
             if (con.getResponseCode() != 200) {
-                throw getClient().generateException("While adding user into group", con);
+                throw ExceptionHandler.generateException("While adding user into group", con);
             }
         } catch (IOException e) {
-            throw getClient().generateException("While adding user into group", e);
+            throw ExceptionHandler.generateException("While adding user into group", e);
         }
     }
 
@@ -226,18 +206,12 @@ public class ChatGroup extends ChatImpl implements GroupChat {
         try {
             JsonObject obj = new JsonObject();
             obj.add(option, value);
-            ConnectionBuilder builder = new ConnectionBuilder();
-            builder.setUrl(getClient().withCloud(Endpoints.MODIFY_PROPERTY_URL, getIdentity(), option));
-            builder.setMethod("PUT", true);
-            builder.addHeader("RegistrationToken", getClient().getRegistrationToken());
-            builder.addHeader("Content-Type", "application/json");
-            builder.setData(obj.toString());
-            HttpURLConnection con = builder.build();
+            HttpURLConnection con = Endpoints.MODIFY_PROPERTY_URL.open(getClient(), getIdentity(), option).put(obj);
             if (con.getResponseCode() != 200) {
-                throw getClient().generateException("While updating an option", con);
+                throw ExceptionHandler.generateException("While updating an option", con);
             }
         } catch (IOException e) {
-            throw getClient().generateException("While updating an option", e);
+            throw ExceptionHandler.generateException("While updating an option", e);
         }
     }
 

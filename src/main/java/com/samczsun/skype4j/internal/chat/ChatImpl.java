@@ -17,7 +17,6 @@
 package com.samczsun.skype4j.internal.chat;
 
 import com.eclipsesource.json.JsonObject;
-import com.samczsun.skype4j.Skype;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.messages.ChatMessage;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
@@ -68,21 +67,14 @@ public abstract class ChatImpl implements Chat {
             obj.add("contenttype", "text");
             obj.add("clientmessageid", String.valueOf(ms));
 
-            ConnectionBuilder builder = new ConnectionBuilder();
-            builder.setUrl(client.withCloud(Endpoints.SEND_MESSAGE_URL, getIdentity()));
-            builder.setMethod("POST", true);
-            builder.addHeader("RegistrationToken", client.getRegistrationToken());
-            builder.addHeader("Content-Type", "application/json");
-            builder.setData(obj.toString());
-            HttpURLConnection con = builder.build();
-
+            HttpURLConnection con = Endpoints.SEND_MESSAGE_URL.open(getClient(), getIdentity()).post(obj);
             if (con.getResponseCode() != 201) {
-                throw client.generateException("While sending message", con);
+                throw ExceptionHandler.generateException("While sending message", con);
             }
 
             return ChatMessageImpl.createMessage(this, getUser(client.getUsername()), null, String.valueOf(ms), ms, message, getClient());
         } catch (IOException e) {
-            throw this.client.generateException("While sending message", e);
+            throw ExceptionHandler.generateException("While sending message", e);
         }
     }
 
@@ -125,18 +117,17 @@ public abstract class ChatImpl implements Chat {
     }
 
     // Begin internal access methods
-    public static Chat createChat(Skype client, String identity) throws ConnectionException, ChatNotFoundException {
+    public static Chat createChat(SkypeImpl client, String identity) throws ConnectionException, ChatNotFoundException {
         Validate.notNull(client, "Client must not be null");
-        Validate.isTrue(client instanceof SkypeImpl, String.format("Now is not the time to use that, %s", client.getUsername()));
         Validate.notEmpty(identity, "Identity must not be null/empty");
         if (identity.startsWith("19:")) {
             if (identity.endsWith("@thread.skype")) {
-                return new ChatGroup((SkypeImpl) client, identity);
+                return new ChatGroup(client, identity);
             } else {
                 throw new IllegalArgumentException(String.format("Cannot load P2P chat with identity %s", identity));
             }
         } else if (identity.startsWith("8:")) {
-            return new ChatIndividual((SkypeImpl) client, identity);
+            return new ChatIndividual(client, identity);
         } else {
             throw new IllegalArgumentException(String.format("Unknown chat type with identity %s", identity));
         }

@@ -17,6 +17,7 @@
 package com.samczsun.skype4j.internal;
 
 import com.eclipsesource.json.JsonObject;
+import com.samczsun.skype4j.Skype;
 import com.samczsun.skype4j.exceptions.SkypeException;
 
 import java.io.IOException;

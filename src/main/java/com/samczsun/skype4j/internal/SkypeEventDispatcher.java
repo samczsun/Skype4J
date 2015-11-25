@@ -16,6 +16,7 @@
 
 package com.samczsun.skype4j.internal;
 
+import com.samczsun.skype4j.Skype;
 import com.samczsun.skype4j.events.Event;
 import com.samczsun.skype4j.events.EventDispatcher;
 import com.samczsun.skype4j.events.EventHandler;
@@ -23,13 +24,17 @@ import com.samczsun.skype4j.events.Listener;
 import com.samczsun.skype4j.events.error.MinorErrorEvent;
 
 import java.lang.reflect.Method;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 
 public class SkypeEventDispatcher implements EventDispatcher {
-    private SkypeImpl instance;
+    private Skype instance;
 
-    public SkypeEventDispatcher(SkypeImpl instance) {
+    public SkypeEventDispatcher(Skype instance) {
         this.instance = instance;
     }
 
@@ -58,13 +63,14 @@ public class SkypeEventDispatcher implements EventDispatcher {
         callEvent(e, true);
     }
 
-    private void callEvent(Event e, boolean tryNotify) {
+    private void callEvent(Event e, boolean tryNotify) { //todo bake
         List<RegisteredListener> methods = listeners.get(e.getClass());
         if (methods != null) {
             for (RegisteredListener method : methods) {
                 try {
                     method.handleEvent(e);
                 } catch (Throwable t) {
+                    t.printStackTrace();
                     if (tryNotify) {
                         MinorErrorEvent event = new MinorErrorEvent(MinorErrorEvent.ErrorSource.DISPATCHING_EVENT, t);
                         callEvent(event, false);

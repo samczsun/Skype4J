@@ -17,6 +17,7 @@
 package com.samczsun.skype4j.internal;
 
 import com.samczsun.skype4j.exceptions.ConnectionException;
+import com.samczsun.skype4j.internal.client.FullClient;
 import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.ContactRequest;
 
@@ -33,9 +34,9 @@ public class ContactRequestImpl implements ContactRequest {
     private Contact sender;
     private String message;
 
-    private SkypeImpl skype;
+    private FullClient skype;
 
-    public ContactRequestImpl(String time, Contact sender, String message, SkypeImpl skype) throws ParseException {
+    public ContactRequestImpl(String time, Contact sender, String message, FullClient skype) throws ParseException {
         this.time = FORMAT.parse(time);
         this.sender = sender;
         this.message = message;
@@ -60,16 +61,12 @@ public class ContactRequestImpl implements ContactRequest {
     @Override
     public void accept() throws ConnectionException {
         try {
-            ConnectionBuilder builder = new ConnectionBuilder();
-            builder.setUrl(String.format(Endpoints.ACCEPT_CONTACT_REQUEST, sender.getUsername()));
-            builder.setMethod("PUT", false);
-            builder.addHeader("X-Skypetoken", skype.getSkypeToken());
-            HttpURLConnection connection = builder.build();
+            HttpURLConnection connection = Endpoints.ACCEPT_CONTACT_REQUEST.open(skype, sender.getUsername()).put();
             if (connection.getResponseCode() != 201) {
-                throw skype.generateException("While accepting contact request", connection);
+                throw ExceptionHandler.generateException("While accepting contact request", connection);
             }
         } catch (IOException e) {
-            throw skype.generateException("While accepting contact request", e);
+            throw ExceptionHandler.generateException("While accepting contact request", e);
         }
     }
 

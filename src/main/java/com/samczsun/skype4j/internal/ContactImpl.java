@@ -30,13 +30,12 @@ import java.net.HttpURLConnection;
 public class ContactImpl implements Contact {
     private static final String PROFILES_URL = "https://api.skype.com/users/self/contacts/profiles"; //contacts[] = username
 
-    public static final Contact createContact(Skype skype, String username) throws ConnectionException {
-        Validate.isTrue(skype instanceof SkypeImpl, String.format("Now is not the time to use that, %s", skype.getUsername()));
+    public static final Contact createContact(SkypeImpl skype, String username) throws ConnectionException {
         Validate.notEmpty(username, "Username must not be empty");
-        return new ContactImpl((SkypeImpl) skype, username);
+        return new ContactImpl(skype, username);
     }
 
-    private SkypeImpl skype;
+    private Skype skype;
     private String username;
     private String displayName;
 
@@ -66,10 +65,10 @@ public class ContactImpl implements Contact {
                     this.displayName = this.username;
                 }
             } else {
-                throw skype.generateException("While getting contact info", con);
+                throw ExceptionHandler.generateException("While getting contact info", con);
             }
         } catch (IOException e) {
-            throw skype.generateException("While loading", e);
+            throw ExceptionHandler.generateException("While loading", e);
         }
     }
 

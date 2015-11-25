@@ -16,13 +16,189 @@
 
 package com.samczsun.skype4j.internal;
 
-public class Endpoints {
-    public static final String ACCEPT_CONTACT_REQUEST = "https://api.skype.com/users/self/contacts/auth-request/%s/accept";
+import com.eclipsesource.json.JsonValue;
 
-    public static final String GET_JOIN_URL = "https://api.scheduler.skype.com/threads";
-    public static final String CHAT_INFO_URL = "https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/?view=msnp24Equivalent";
-    public static final String SEND_MESSAGE_URL = "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/conversations/%s/messages";
-    public static final String MODIFY_MEMBER_URL = "https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/members/8:%s";
-    public static final String MODIFY_PROPERTY_URL = "https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/properties?name=%s";
-    public static final String ADD_MEMBER_URL = "https://client-s.gateway.messenger.live.com/v1/threads/%s/members/8:%s";
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+
+public class Endpoints {
+    public static final Endpoints ACCEPT_CONTACT_REQUEST = new Endpoints("https://api.skype.com/users/self/contacts/auth-request/%s/accept").skypetoken();
+    public static final Endpoints GET_JOIN_URL = new Endpoints("https://api.scheduler.skype.com/threads").skypetoken();
+    public static final Endpoints CHAT_INFO_URL = new Endpoints("https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/?view=msnp24Equivalent").cloud().regtoken();
+    public static final Endpoints SEND_MESSAGE_URL = new Endpoints("https://%sclient-s.gateway.messenger.live.com/v1/users/ME/conversations/%s/messages").cloud().regtoken();
+    public static final Endpoints MODIFY_MEMBER_URL = new Endpoints("https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/members/8:%s").cloud().regtoken();
+    public static final Endpoints MODIFY_PROPERTY_URL = new Endpoints("https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/properties?name=%s").cloud().regtoken();
+    public static final Endpoints ADD_MEMBER_URL = new Endpoints("https://client-s.gateway.messenger.live.com/v1/threads/%s/members/8:%s").regtoken();
+    public static final Endpoints LOGIN_URL = new Endpoints("https://login.skype.com/login?client_id=578134&redirect_uri=https%3A%2F%2Fweb.skype.com");
+    public static final Endpoints PING_URL = new Endpoints("https://web.skype.com/api/v1/session-ping").skypetoken();
+    public static final Endpoints TOKEN_AUTH_URL = new Endpoints("https://api.asm.skype.com/v1/skypetokenauth");
+    public static final Endpoints LOGOUT_URL = new Endpoints("https://login.skype.com/logout?client_id=578134&redirect_uri=https%3A%2F%2Fweb.skype.com&intsrc=client-_-webapp-_-production-_-go-signin");
+    public static final Endpoints ENDPOINTS_URL = new Endpoints("https://client-s.gateway.messenger.live.com/v1/users/ME/endpoints");
+    public static final Endpoints AUTH_REQUESTS_URL = new Endpoints("https://api.skype.com/users/self/contacts/auth-request").skypetoken();
+    public static final Endpoints TROUTER_URL = new Endpoints("https://go.trouter.io/v2/a");
+    public static final Endpoints POLICIES_URL = new Endpoints("https://prod.tpc.skype.com/v1/policies").skypetoken();
+    public static final Endpoints REGISTRATIONS = new Endpoints("https://prod.registrar.skype.com/v2/registrations").skypetoken();
+    public static final Endpoints THREAD_URL = new Endpoints("https://%sclient-s.gateway.messenger.live.com/v1/threads").cloud().regtoken();
+    public static final Endpoints SUBSCRIPTIONS_URL = new Endpoints("https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/SELF/subscriptions").cloud().regtoken();
+    public static final Endpoints MESSAGINGSERVICE_URL = new Endpoints("https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/%s/presenceDocs/messagingService").cloud().regtoken();
+    public static final Endpoints POLL_URL = new Endpoints("https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/SELF/subscriptions/0/poll").cloud().regtoken();
+    public static final Endpoints NEW_GUEST = new Endpoints("https://join.skype.com/api/v1/users/guests");
+    public static final Endpoints LEAVE_GUEST = new Endpoints("https://join.skype.com/guests/leave?threadId=%s");
+    public static final Endpoints PICTURE_STATUS_URL = new Endpoints("https://api.asm.skype.com/v1/objects/%s/views/imgpsh_fullsize/status");
+
+    private boolean requiresCloud;
+    private boolean requiresRegToken;
+    private boolean requiresSkypeToken;
+
+    private String url;
+
+    public static EndpointConnection custom(String url, SkypeImpl skype, String... args) {
+        return new EndpointConnection(new Endpoints(url), skype, args);
+    }
+
+    public String url() {
+        return this.url;
+    }
+
+    private Endpoints(String url) {
+        this.url = url;
+    }
+
+    public EndpointConnection open(SkypeImpl skype, Object... args) {
+        return new EndpointConnection(this, skype, args);
+    }
+
+    private Endpoints cloud() {
+        this.requiresCloud = true;
+        return this;
+    }
+
+    private Endpoints regtoken() {
+        this.requiresRegToken = true;
+        return this;
+    }
+
+    private Endpoints skypetoken() {
+        this.requiresSkypeToken = true;
+        return this;
+    }
+
+
+    public static class EndpointConnection {
+        private Endpoints endpoint;
+        private SkypeImpl skype;
+        private Object[] args;
+        private Map<String, String> headers = new HashMap<>();
+        private Map<String, String> cookies = new HashMap<>();
+        private int timeout;
+        private URL url;
+
+        private EndpointConnection(Endpoints endpoint, SkypeImpl skype, Object[] args) {
+            this.endpoint = endpoint;
+            this.skype = skype;
+            this.args = args;
+            if (endpoint.requiresRegToken) {
+                header("RegistrationToken", skype.getRegistrationToken());
+            }
+            if (endpoint.requiresSkypeToken) {
+                header("X-SkypeToken", skype.getSkypeToken());
+            }
+        }
+
+        public EndpointConnection header(String key, String val) {
+            this.headers.put(key, val);
+            return this;
+        }
+
+        public EndpointConnection cookies(Map<String, String> cookies) {
+            this.cookies.putAll(cookies);
+            return this;
+        }
+
+        public EndpointConnection cookie(String key, String val) {
+            this.cookies.put(key, val);
+            return this;
+        }
+
+        public EndpointConnection timeout(int timeout) {
+            this.timeout = timeout;
+            return this;
+        }
+
+        public HttpURLConnection get() throws IOException {
+            return connect("GET", null);
+        }
+
+        public HttpURLConnection delete() throws IOException {
+            return connect("DELETE", null);
+        }
+
+        public HttpURLConnection post() throws IOException {
+            return connect("POST", null);
+        }
+
+        public HttpURLConnection post(JsonValue json) throws IOException {
+            return header("Content-Type", "application/json").connect("POST", json.toString());
+        }
+
+        public HttpURLConnection put() throws IOException {
+            return connect("PUT", null);
+        }
+
+        public HttpURLConnection put(JsonValue json) throws IOException {
+            return header("Content-Type", "application/json").connect("PUT", json.toString());
+        }
+
+        public HttpURLConnection connect(String method, String rawData) throws IOException {
+            if (!cookies.isEmpty()) {
+                header("Cookie", serializeCookies(cookies));
+            }
+            if (this.url == null) { //todo could fail if cloud is updated?
+                String surl = endpoint.url;
+                if (endpoint.requiresCloud) {
+                    Object[] format = new Object[args.length + 1];
+                    format[0] = skype.getCloud();
+                    for (int i = 1; i < format.length; i++) {
+                        format[i] = args[i - 1].toString();
+                    }
+                    surl = String.format(surl, format);
+                } else if (args.length > 0) {
+                    Object[] format = new Object[args.length];
+                    for (int i = 0; i < format.length; i++) {
+                        format[i] = args[i].toString();
+                    }
+                    surl = String.format(surl, args);
+                }
+                this.url = new URL(surl);
+            }
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod(method);
+            connection.setReadTimeout(timeout);
+            connection.setInstanceFollowRedirects(false);
+            for (Map.Entry<String, String> ent : headers.entrySet()) {
+                connection.setRequestProperty(ent.getKey(), ent.getValue());
+            }
+            if (!method.equalsIgnoreCase("GET")) {
+                connection.setDoOutput(true);
+                if (rawData != null) {
+                    connection.getOutputStream().write(rawData.getBytes(StandardCharsets.UTF_8));
+                } else {
+                    connection.getOutputStream().write(new byte[0]);
+                }
+            }
+            return connection;
+        }
+
+        private String serializeCookies(Map<String, String> cookies) {
+            StringBuilder result = new StringBuilder();
+            for (Map.Entry<String, String> cookie : cookies.entrySet()) {
+                result.append(cookie.getKey()).append("=").append(cookie.getValue()).append(";");
+            }
+            return result.toString();
+        }
+    }
 }

@@ -25,7 +25,6 @@ import com.samczsun.skype4j.exceptions.NoPermissionException;
 import com.samczsun.skype4j.internal.chat.ChatImpl;
 import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.User;
-import com.sun.org.apache.bcel.internal.generic.NOP;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
@@ -72,21 +71,16 @@ public class UserImpl implements User {
         if (!(getChat() instanceof GroupChat))
             throw new NoPermissionException();
         try {
-            ConnectionBuilder builder = new ConnectionBuilder();
-            builder.setUrl(getClient().withCloud(Endpoints.MODIFY_MEMBER_URL, getChat().getIdentity(), getUsername()));
-            builder.setMethod("PUT", true);
-            builder.setData(new JsonObject().add("role", role.name().toLowerCase()));
-
-            HttpURLConnection connection = builder.build();
+            HttpURLConnection connection = Endpoints.MODIFY_MEMBER_URL.open(getClient(), getChat().getIdentity(), getUsername()).put(new JsonObject().add("role", role.name().toLowerCase()));
             if (connection.getResponseCode() != 400) {
                 throw new NoPermissionException();
             } else if (connection.getResponseCode() != 200) {
-                throw getClient().generateException("While updating role", connection);
+                throw ExceptionHandler.generateException("While updating role", connection);
             } else {
                 updateRole(role);
             }
         } catch (IOException e) {
-            throw getClient().generateException("While updating role", e);
+            throw ExceptionHandler.generateException("While updating role", e);
         }
     }
 

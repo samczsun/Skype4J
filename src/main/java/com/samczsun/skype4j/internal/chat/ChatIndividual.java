@@ -16,6 +16,7 @@
 
 package com.samczsun.skype4j.internal.chat;
 
+import com.samczsun.skype4j.Skype;
 import com.samczsun.skype4j.chat.IndividualChat;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
@@ -23,7 +24,6 @@ import com.samczsun.skype4j.internal.SkypeImpl;
 import com.samczsun.skype4j.internal.UserImpl;
 import com.samczsun.skype4j.user.User;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 

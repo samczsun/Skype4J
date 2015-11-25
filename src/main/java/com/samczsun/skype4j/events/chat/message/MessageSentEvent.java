@@ -14,16 +14,17 @@
  *    limitations under the License.
  */
 
-package com.samczsun.skype4j.events.error;
+package com.samczsun.skype4j.events.chat.message;
 
-import com.samczsun.skype4j.events.Event;
+import com.samczsun.skype4j.chat.messages.SentMessage;
 
-/**
- * Represents an error which has occured within the internal API
- * Most likely this error was caused through some action performed on the API, hence it is disclosed to you
- * Some errors are non-important - they can be safely ignored.
- * Others should be handled properly as they signal the API will no longer function at all
- */
-public abstract class ErrorEvent extends Event {
-    public abstract Throwable getError();
+public class MessageSentEvent extends MessageEvent {
+    public MessageSentEvent(SentMessage message) {
+        super(message);
+    }
+
+    @Override
+    public SentMessage getMessage() {
+        return (SentMessage) super.getMessage();
+    }
 }
