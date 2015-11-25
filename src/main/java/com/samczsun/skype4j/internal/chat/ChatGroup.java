@@ -117,7 +117,7 @@ public class ChatGroup extends ChatImpl implements GroupChat {
             User user = new UserImpl(username, this, getClient());
             users.put(username.toLowerCase(), user);
         } else if (!username.equalsIgnoreCase(getClient().getUsername())) { //Skype...
-            throw new IllegalArgumentException(username + " joined the chat even though he was already in it?");
+//            throw new IllegalArgumentException(username + " joined the chat even though he was already in it?");
         }
     }
 

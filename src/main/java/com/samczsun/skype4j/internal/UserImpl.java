@@ -72,7 +72,7 @@ public class UserImpl implements User {
             throw new NoPermissionException();
         try {
             HttpURLConnection connection = Endpoints.MODIFY_MEMBER_URL.open(getClient(), getChat().getIdentity(), getUsername()).put(new JsonObject().add("role", role.name().toLowerCase()));
-            if (connection.getResponseCode() != 400) {
+            if (connection.getResponseCode() == 400) {
                 throw new NoPermissionException();
             } else if (connection.getResponseCode() != 200) {
                 throw ExceptionHandler.generateException("While updating role", connection);
