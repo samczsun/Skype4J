@@ -2,7 +2,7 @@
 
 This is a Skype API for Java. It does not support P2P chats. You can tell whether you're in a P2P chat or not based on the output of the `/help` command. If it contains commands such as `/kickban`, you're in a P2P chat and should switch to cloud chats immediately (try using `/fork`)
 
-Here is an example of this API in action
+Here is an example of using this API to log into your Skype account.
 
 ```java
 Skype skype = new SkypeBuilder(username, password).withAllResources().build();
@@ -10,13 +10,31 @@ skype.login();
 skype.getEventDispatcher().registerListener(new Listener() {
   @EventHandler
   public void onMessage(MessageReceivedEvent e) {
-    System.out.println("Got message: " + e.getMessage().getMessage());
+    System.out.println("Got message: " + e.getMessage().getContent());
   }
 });
 skype.subscribe();
 // Do stuff
 skype.logout();
 ```
+
+If you want to use a guest account, you can do that too
+
+```java
+Skype skype = new SkypeBuilder("Skype4JGuest").withChat("19:42abed183a95456ea1de9e2f7356163c@thread.skype").withAllResources().build();
+skype.login();
+skype.getEventDispatcher().registerListener(new Listener() {
+  @EventHandler
+  public void onMessage(MessageReceivedEvent e) {
+    System.out.println("Got message: " + e.getMessage().getContent());
+  }
+});
+skype.subscribe();
+// Do stuff
+skype.logout();
+```
+
+Notice how both examples are extremely similar. You can switch between guest accounts and regular accounts with ease thanks to abstractation.
 ## Maven
 
 Maven is used for dependency management and deployment. In the near future this project will be added into the central repository.
