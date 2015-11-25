@@ -6,6 +6,7 @@ Here is an example of this API in action
 
 ```java
 Skype skype = new SkypeBuilder(username, password).withAllResources().build();
+skype.login();
 skype.getEventDispatcher().registerListener(new Listener() {
   @EventHandler
   public void onMessage(MessageReceivedEvent e) {
