@@ -20,6 +20,7 @@ import com.eclipsesource.json.JsonArray;
 import com.eclipsesource.json.JsonObject;
 import com.eclipsesource.json.JsonValue;
 import com.samczsun.skype4j.Skype;
+import com.samczsun.skype4j.Visibility;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.GroupChat;
 import com.samczsun.skype4j.events.EventDispatcher;
@@ -342,6 +343,17 @@ public abstract class SkypeImpl implements Skype {
             return Jsoup.connect(Endpoints.TOKEN_AUTH_URL.url()).cookies(cookies).data("skypetoken", skypeToken).method(Connection.Method.POST).execute();
         } catch (IOException e) {
             throw new ConnectionException("While fetching the asmtoken", e);
+        }
+    }
+
+    public void setVisibility(Visibility visibility) throws ConnectionException {
+        try {
+            HttpURLConnection connection = Endpoints.VISIBILITY.open(this).put(new JsonObject().add("status", visibility.internalName()));
+            if (connection.getResponseCode() != 200) {
+                throw ExceptionHandler.generateException("While setting visibility", connection);
+            }
+        } catch (IOException e) {
+            throw ExceptionHandler.generateException("While setting visibility", e);
         }
     }
 }

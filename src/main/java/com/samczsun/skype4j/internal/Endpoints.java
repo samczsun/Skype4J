@@ -67,6 +67,7 @@ public class Endpoints {
             return "skypetoken_asm=" + skype.getSkypeToken();
         }
     });
+    public static final Endpoints VISIBILITY = new Endpoints("https://%sclient-s.gateway.messenger.live.com/v1/users/ME/presenceDocs/messagingService").cloud().regtoken();
 
     private boolean requiresCloud;
     private boolean requiresRegToken;

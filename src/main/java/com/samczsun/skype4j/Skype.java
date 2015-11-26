@@ -179,4 +179,10 @@ public interface Skype {
      * @throws ChatNotFoundException
      */
     GroupChat createGroupChat(Contact... contacts) throws ConnectionException, ChatNotFoundException;
+
+    /**
+     * Set your current visibility
+     * @param visibility The visibility to set
+     */
+    void setVisibility(Visibility visibility) throws ConnectionException;
 }
