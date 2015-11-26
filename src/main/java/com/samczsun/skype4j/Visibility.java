@@ -32,7 +32,7 @@ public enum Visibility {
     /**
      * Invisible (transparent symbol)
      */
-    HIDDEN("Hidden");
+    INVISIBLE("Hidden");
 
     private String name;
 
@@ -43,4 +43,4 @@ public enum Visibility {
     public String internalName() {
         return this.name;
     }
-    }
+}
