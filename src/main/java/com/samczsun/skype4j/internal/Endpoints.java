@@ -49,10 +49,30 @@ public class Endpoints {
     public static final Endpoints NEW_GUEST = new Endpoints("https://join.skype.com/api/v1/users/guests");
     public static final Endpoints LEAVE_GUEST = new Endpoints("https://join.skype.com/guests/leave?threadId=%s");
     public static final Endpoints PICTURE_STATUS_URL = new Endpoints("https://api.asm.skype.com/v1/objects/%s/views/imgpsh_fullsize/status");
+    public static final Endpoints ACTIVE = new Endpoints("https://client-s.gateway.messenger.live.com/v1/users/ME/endpoints/%s/active").regtoken();
+    public static final Endpoints LOAD_CHATS = new Endpoints("https://client-s.gateway.messenger.live.com/v1/users/ME/conversations?startTime=%s&pageSize=%s&view=msnp24Equivalent&targetType=Passport|Skype|Lync|Thread").regtoken();
+    public static final Endpoints LOAD_MESSAGES = new Endpoints("https://client-s.gateway.messenger.live.com/v1/users/ME/conversations/%s/messages?startTime=0&pageSize=%s&view=msnp24Equivalent|supportsMessageProperties&targetType=Passport|Skype|Lync|Thread").regtoken();
+    public static final Endpoints OBJECTS = new Endpoints("https://api.asm.skype.com/v1/objects").defaultHeader("Authorization", new Provider<String>() {
+        public String provide(SkypeImpl skype) {
+            return "skype_token " + skype.getSkypeToken();
+        }
+    });
+    public static final Endpoints IMGPSH = new Endpoints("https://api.asm.skype.com/v1/objects/%s/content/imgpsh").defaultHeader("Authorization", new Provider<String>() {
+        public String provide(SkypeImpl skype) {
+            return "skype_token " + skype.getSkypeToken();
+        }
+    });
+    public static final Endpoints IMG_STATUS = new Endpoints("https://api.asm.skype.com/v1/objects/%s/views/imgt1/status").defaultHeader("Cookie", new Provider<String>() {
+        public String provide(SkypeImpl skype) {
+            return "skypetoken_asm=" + skype.getSkypeToken();
+        }
+    });
 
     private boolean requiresCloud;
     private boolean requiresRegToken;
     private boolean requiresSkypeToken;
+
+    private Map<String, Provider<String>> providers = new HashMap<>();
 
     private String url;
 
@@ -87,6 +107,10 @@ public class Endpoints {
         return this;
     }
 
+    private Endpoints defaultHeader(String key, Provider<String> val) {
+        this.providers.put(key, val);
+        return this;
+    }
 
     public static class EndpointConnection {
         private Endpoints endpoint;
@@ -106,6 +130,9 @@ public class Endpoints {
             }
             if (endpoint.requiresSkypeToken) {
                 header("X-SkypeToken", skype.getSkypeToken());
+            }
+            for (Map.Entry<String, Provider<String>> provider : endpoint.providers.entrySet()) {
+                header(provider.getKey(), provider.getValue().provide(skype));
             }
         }
 
@@ -200,5 +227,9 @@ public class Endpoints {
             }
             return result.toString();
         }
+    }
+
+    private interface Provider<T> {
+        T provide(SkypeImpl skype);
     }
 }

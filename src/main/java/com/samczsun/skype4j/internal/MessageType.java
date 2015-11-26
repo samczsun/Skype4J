@@ -571,7 +571,7 @@ public enum MessageType {
         return byValue.get(messageType);
     }
 
-    private static Chat getChat(String url, Skype skype) throws ConnectionException, ChatNotFoundException, IOException {
+    public static Chat getChat(String url, Skype skype) throws ConnectionException, ChatNotFoundException, IOException {
         Matcher m = URL_PATTERN.matcher(url);
         if (m.find()) {
             Chat find = skype.getChat(m.group(1));
@@ -583,7 +583,7 @@ public enum MessageType {
         throw conformError("Chat URL");
     }
 
-    private static User getUser(String url, Chat c) {
+    public static User getUser(String url, Chat c) {
         Matcher m = USER_PATTERN.matcher(url);
         if (m.find()) {
             return c.getUser(m.group(1));
@@ -595,7 +595,7 @@ public enum MessageType {
         return new IllegalArgumentException(String.format("%s did not conform to format expected", object));
     }
 
-    private static String stripMetadata(String message) {
+    public static String stripMetadata(String message) {
         return STRIP_EMOTICON_PATTERN.matcher(STRIP_QUOTE_PATTERN.matcher(STRIP_EDIT_PATTERN.matcher(message).replaceAll("")).replaceAll("")).replaceAll("");
     }
 }

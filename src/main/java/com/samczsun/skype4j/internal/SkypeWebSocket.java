@@ -110,7 +110,6 @@ public class SkypeWebSocket extends WebSocketClient {
 
     @Override
     public void onClose(int i, String s, boolean b) {
-        skype.getLogger().log(Level.INFO, "Connection closed: {0} {1} {2}", new Object[]{i, s, b});
         pingThread.stop();
         singleThreaded.shutdown();
         while (!singleThreaded.isTerminated());

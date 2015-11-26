@@ -16,10 +16,13 @@
 
 package com.samczsun.skype4j.chat;
 
+import com.samczsun.skype4j.chat.messages.ChatMessage;
 import com.samczsun.skype4j.events.chat.user.action.OptionUpdateEvent;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.NotLoadedException;
 import com.samczsun.skype4j.user.Contact;
+
+import java.util.List;
 
 /**
  * Represents a group chat with one or more people
@@ -97,4 +100,12 @@ public interface GroupChat extends Chat {
      * @throws IllegalStateException If joining is not enabled
      */
     String getJoinUrl() throws ConnectionException;
+
+    /**
+     * Load more chatmessages from the past
+     * @param amount The amount of messages to load
+     * @return The loaded messages
+     * @throws ConnectionException If an error occurs while connecting to the endpoint
+     */
+    List<ChatMessage> loadMoreMessages(int amount) throws ConnectionException;
 }

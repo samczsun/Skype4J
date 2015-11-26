@@ -22,12 +22,13 @@ import com.samczsun.skype4j.events.EventDispatcher;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.InvalidCredentialsException;
+import com.samczsun.skype4j.exceptions.NoPermissionException;
 import com.samczsun.skype4j.exceptions.NotParticipatingException;
 import com.samczsun.skype4j.exceptions.ParseException;
 import com.samczsun.skype4j.user.Contact;
 
 import java.util.Collection;
-import java.util.Map;
+import java.util.List;
 import java.util.logging.Logger;
 
 /**
@@ -75,9 +76,27 @@ public interface Skype {
      *
      * @param name The name of the chat
      * @return The chat
-     * @throws ConnectionException If an exception occured while fetching chat details
+     * @throws ConnectionException If an exception occurs while fetching chat details
      */
     Chat getOrLoadChat(String name) throws ConnectionException, ChatNotFoundException;
+
+    /**
+     * Join the chat with the given id in the format of 19:xxxxx@thread.skype
+     * @param chatId The skype chat id
+     * @return The group chat object
+     * @throws ConnectionException If an exception occurs while joining the chat
+     * @throws ChatNotFoundException If the chat does not exist
+     * @throws NoPermissionException If the chat is not public
+     */
+    GroupChat joinChat(String chatId) throws ConnectionException, ChatNotFoundException, NoPermissionException;
+
+    /**
+     * Load amount of chats in the past
+     * @param amount The amount of chats
+     * @return The chats loaded
+     * @throws ConnectionException If an error occurs while connecting
+     */
+    List<Chat> loadMoreChats(int amount) throws ConnectionException;
 
     /**
      * Get a contact based on the username. The contact must already be loaded

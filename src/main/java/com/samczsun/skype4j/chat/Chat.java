@@ -21,8 +21,10 @@ import com.samczsun.skype4j.chat.messages.ChatMessage;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.NotLoadedException;
 import com.samczsun.skype4j.formatting.Message;
+import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.User;
 
+import java.awt.image.BufferedImage;
 import java.util.Collection;
 import java.util.List;
 
@@ -51,6 +53,24 @@ public interface Chat {
     ChatMessage sendMessage(String plainMessage) throws ConnectionException;
 
     /**
+     * Sends a contact to this chat
+     *
+     * @param contact The contact to send
+     * @throws ConnectionException If an error occurs while connecting to the endpoint
+     */
+    void sendContact(Contact contact) throws ConnectionException;
+
+    /**
+     * Sends an image to this chat
+     *
+     * @param image     The image to send
+     * @param imageType The type of image (jpg, png, etc)
+     * @param imageName The name of the image
+     * @throws ConnectionException If an error occurs while connecting to the endpoint
+     */
+    void sendImage(BufferedImage image, String imageType, String imageName) throws ConnectionException;
+
+    /**
      * Get the {@link User} object represented by that username. Usernames are case insensitive
      *
      * @param username The username of the user
@@ -61,6 +81,7 @@ public interface Chat {
 
     /**
      * Get yourself!
+     *
      * @return Your user object!
      */
     User getSelf();

@@ -18,19 +18,24 @@ package com.samczsun.skype4j.internal;
 
 import com.eclipsesource.json.JsonArray;
 import com.eclipsesource.json.JsonObject;
+import com.eclipsesource.json.JsonValue;
 import com.samczsun.skype4j.Skype;
 import com.samczsun.skype4j.chat.Chat;
+import com.samczsun.skype4j.chat.GroupChat;
 import com.samczsun.skype4j.events.EventDispatcher;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
+import com.samczsun.skype4j.exceptions.NoPermissionException;
 import com.samczsun.skype4j.internal.chat.ChatImpl;
 import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.ContactRequest;
 import org.java_websocket.client.WebSocketClient;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
+import org.jsoup.helper.Validate;
 
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -50,13 +55,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public abstract class SkypeImpl implements Skype {
+    public static final Pattern PAGE_SIZE_PATTERN = Pattern.compile("pageSize=([0-9]+)");
     protected final AtomicBoolean loggedIn = new AtomicBoolean(false);
     protected final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
     protected final UUID guid = UUID.randomUUID();
     protected final Set<String> resources;
     protected final String username;
 
-    protected EventDispatcher eventDispatcher;
+    protected EventDispatcher eventDispatcher = new SkypeEventDispatcher(this);
     protected String skypeToken;
     protected String registrationToken;
     protected String cloud = "";
@@ -64,8 +70,12 @@ public abstract class SkypeImpl implements Skype {
     protected Map<String, String> cookies;
 
     protected Thread sessionKeepaliveThread;
+    protected Thread activeThread;
     protected Thread pollThread;
     protected WebSocketClient wss;
+
+    protected String conversationBackwardLink;
+    protected String conversationSyncState;
 
     protected Logger logger = Logger.getLogger(Skype.class.getCanonicalName());
     protected final ExecutorService scheduler = Executors.newFixedThreadPool(4);
@@ -109,6 +119,53 @@ public abstract class SkypeImpl implements Skype {
         return this.logger;
     }
 
+    public List<Chat> loadMoreChats(int amount) throws ConnectionException {
+        try {
+            JsonObject data = null;
+            if (this.conversationBackwardLink == null) {
+                if (this.conversationSyncState == null) {
+                    HttpURLConnection connection = Endpoints.LOAD_CHATS.open(this, System.currentTimeMillis(), amount).get();
+                    if (connection.getResponseCode() != 200) {
+                        throw ExceptionHandler.generateException("While loading chats", connection);
+                    }
+                    data = JsonObject.readFrom(new InputStreamReader(connection.getInputStream()));
+                } else {
+                    return Collections.emptyList();
+                }
+            } else {
+                Matcher matcher = PAGE_SIZE_PATTERN.matcher(this.conversationBackwardLink);
+                matcher.find();
+                String url = matcher.replaceAll("pageSize=" + amount);
+                HttpURLConnection connection = Endpoints.custom(url, this).header("RegistrationToken", this.getRegistrationToken()).get();
+                if (connection.getResponseCode() != 200) {
+                    throw ExceptionHandler.generateException("While loading chats", connection);
+                }
+                data = JsonObject.readFrom(new InputStreamReader(connection.getInputStream()));
+            }
+
+            List<Chat> chats = new ArrayList<>();
+
+            for (JsonValue value : data.get("conversations").asArray()) {
+                try {
+                    chats.add(this.getOrLoadChat(value.asObject().get("id").asString()));
+                } catch (ChatNotFoundException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            JsonObject metadata = data.get("_metadata").asObject();
+            if (metadata.get("backwardLink") != null) {
+                this.conversationBackwardLink = metadata.get("backwardLink").asString();
+            } else {
+                this.conversationBackwardLink = null;
+            }
+            this.conversationSyncState = metadata.get("syncState").asString();
+            return chats;
+        } catch (IOException e) {
+            throw ExceptionHandler.generateException("While loading chats", e);
+        }
+    }
+
     protected JsonObject buildSubscriptionObject() {
         JsonObject subscriptionObject = new JsonObject();
         subscriptionObject.add("channelType", "httpLongPoll");
@@ -142,8 +199,9 @@ public abstract class SkypeImpl implements Skype {
     public void shutdown() {
         loggedIn.set(false);
         shutdownRequested.set(true);
-        pollThread.stop();
+        pollThread.interrupt();
         sessionKeepaliveThread.interrupt();
+        activeThread.interrupt();
         scheduler.shutdownNow();
         while (!scheduler.isTerminated()) ;
         try {
@@ -208,6 +266,26 @@ public abstract class SkypeImpl implements Skype {
     @Override
     public Collection<Chat> getAllChats() {
         return Collections.unmodifiableCollection(this.allChats.values());
+    }
+
+    @Override
+    public GroupChat joinChat(String id) throws ConnectionException, ChatNotFoundException, NoPermissionException {
+        Validate.isTrue(id.startsWith("19:") && id.endsWith("@thread.skype"), "Invalid chat id");
+        try {
+            JsonObject obj = new JsonObject();
+            obj.add("role", "User");
+            HttpURLConnection connection = Endpoints.ADD_MEMBER_URL.open(this, id, getUsername()).put(obj);
+            if (connection.getResponseCode() == 403) {
+                throw new NoPermissionException();
+            } else if (connection.getResponseCode() == 404) {
+                throw new ChatNotFoundException();
+            } else if (connection.getResponseCode() != 200) {
+                throw ExceptionHandler.generateException("While joining chat", connection);
+            }
+            return (GroupChat) getOrLoadChat(id);
+        } catch (IOException e) {
+            throw ExceptionHandler.generateException("While joining chat", e);
+        }
     }
 
     @Override

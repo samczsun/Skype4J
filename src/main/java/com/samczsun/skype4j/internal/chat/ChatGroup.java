@@ -20,15 +20,17 @@ import com.eclipsesource.json.JsonArray;
 import com.eclipsesource.json.JsonObject;
 import com.eclipsesource.json.JsonValue;
 import com.samczsun.skype4j.chat.GroupChat;
+import com.samczsun.skype4j.chat.messages.ChatMessage;
 import com.samczsun.skype4j.events.chat.user.action.OptionUpdateEvent;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
-import com.samczsun.skype4j.exceptions.NotParticipatingException;
+import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.internal.Endpoints;
 import com.samczsun.skype4j.internal.ExceptionHandler;
-import com.samczsun.skype4j.internal.client.GuestClient;
+import com.samczsun.skype4j.internal.MessageType;
 import com.samczsun.skype4j.internal.SkypeImpl;
 import com.samczsun.skype4j.internal.UserImpl;
+import com.samczsun.skype4j.internal.chat.messages.ChatMessageImpl;
 import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.User;
 import com.samczsun.skype4j.user.User.Role;
@@ -36,14 +38,23 @@ import com.samczsun.skype4j.user.User.Role;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
 
 public class ChatGroup extends ChatImpl implements GroupChat {
+    private SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSX");
     private String topic;
     private String pictureUrl;
+    private String backwardLink;
+    private String syncState;
     private Set<OptionUpdateEvent.Option> enabledOptions;
 
     protected ChatGroup(SkypeImpl skype, String identity) throws ConnectionException, ChatNotFoundException {
@@ -95,10 +106,6 @@ public class ChatGroup extends ChatImpl implements GroupChat {
                 }
             }
 
-            if (newUsers.get(getClient().getUsername().toLowerCase()) == null && !(getClient() instanceof GuestClient)) {
-                throw new NotParticipatingException();
-            }
-
             this.users.clear();
             this.users.putAll(newUsers);
         } catch (IOException e) {
@@ -109,6 +116,59 @@ public class ChatGroup extends ChatImpl implements GroupChat {
                 hasLoaded.set(true);
             }
             isLoading.set(false);
+        }
+    }
+
+    public List<ChatMessage> loadMoreMessages(int amount) throws ConnectionException {
+        try {
+            JsonObject data = null;
+            if (backwardLink == null) {
+                if (syncState == null) {
+                    HttpURLConnection connection = Endpoints.LOAD_MESSAGES.open(getClient(), getIdentity(), amount).get();
+                    if (connection.getResponseCode() != 200) {
+                        throw ExceptionHandler.generateException("While loading messages", connection);
+                    }
+                    data = JsonObject.readFrom(new InputStreamReader(connection.getInputStream()));
+                } else {
+                    return Collections.emptyList();
+                }
+            } else {
+                Matcher matcher = SkypeImpl.PAGE_SIZE_PATTERN.matcher(this.backwardLink);
+                matcher.find();
+                String url = matcher.replaceAll("pageSize=" + amount);
+                HttpURLConnection connection = Endpoints.custom(url, getClient()).header("RegistrationToken", getClient().getRegistrationToken()).get();
+                if (connection.getResponseCode() != 200) {
+                    throw ExceptionHandler.generateException("While loading chats", connection);
+                }
+                data = JsonObject.readFrom(new InputStreamReader(connection.getInputStream()));
+            }
+            List<ChatMessage> messages = new ArrayList<>();
+
+            for (JsonValue value : data.get("messages").asArray()) {
+                try {
+                    JsonObject msg = value.asObject();
+                    if (msg.get("messagetype").asString().equals("RichText")) {
+                        UserImpl u = (UserImpl) MessageType.getUser(msg.get("from").asString(), this);
+                        ChatMessage m = ChatMessageImpl.createMessage(this, u, msg.get("id").asString(), msg.get("id").asString(), formatter.parse(msg.get("originalarrivaltime").asString()).getTime(), Message.fromHtml(MessageType.stripMetadata(msg.get("content").asString())), getClient());
+                        this.messages.add(0, m);
+                        u.insertMessage(m, 0);
+                        messages.add(m);
+                    }
+                } catch (ParseException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            JsonObject metadata = data.get("_metadata").asObject();
+            if (metadata.get("backwardLink") != null) {
+                this.backwardLink = metadata.get("backwardLink").asString();
+            } else {
+                this.backwardLink = null;
+            }
+            this.syncState = metadata.get("syncState").asString();
+            return messages;
+        } catch (IOException e) {
+            throw ExceptionHandler.generateException("While loading messages", e);
         }
     }
 
@@ -224,9 +284,7 @@ public class ChatGroup extends ChatImpl implements GroupChat {
     }
 
     public void updateOption(OptionUpdateEvent.Option option, boolean enabled) {
-        if (enabled)
-            enabledOptions.add(option);
-        else
-            enabledOptions.remove(option);
+        if (enabled) enabledOptions.add(option);
+        else enabledOptions.remove(option);
     }
 }

@@ -30,6 +30,7 @@ import com.samczsun.skype4j.internal.SkypeEventDispatcher;
 import com.samczsun.skype4j.internal.SkypeImpl;
 import com.samczsun.skype4j.internal.SkypeWebSocket;
 import com.samczsun.skype4j.internal.StreamUtils;
+import com.samczsun.skype4j.internal.threads.ActiveThread;
 import com.samczsun.skype4j.internal.threads.KeepaliveThread;
 import com.samczsun.skype4j.internal.threads.PollThread;
 import com.samczsun.skype4j.user.Contact;
@@ -85,7 +86,6 @@ public class GuestClient extends SkypeImpl {
             this.cookies = tCookies;
 
             (sessionKeepaliveThread = new KeepaliveThread(this)).start();
-            this.eventDispatcher = new SkypeEventDispatcher(this);
             this.loggedIn.set(true);
         } catch (IOException e) {
             throw ExceptionHandler.generateException("While loggin in", e);
@@ -188,6 +188,7 @@ public class GuestClient extends SkypeImpl {
             this.wss.connectBlocking();
 
             (pollThread = new PollThread(this)).start();
+            (activeThread = new ActiveThread(this, endpointId)).start();
         } catch (IOException io) {
             throw ExceptionHandler.generateException("While subscribing", io);
         } catch (ConnectionException e) {

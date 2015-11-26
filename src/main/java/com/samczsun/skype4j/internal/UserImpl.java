@@ -133,4 +133,8 @@ public class UserImpl implements User {
     public void updateRole(Role role) {
         this.role = role;
     }
+
+    public void insertMessage(ChatMessage m, int i) {
+        this.messages.add(i, m);
+    }
 }

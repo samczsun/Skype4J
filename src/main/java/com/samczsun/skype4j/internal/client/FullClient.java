@@ -21,6 +21,9 @@ import com.eclipsesource.json.JsonObject;
 import com.eclipsesource.json.JsonValue;
 import com.samczsun.skype4j.chat.GroupChat;
 import com.samczsun.skype4j.events.contact.ContactRequestEvent;
+import com.samczsun.skype4j.events.error.MinorErrorEvent;
+import com.samczsun.skype4j.events.misc.CaptchaEvent;
+import com.samczsun.skype4j.exceptions.CaptchaException;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.InvalidCredentialsException;
@@ -28,10 +31,10 @@ import com.samczsun.skype4j.exceptions.ParseException;
 import com.samczsun.skype4j.internal.ContactRequestImpl;
 import com.samczsun.skype4j.internal.Endpoints;
 import com.samczsun.skype4j.internal.ExceptionHandler;
-import com.samczsun.skype4j.internal.SkypeEventDispatcher;
 import com.samczsun.skype4j.internal.SkypeImpl;
 import com.samczsun.skype4j.internal.SkypeWebSocket;
 import com.samczsun.skype4j.internal.StreamUtils;
+import com.samczsun.skype4j.internal.threads.ActiveThread;
 import com.samczsun.skype4j.internal.threads.KeepaliveThread;
 import com.samczsun.skype4j.internal.threads.PollThread;
 import com.samczsun.skype4j.user.Contact;
@@ -178,6 +181,7 @@ public class FullClient extends SkypeImpl {
             this.wss = new SkypeWebSocket(this, new URI(String.format("%s/socket.io/1/websocket/%s?%s", "wss://" + socketURL, websocketData.split(":")[0], args.toString())));
             this.wss.connectBlocking();
             (pollThread = new PollThread(this)).start();
+            (activeThread = new ActiveThread(this, endpointId)).start();
         } catch (IOException io) {
             throw ExceptionHandler.generateException("While subscribing", io);
         } catch (ConnectionException e) {
@@ -258,7 +262,7 @@ public class FullClient extends SkypeImpl {
         }
     }
 
-    private Response postToLogin(String username, String password) throws ConnectionException {
+    private Response postToLogin(String username, String password, String[] captchaData) throws ConnectionException {
         try {
             Map<String, String> data = new HashMap<>();
             Document loginDocument = Jsoup.connect(Endpoints.LOGIN_URL.url()).get();
@@ -271,6 +275,13 @@ public class FullClient extends SkypeImpl {
             data.put("username", username);
             data.put("password", password);
             data.put("js_time", String.valueOf(now.getTime() / 1000));
+            if (captchaData.length > 0) {
+                data.put("hip_solution", captchaData[0]);
+                data.put("hip_token", captchaData[1]);
+                data.put("fid", captchaData[2]);
+                data.put("hip_type", "visual");
+                data.put("captcha_provider", "Hip");
+            }
             return Jsoup.connect(Endpoints.LOGIN_URL.url()).data(data).method(Method.POST).execute();
         } catch (IOException e) {
             throw new ConnectionException("While submitting credentials", e);
@@ -278,8 +289,12 @@ public class FullClient extends SkypeImpl {
     }
 
     public void login() throws InvalidCredentialsException, ConnectionException, ParseException {
+        login(new String[0]);
+    }
+
+    private void login(String[] captchaData) throws InvalidCredentialsException, ConnectionException, ParseException {
         final Map<String, String> tCookies = new HashMap<>();
-        final Response loginResponse = postToLogin(username, password);
+        final Response loginResponse = postToLogin(username, password, captchaData);
         tCookies.putAll(loginResponse.cookies());
         Document loginResponseDocument;
         try {
@@ -305,18 +320,68 @@ public class FullClient extends SkypeImpl {
             this.cookies = tCookies;
 
             (sessionKeepaliveThread = new KeepaliveThread(this)).start();
-            this.eventDispatcher = new SkypeEventDispatcher(this);
             loggedIn.set(true);
         } else {
-            Elements elements = loginResponseDocument.select(".message_error");
-            if (elements.size() > 0) {
-                Element div = elements.get(0);
-                if (div.children().size() > 1) {
-                    Element span = div.child(1);
-                    throw new InvalidCredentialsException(span.text());
+            boolean foundError = false;
+            Elements captchas = loginResponseDocument.select("#captchaContainer");
+            if (captchas.size() > 0) {
+                Element captcha = captchas.get(0);
+                String url = null;
+                for (Element scriptTag : captcha.getElementsByTag("script")) {
+                    String text = scriptTag.html();
+                    if (text.contains("skypeHipUrl")) {
+                        url = text.substring(text.indexOf('"') + 1, text.lastIndexOf('"'));
+                    }
+                }
+                if (url != null) {
+                    try {
+                        HttpURLConnection connection = Endpoints.custom(url, this).get();
+                        if (connection.getResponseCode() == 200) {
+                            String rawjs = StreamUtils.readFully(connection.getInputStream());
+                            Pattern p = Pattern.compile("imageurl:'([^']*)'");
+                            Matcher m = p.matcher(rawjs);
+                            if (m.find()) {
+                                String imgurl = m.group(1);
+                                m = Pattern.compile("hid=([^&]*)").matcher(imgurl);
+                                if (m.find()) {
+                                    String hid = m.group(1);
+                                    m = Pattern.compile("fid=([^&]*)").matcher(imgurl);
+                                    if (m.find()) {
+                                        String fid = m.group(1);
+                                        CaptchaEvent event = new CaptchaEvent(imgurl);
+                                        getEventDispatcher().callEvent(event);
+                                        String response = event.getCaptcha();
+                                        if (response != null) {
+                                            login(new String[]{response, hid, fid});
+                                        } else {
+                                            throw new CaptchaException();
+                                        }
+                                        foundError = true;
+                                    }
+                                }
+                            }
+                        } else {
+                            MinorErrorEvent err = new MinorErrorEvent(MinorErrorEvent.ErrorSource.PARSING_CAPTCHA, ExceptionHandler.generateException("", connection));
+                            getEventDispatcher().callEvent(err);
+                        }
+                    } catch (IOException e) {
+                        MinorErrorEvent err = new MinorErrorEvent(MinorErrorEvent.ErrorSource.PARSING_CAPTCHA, e);
+                        getEventDispatcher().callEvent(err);
+                    }
                 }
             }
-            throw new InvalidCredentialsException("Could not find error message. Dumping entire page. \n" + loginResponseDocument.html());
+            if (!foundError) {
+                Elements elements = loginResponseDocument.select(".message_error");
+                if (elements.size() > 0) {
+                    Element div = elements.get(0);
+                    if (div.children().size() > 1) {
+                        Element span = div.child(1);
+                        throw new InvalidCredentialsException(span.text());
+                    }
+                } else {
+                    throw new InvalidCredentialsException("Could not find error message. Dumping entire page. \n" + loginResponseDocument.html());
+                }
+            }
         }
     }
 }

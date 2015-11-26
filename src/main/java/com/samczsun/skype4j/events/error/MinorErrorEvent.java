@@ -46,6 +46,7 @@ public class MinorErrorEvent extends ErrorEvent {
     public enum ErrorSource {
         PARSING_MESSAGE,
         NO_MESSAGE_TYPE,
-        DISPATCHING_EVENT;
+        DISPATCHING_EVENT,
+        PARSING_CAPTCHA;
     }
 }

@@ -44,6 +44,7 @@ public class MajorErrorEvent extends ErrorEvent {
     public enum ErrorSource {
         POLLING_SKYPE,
         SESSION_KEEPALIVE,
+        SESSION_ACTIVE,
         THREAD_POOL_DEAD
     }
 }
