@@ -45,7 +45,7 @@ public class Endpoints {
     public static final Endpoints THREAD_URL = new Endpoints("https://%sclient-s.gateway.messenger.live.com/v1/threads").cloud().regtoken();
     public static final Endpoints SUBSCRIPTIONS_URL = new Endpoints("https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/SELF/subscriptions").cloud().regtoken();
     public static final Endpoints MESSAGINGSERVICE_URL = new Endpoints("https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/%s/presenceDocs/messagingService").cloud().regtoken();
-    public static final Endpoints POLL_URL = new Endpoints("https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/SELF/subscriptions/0/poll").cloud().regtoken();
+    public static final Endpoints POLL = new Endpoints("https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/SELF/subscriptions/0/poll").cloud().regtoken();
     public static final Endpoints NEW_GUEST = new Endpoints("https://join.skype.com/api/v1/users/guests");
     public static final Endpoints LEAVE_GUEST = new Endpoints("https://join.skype.com/guests/leave?threadId=%s");
     public static final Endpoints PICTURE_STATUS_URL = new Endpoints("https://api.asm.skype.com/v1/objects/%s/views/imgpsh_fullsize/status");
@@ -205,7 +205,6 @@ public class Endpoints {
             }
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod(method);
-            connection.setReadTimeout(timeout);
             connection.setInstanceFollowRedirects(false);
             for (Map.Entry<String, String> ent : headers.entrySet()) {
                 connection.setRequestProperty(ent.getKey(), ent.getValue());

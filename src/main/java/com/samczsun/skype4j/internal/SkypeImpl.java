@@ -28,6 +28,7 @@ import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.NoPermissionException;
 import com.samczsun.skype4j.internal.chat.ChatImpl;
+import com.samczsun.skype4j.internal.threads.PollThread;
 import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.ContactRequest;
 import org.java_websocket.client.WebSocketClient;
@@ -49,8 +50,10 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -72,14 +75,21 @@ public abstract class SkypeImpl implements Skype {
 
     protected Thread sessionKeepaliveThread;
     protected Thread activeThread;
-    protected Thread pollThread;
+    protected PollThread pollThread;
     protected WebSocketClient wss;
 
     protected String conversationBackwardLink;
     protected String conversationSyncState;
 
     protected Logger logger = Logger.getLogger(Skype.class.getCanonicalName());
-    protected final ExecutorService scheduler = Executors.newFixedThreadPool(4);
+    protected final ExecutorService scheduler = Executors.newFixedThreadPool(4, new ThreadFactory() {
+        private AtomicInteger id = new AtomicInteger(0);
+
+        @Override
+        public Thread newThread(Runnable r) {
+            return new Thread(r, "Skype4J-Poller-" + username + "-" + id.getAndIncrement());
+        }
+    });
     protected final Map<String, Chat> allChats = new ConcurrentHashMap<>();
     protected final Map<String, Contact> allContacts = new ConcurrentHashMap<>();
     protected final List<ContactRequest> allContactRequests = new ArrayList<>();
@@ -200,7 +210,7 @@ public abstract class SkypeImpl implements Skype {
     public void shutdown() {
         loggedIn.set(false);
         shutdownRequested.set(true);
-        pollThread.interrupt();
+        pollThread.shutdown();
         sessionKeepaliveThread.interrupt();
         activeThread.interrupt();
         scheduler.shutdownNow();

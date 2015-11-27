@@ -28,35 +28,64 @@ import com.samczsun.skype4j.internal.SkypeImpl;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
-import java.net.SocketTimeoutException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class PollThread extends Thread {
+    private final Object lock = new Object();
     private SkypeImpl skype;
+    private ExecutorService inputFetcher = Executors.newSingleThreadExecutor(new ThreadFactory() {
+        private AtomicInteger id = new AtomicInteger(0);
+
+        @Override
+        public Thread newThread(Runnable r) {
+            return new Thread(r, "Skype4J-PollBlocker-" + skype.getUsername() + "-" + id.getAndIncrement());
+        }
+    });
 
     public PollThread(SkypeImpl skype) {
-        super(String.format("Skype-%s-PollThread", skype.getUsername()));
+        super(String.format("Skype4J-Poller-%s", skype.getUsername()));
         this.skype = skype;
     }
 
     public void run() {
-        Endpoints.EndpointConnection epconn = Endpoints.POLL_URL.open(skype).header("Content-Type", "application/json").timeout(1000);
+        final Endpoints.EndpointConnection epconn = Endpoints.POLL.open(skype).header("Content-Type", "application/json");
+        final AtomicInteger responseCode = new AtomicInteger(0);
+        final AtomicReference<IOException> pendingException = new AtomicReference<>();
         main:
         while (skype.isLoggedIn()) {
             try {
-                HttpURLConnection connection = epconn.post();
-                AtomicInteger code = new AtomicInteger(0);
-                while (code.get() == 0) {
-                    try {
-                        code.set(connection.getResponseCode());
-                    } catch (SocketTimeoutException e) {
-                        if (Thread.currentThread().isInterrupted()) {
-                            break main;
+                final HttpURLConnection connection = epconn.post();
+                inputFetcher.execute(new Runnable() {
+                    public void run() {
+                        try {
+                            responseCode.set(connection.getResponseCode());
+                        } catch (IOException e) {
+                            pendingException.set(e);
+                        } finally {
+                            synchronized (lock) {
+                                lock.notify();
+                            }
                         }
                     }
+                });
+
+                try {
+                    synchronized (lock) {
+                        lock.wait();
+                    }
+                } catch (InterruptedException e) {
+                    break main;
                 }
 
-                if (code.get() != 200) {
+                if (pendingException.get() != null) {
+                    throw pendingException.get();
+                }
+
+                if (responseCode.get() != 200) {
                     MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.POLLING_SKYPE, ExceptionHandler.generateException("While polling Skype", connection));
                     skype.getEventDispatcher().callEvent(event);
                     skype.shutdown();
@@ -69,7 +98,6 @@ public class PollThread extends Thread {
                         skype.getEventDispatcher().callEvent(event);
                         skype.shutdown();
                     }
-                    break main;
                 }
 
                 final JsonObject message = JsonObject.readFrom(new InputStreamReader(connection.getInputStream(), "UTF-8"));
@@ -100,5 +128,11 @@ public class PollThread extends Thread {
                 skype.shutdown();
             }
         }
+    }
+
+    public void shutdown() {
+        this.interrupt();
+        this.inputFetcher.shutdown();
+        while (!this.inputFetcher.isTerminated()) ;
     }
 }

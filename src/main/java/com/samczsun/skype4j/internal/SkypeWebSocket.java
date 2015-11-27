@@ -19,41 +19,77 @@ package com.samczsun.skype4j.internal;
 import com.eclipsesource.json.JsonObject;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.internal.client.FullClient;
+import org.java_websocket.SSLSocketChannel2;
 import org.java_websocket.client.DefaultSSLWebSocketClientFactory;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.drafts.Draft_17;
 import org.java_websocket.handshake.ServerHandshake;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.ByteBuffer;
+import java.nio.channels.ByteChannel;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.SocketChannel;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 
 public class SkypeWebSocket extends WebSocketClient {
     private SkypeImpl skype;
     private Thread pingThread;
-    private ExecutorService singleThreaded = Executors.newSingleThreadExecutor();
+    private ExecutorService singleThreaded = Executors.newSingleThreadExecutor(new ThreadFactory() {
+        private AtomicInteger id = new AtomicInteger(0);
 
-    public SkypeWebSocket(SkypeImpl skype, URI uri) throws NoSuchAlgorithmException, KeyManagementException {
+        @Override
+        public Thread newThread(Runnable r) {
+            return new Thread(r, "Skype4J-WSFactory-" + skype.getUsername() + "-" + id.getAndIncrement());
+        }
+    });
+
+    public SkypeWebSocket(final SkypeImpl skype, URI uri) throws NoSuchAlgorithmException, KeyManagementException {
         super(uri, new Draft_17(), null, 2000);
         this.skype = skype;
         TrustManager[] trustAllCerts = new TrustManager[]{new TrustAllManager()};
         SSLContext sc = SSLContext.getInstance("SSL");
         sc.init(null, trustAllCerts, new java.security.SecureRandom());
-        this.setWebSocketFactory(new DefaultSSLWebSocketClientFactory(sc, singleThreaded));
+        this.setWebSocketFactory(new DefaultSSLWebSocketClientFactory(sc, singleThreaded) {
+            private boolean called = false;
+            @Override
+            public ByteChannel wrapChannel(SocketChannel channel, SelectionKey key, String host, int port ) throws IOException {
+                if (!called) {
+                    Thread.currentThread().setName("Skype4J-WSMainThread-" + skype.getUsername());
+                }
+                SSLEngine e = sslcontext.createSSLEngine( host, port );
+                e.setUseClientMode( true );
+                ByteChannel c = new SSLSocketChannel2( channel, e, exec, key ) {
+                    private boolean called = false;
+                    @Override
+                    public int write(ByteBuffer buffer) throws IOException {
+                        if (!called) {
+                            Thread.currentThread().setName("Skype4J-WSWriteThread-" + skype.getUsername());
+                            called = true;
+                        }
+                        return super.write(buffer);
+                    }
+                };
+                return c;
+            }
+        });
     }
 
     @Override
     public void onOpen(ServerHandshake serverHandshake) {
-        (pingThread = new Thread() {
+        (pingThread = new Thread("Skype4J-Pinger-" + skype.getUsername()) {
             AtomicInteger currentPing = new AtomicInteger(1);
             public void run() {
                 while (true) {

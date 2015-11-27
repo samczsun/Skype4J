@@ -29,7 +29,7 @@ public class KeepaliveThread extends Thread {
     private SkypeImpl skype;
 
     public KeepaliveThread(SkypeImpl skype) {
-        super(String.format("Skype-%s-session", skype.getUsername()));
+        super(String.format("Skype4J-Keepalive-%s", skype.getUsername()));
         this.skype = skype;
     }
 

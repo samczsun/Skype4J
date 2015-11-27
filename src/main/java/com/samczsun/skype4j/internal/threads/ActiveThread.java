@@ -33,6 +33,7 @@ public class ActiveThread extends Thread {
     private String endpoint;
 
     public ActiveThread(SkypeImpl skype, String endpoint) {
+        super(String.format("Skype4J-Active-%s", skype.getUsername()));
         this.skype = skype;
         this.endpoint = endpoint;
     }
