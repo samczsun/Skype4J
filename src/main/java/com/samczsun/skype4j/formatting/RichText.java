@@ -16,29 +16,61 @@
 
 package com.samczsun.skype4j.formatting;
 
+import org.jsoup.helper.Validate;
+
 import java.awt.Color;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 /**
  * Represents a rich text component. This component can be formatted.
  * All children will also have the specified formats.
  */
 public class RichText extends Text {
-    private boolean bold = false;
-    private boolean italic = false;
-    private boolean underline = false;
-    private boolean strikethrough = false;
-    private boolean code = false;
-    private boolean blink = false;
+
+    public enum Format{
+        BOLD("b"),
+        ITALIC("i"),
+        UNDERLINE("u"),
+        STRIKE_THROUGH("s"),
+        CODE("pre"),
+        BLINK("blink");
+
+        private final String tagName;
+
+        Format(String tagName) {
+            this.tagName = tagName;
+        }
+
+        public String getOpenTag() {
+            return "<" + this.tagName + ">";
+        }
+
+        public String getCloseTag() {
+            return "</" + this.tagName + ">";
+        }
+    }
+
+    private final Set<Format> formats = EnumSet.noneOf(RichText.Format.class);
+
     private String link = null;
+
     private String color = null;
+
     private int size = -1;
 
-    private List<Text> children = new ArrayList<>();
+    private final RichText previous;
 
-    RichText() {
+    private RichText next;
+
+    private final String text;
+
+    RichText(String text) {
+        this(null, text);
+    }
+
+    RichText(RichText previous, String text) {
+        this.previous = previous;
+        this.text = text;
     }
 
     /**
@@ -47,7 +79,7 @@ public class RichText extends Text {
      * @return The same RichText instance
      */
     public RichText withBold() {
-        this.bold = true;
+        this.formats.add(RichText.Format.BOLD);
         return this;
     }
 
@@ -57,7 +89,7 @@ public class RichText extends Text {
      * @return The same RichText instance
      */
     public RichText withUnderline() {
-        this.underline = true;
+        this.formats.add(RichText.Format.UNDERLINE);
         return this;
     }
 
@@ -67,7 +99,7 @@ public class RichText extends Text {
      * @return The same RichText instance
      */
     public RichText withItalic() {
-        this.italic = true;
+        this.formats.add(RichText.Format.ITALIC);
         return this;
     }
 
@@ -77,7 +109,7 @@ public class RichText extends Text {
      * @return The same RichText instance
      */
     public RichText withStrikethrough() {
-        this.strikethrough = true;
+        this.formats.add(RichText.Format.STRIKE_THROUGH);
         return this;
     }
 
@@ -87,7 +119,7 @@ public class RichText extends Text {
      * @return The same RichText instance
      */
     public RichText withBlink() {
-        this.blink = true;
+        this.formats.add(RichText.Format.BLINK);
         return this;
     }
 
@@ -131,8 +163,38 @@ public class RichText extends Text {
      * @return The same RichText instance
      */
     public RichText withCode() {
-        this.code = true;
+        this.formats.add(RichText.Format.CODE);
         return this;
+    }
+
+    /**
+     * Applies the given formats to the text
+     *
+     * @return The same RichText instance
+     */
+    public RichText withFormat(RichText.Format...formats) {
+        this.formats.addAll(Arrays.asList(formats));
+        return this;
+    }
+
+    /**
+     * Add a text to this text component
+     *
+     * @return The same RichText instance
+     */
+    public RichText append(String text) {
+        return append(text, false);
+    }
+
+    /**
+     * Add formatted text to this text component
+     *
+     * @return The same RichText instance
+     */
+    public RichText append(String format, Object...params) {
+        Validate.notNull(format, "Format was null");
+        Validate.notNull(params, "Parameters were null. If you don't want to pass any, consider append(String)");
+        return append(String.format(format, params), false);
     }
 
     /**
@@ -140,49 +202,26 @@ public class RichText extends Text {
      *
      * @return The same RichText instance
      */
-    public RichText with(Text t) {
-        this.children.add(t);
-        return this;
+    public RichText append(String text, boolean clearFormat) {
+        this.next = new RichText(this, text);
+        if (!clearFormat) {
+            this.next.formats.addAll(this.formats);
+            this.next.link = this.link;
+            this.next.color = this.color;
+            this.next.size = this.size;
+        }
+        return this.next;
     }
 
-    /**
-     * Get the child component at the given index
-     *
-     * @return The same text component at the given index
-     */
-    public Text child(int index) {
-        return this.children.get(index);
-    }
-
-    /**
-     * Get all the children of this text component
-     *
-     * @return A view of all the children
-     */
-    public List<Text> children() {
-        return Collections.unmodifiableList(this.children);
-    }
-
+    @Override
     public String write() {
         StringBuilder output = new StringBuilder();
-        if (bold) {
-            output.append("<b>");
-        }
-        if (italic) {
-            output.append("<i>");
-        }
-        if (underline) {
-            output.append("<u>");
-        }
-        if (strikethrough) {
-            output.append("<s>");
-        }
-        if (blink) {
-            output.append("<blink>");
-        }
-        if (code) {
-            output.append("<pre>");
-        }
+        List<Format> formats = Arrays.asList(RichText.Format.values());
+        formats.stream()
+               .filter(format -> this.previous == null || !this.previous.formats.contains(format))
+               .filter(this.formats::contains)
+               .map(Format::getOpenTag)
+               .forEach(output::append);
         boolean font = size != -1 || color != null;
         if (font) {
             output.append("<font ");
@@ -198,72 +237,71 @@ public class RichText extends Text {
         if (this.link != null) {
             output.append("<a href=\"").append(this.link).append("\">");
         }
-        for (Text t : this.children) {
-            output.append(t.write());
+        output.append(this.text);
+        boolean closeLink = this.link != null;
+        boolean closeFont = font;
+        if (this.next != null) {
+            closeLink = closeLink && !this.link.equals(this.next.link);
+            closeFont = closeFont && (this.size != this.next.size || !Objects.equals(this.color, this.next.color));
         }
-        if (this.link != null) {
+        if (closeLink) {
             output.append("</a>");
         }
-        if (font) {
+        if (closeFont) {
             output.append("</font>");
         }
-        if (code) {
-            output.append("</pre>");
-        }
-        if (blink) {
-            output.append("</blink>");
-        }
-        if (strikethrough) {
-            output.append("</s>");
-        }
-        if (underline) {
-            output.append("</u>");
-        }
-        if (italic) {
-            output.append("</i>");
-        }
-        if (bold) {
-            output.append("</b>");
-        }
-        return output.toString();
-    }
+        Collections.reverse(formats);
+        formats.stream()
+               .filter(format -> this.next == null || !this.next.formats.contains(format))
+               .filter(this.formats::contains)
+               .map(Format::getCloseTag)
+               .forEach(output::append);
 
-    public String toString() {
-        return this.write();
+        if (this.next != null) {
+            output.append(this.next); // toString is implicit
+        }
+
+        return output.toString();
     }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
+        if (this.previous != null) {
+            return this.previous.equals(o);
+        }
+        RichText text = (RichText) o;
+        while (text.previous != null) {
+            text = text.previous;
+        }
+        return this.equals0(text);
+    }
 
-        RichText richText = (RichText) o;
-
-        if (bold != richText.bold) return false;
-        if (italic != richText.italic) return false;
-        if (underline != richText.underline) return false;
-        if (strikethrough != richText.strikethrough) return false;
-        if (code != richText.code) return false;
-        if (blink != richText.blink) return false;
-        if (size != richText.size) return false;
-        if (link != null ? !link.equals(richText.link) : richText.link != null) return false;
-        if (color != null ? !color.equals(richText.color) : richText.color != null) return false;
-        return children.equals(richText.children);
-
+    private boolean equals0(RichText richText) {
+        if (!this.formats.equals(richText.formats)) return false;
+        if (this.size != richText.size) return false;
+        if (Objects.equals(this.link, richText.link)) return false;
+        if (Objects.equals(this.color, richText.color)) return false;
+        return this.next == null ? richText.next == null : this.next.equals0(richText.next);
     }
 
     @Override
     public int hashCode() {
-        int result = (bold ? 1 : 0);
-        result = 31 * result + (italic ? 1 : 0);
-        result = 31 * result + (underline ? 1 : 0);
-        result = 31 * result + (strikethrough ? 1 : 0);
-        result = 31 * result + (code ? 1 : 0);
-        result = 31 * result + (blink ? 1 : 0);
-        result = 31 * result + (link != null ? link.hashCode() : 0);
-        result = 31 * result + (color != null ? color.hashCode() : 0);
-        result = 31 * result + size;
-        result = 31 * result + children.hashCode();
+        return this.previous != null ? this.previous.hashCode() : this.hashCode0();
+    }
+
+    public int hashCode0() {
+        int result = (this.formats.contains(Format.BOLD) ? 1 : 0);
+        result = 31 * result + (this.formats.contains(Format.ITALIC) ? 1 : 0);
+        result = 31 * result + (this.formats.contains(Format.UNDERLINE)  ? 1 : 0);
+        result = 31 * result + (this.formats.contains(Format.STRIKE_THROUGH)  ? 1 : 0);
+        result = 31 * result + (this.formats.contains(Format.CODE)  ? 1 : 0);
+        result = 31 * result + (this.formats.contains(Format.BLINK)  ? 1 : 0);
+        result = 31 * result + (this.link != null ? this.link.hashCode() : 0);
+        result = 31 * result + (this.color != null ? this.color.hashCode() : 0);
+        result = 31 * result + this.size;
+        result = 31 * result + (this.next != null ? this.next.hashCode0() : 0);
         return result;
     }
 }
