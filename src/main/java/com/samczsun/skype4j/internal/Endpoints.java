@@ -67,6 +67,14 @@ public class Endpoints {
     });
     public static final Endpoints FETCH_IMAGE = new Endpoints("https://api.asm.skype.com/v1/objects/%s/views/%s").defaultHeader("Authorization", AUTHORIZATION);
     public static final Endpoints VISIBILITY = new Endpoints("https://%sclient-s.gateway.messenger.live.com/v1/users/ME/presenceDocs/messagingService").cloud().regtoken();
+    public static final Endpoints SEARCH_SKYPE_DIRECTORY = new Endpoints("https://api.skype.com/search/users/any?keyWord=%s&contactTypes[]=skype").skypetoken();
+    public static final Endpoints GET_ALL_CONTACTS = new Endpoints("https://contacts.skype.com/contacts/v1/users/%s/contacts?$filter=type%%20eq%%20%%27skype%%27%%20or%%20type%%20eq%%20%%27msn%%27%%20or%%20type%%20eq%%20%%27pstn%%27%%20or%%20type%%20eq%%20%%27agent%%27&reason=default").skypetoken();
+    public static final Endpoints GET_CONTACT_BY_ID = new Endpoints("https://contacts.skype.com/contacts/v1/users/%s/contacts?$filter=id%%20eq%%20%%27%s%%27&reason=default").skypetoken();
+    public static final Endpoints BLOCK_CONTACT = new Endpoints("https://api.skype.com/users/self/contacts/%s/block").skypetoken();
+    public static final Endpoints UNBLOCK_CONTACT = new Endpoints("https://api.skype.com/users/self/contacts/%s/unblock").skypetoken();
+    public static final Endpoints AUTHORIZE_CONTACT = new Endpoints("https://api.skype.com/users/self/contacts/auth-request/%s/accept").skypetoken();
+    public static final Endpoints UNAUTHORIZE_CONTACT = new Endpoints("https://client-s.gateway.messenger.live.com/v1/users/ME/contacts/8:%s").regtoken();
+    public static final Endpoints AUTHORIZATION_REQUEST = new Endpoints("https://api.skype.com/users/self/contacts/auth-request/%s").skypetoken();
 
     private boolean requiresCloud;
     private boolean requiresRegToken;

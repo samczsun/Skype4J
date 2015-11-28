@@ -125,6 +125,13 @@ public interface Skype {
     Contact getOrLoadContact(String username) throws ConnectionException;
 
     /**
+     * Load all contacts!
+     *
+     * @throws ConnectionException If an exception occured while fetching all contacts
+     */
+    void loadAllContacts() throws ConnectionException;
+
+    /**
      * Get all the chats loaded by this API
      *
      * @return A view of all the chats

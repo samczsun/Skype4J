@@ -96,4 +96,56 @@ public interface Contact {
      * @return The city
      */
     String getCity();
+
+    /**
+     * Get whether this contact is authorized by you to be a contact
+     *
+     * @return Whether the contact is authorized
+     */
+    boolean isAuthorized();
+
+    /**
+     * Authorize this contact
+     *
+     * @throws ConnectionException
+     */
+    void authorize() throws ConnectionException;
+
+    /**
+     * Unauthorize this contact
+     *
+     * @throws ConnectionException
+     */
+    void unauthorize() throws ConnectionException;
+
+    void sendRequest(String message) throws ConnectionException;
+
+    /**
+     * Get whether this contact is blocked
+     *
+     * @return Whether the contact is blocked
+     */
+    boolean isBlocked();
+
+    /**
+     * Block this contact
+     *
+     * @param reportAbuse Whether to report abuse
+     * @throws ConnectionException If an error occurs while connecting to the endpoint
+     */
+    void block(boolean reportAbuse) throws ConnectionException;
+
+    /**
+     * Unblock this contact
+     *
+     * @throws ConnectionException If an error occurs while connecting to the endpoint
+     */
+    void unblock() throws ConnectionException;
+
+    /**
+     * Get whether this contact is a phone number
+     *
+     * @return Whether this contact is a phone number
+     */
+    boolean isPhone();
 }

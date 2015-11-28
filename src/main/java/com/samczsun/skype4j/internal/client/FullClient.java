@@ -34,6 +34,7 @@ import com.samczsun.skype4j.internal.ExceptionHandler;
 import com.samczsun.skype4j.internal.SkypeImpl;
 import com.samczsun.skype4j.internal.SkypeWebSocket;
 import com.samczsun.skype4j.internal.StreamUtils;
+import com.samczsun.skype4j.internal.Utils;
 import com.samczsun.skype4j.internal.threads.ActiveThread;
 import com.samczsun.skype4j.internal.threads.KeepaliveThread;
 import com.samczsun.skype4j.internal.threads.PollThread;
@@ -188,6 +189,24 @@ public class FullClient extends SkypeImpl {
             throw e;
         } catch (Exception e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void loadAllContacts() throws ConnectionException {
+        try {
+            HttpURLConnection connection = Endpoints.GET_ALL_CONTACTS.open(this, getUsername()).get();
+            if (connection.getResponseCode() != 200) {
+                throw ExceptionHandler.generateException("While loading all contacts", connection);
+            }
+            JsonObject obj = Utils.parseJsonObject(connection.getInputStream());
+            for (JsonValue value : obj.get("contacts").asArray()) {
+                if (value.asObject().get("suggested") == null || !value.asObject().get("suggested").asBoolean()) {
+                    getOrLoadContact(value.asObject().get("id").asString());
+                }
+            }
+        } catch (IOException e) {
+            throw ExceptionHandler.generateException("While loading all contacts", e);
         }
     }
 

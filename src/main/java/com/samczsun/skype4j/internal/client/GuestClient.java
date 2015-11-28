@@ -215,4 +215,9 @@ public class GuestClient extends SkypeImpl {
     public GroupChat createGroupChat(Contact... contacts) throws ConnectionException, ChatNotFoundException {
         throw new UnsupportedOperationException("Not supported with a guest account");
     }
+
+    @Override
+    public void loadAllContacts() throws ConnectionException {
+        throw new UnsupportedOperationException("Not supported with a guest account");
+    }
 }
