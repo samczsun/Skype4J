@@ -50,28 +50,8 @@ public abstract class Text {
      * Creates a new RichText component
      * @return A new RichText object
      */
-    public static RichText rich(String text) {
-        return new RichText(text);
-    }
-
-    /**
-     * Creates a new RichText component
-     * @return A new RichText object
-     */
-    public static RichText rich(String format, Object...params) {
-        Validate.notNull(format, "Format was null");
-        Validate.notNull(params, "Parameters were null. If you don't want to pass any, consider plain(String)");
-        return rich(String.format(format, params));
-    }
-
-    /**
-     * Creates a new PlainText component with the given text
-     * @return The PlainText object representing the text
-     */
-    public static PlainText plain(String format, Object...params) {
-        Validate.notNull(format, "Format was null");
-        Validate.notNull(params, "Parameters were null. If you don't want to pass any, consider plain(String)");
-        return plain(String.format(format, params));
+    public static RichText rich() {
+        return new RichText();
     }
 
     /**
