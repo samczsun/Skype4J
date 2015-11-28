@@ -34,9 +34,10 @@ public class KeepaliveThread extends Thread {
     }
 
     public void run() {
+        HttpURLConnection connection = null;
         while (skype.isLoggedIn()) {
             try {
-                HttpURLConnection connection = Endpoints.PING_URL.open(skype).cookies(skype.getCookies()).connect("POST", "sessionId=" + skype.getGuid().toString());
+                connection = Endpoints.PING_URL.open(skype).cookies(skype.getCookies()).connect("POST", "sessionId=" + skype.getGuid().toString());
                 if (connection.getResponseCode() != 200) {
                     MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.SESSION_KEEPALIVE, ExceptionHandler.generateException("While maintaining session", connection));
                     skype.getEventDispatcher().callEvent(event);
@@ -45,6 +46,10 @@ public class KeepaliveThread extends Thread {
                 MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.SESSION_KEEPALIVE, e);
                 skype.getEventDispatcher().callEvent(event);
                 skype.shutdown();
+            } finally {
+                if (connection != null) {
+                    connection.disconnect();
+                }
             }
             try {
                 Thread.sleep(300000);

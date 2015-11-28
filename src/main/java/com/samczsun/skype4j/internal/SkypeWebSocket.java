@@ -45,20 +45,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 
 public class SkypeWebSocket extends WebSocketClient {
-    private SkypeImpl skype;
+    private final SkypeImpl skype;
+    private final ExecutorService singleThreaded;
     private Thread pingThread;
-    private ExecutorService singleThreaded = Executors.newSingleThreadExecutor(new ThreadFactory() {
-        private AtomicInteger id = new AtomicInteger(0);
-
-        @Override
-        public Thread newThread(Runnable r) {
-            return new Thread(r, "Skype4J-WSFactory-" + skype.getUsername() + "-" + id.getAndIncrement());
-        }
-    });
 
     public SkypeWebSocket(final SkypeImpl skype, URI uri) throws NoSuchAlgorithmException, KeyManagementException {
         super(uri, new Draft_17(), null, 2000);
         this.skype = skype;
+        this.singleThreaded = Executors.newSingleThreadExecutor(new SkypeThreadFactory(skype, "WSFactory"));
         TrustManager[] trustAllCerts = new TrustManager[]{new TrustAllManager()};
         SSLContext sc = SSLContext.getInstance("SSL");
         sc.init(null, trustAllCerts, new java.security.SecureRandom());
@@ -146,7 +140,7 @@ public class SkypeWebSocket extends WebSocketClient {
 
     @Override
     public void onClose(int i, String s, boolean b) {
-        pingThread.stop();
+        pingThread.interrupt();
         singleThreaded.shutdown();
         while (!singleThreaded.isTerminated());
     }

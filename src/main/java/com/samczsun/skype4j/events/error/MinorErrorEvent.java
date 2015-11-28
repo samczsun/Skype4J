@@ -25,14 +25,20 @@ public class MinorErrorEvent extends ErrorEvent {
 
     private Throwable error;
     private ErrorSource source;
+    private String message;
 
     public MinorErrorEvent(ErrorSource source) {
         this(source, null);
     }
 
     public MinorErrorEvent(ErrorSource source, Throwable error) {
+        this(source, null, null);
+    }
+
+    public MinorErrorEvent(ErrorSource source, Throwable error, String message) {
         this.source = source;
         this.error = error;
+        this.message = message;
     }
 
     public Throwable getError() {
@@ -41,6 +47,10 @@ public class MinorErrorEvent extends ErrorEvent {
 
     public ErrorSource getSource() {
         return this.source;
+    }
+
+    public String getMessage() {
+        return this.message;
     }
 
     public enum ErrorSource {

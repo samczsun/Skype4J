@@ -119,7 +119,6 @@ public class Endpoints {
         private Object[] args;
         private Map<String, String> headers = new HashMap<>();
         private Map<String, String> cookies = new HashMap<>();
-        private int timeout;
         private URL url;
 
         private EndpointConnection(Endpoints endpoint, SkypeImpl skype, Object[] args) {
@@ -149,11 +148,6 @@ public class Endpoints {
 
         public EndpointConnection cookie(String key, String val) {
             this.cookies.put(key, val);
-            return this;
-        }
-
-        public EndpointConnection timeout(int timeout) {
-            this.timeout = timeout;
             return this;
         }
 

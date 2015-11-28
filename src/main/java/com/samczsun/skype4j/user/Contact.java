@@ -16,6 +16,10 @@
 
 package com.samczsun.skype4j.user;
 
+import com.samczsun.skype4j.exceptions.ConnectionException;
+
+import java.awt.image.BufferedImage;
+
 /**
  * Represents a contact
  */
@@ -23,14 +27,73 @@ public interface Contact {
     /**
      * Get the username of this contact
      *
-     * @return the username
+     * @return The username
      */
     String getUsername();
 
     /**
-     * Get the displayname of this contact. Can return null if it cannot be found
+     * Get the displayname of this contact. Can return null if not found
      *
-     * @return the displayname
+     * @return The displayname
      */
     String getDisplayName();
+
+    /**
+     * Get the first name of this contact. Can return null if not found
+     *
+     * @return The first name
+     */
+    String getFirstName();
+
+    /**
+     * Get the last name of this contact. Can return null if not found
+     *
+     * @return The last name
+     */
+    String getLastName();
+
+    /**
+     * Get the avatar as a {@link BufferedImage}. Can return null if not found.
+     * Once the image is loaded it is cached
+     * so if the first call suceeds it is implied no more exceptions will be thrown
+     *
+     * @return A clone of the original BufferedImage
+     * @throws ConnectionException If an error occurs while fetching the original image
+     */
+    BufferedImage getAvatarPicture() throws ConnectionException;
+
+    /**
+     * Get the avatar as a URL. Can return null if not found.
+     *
+     * @return The URL to the avatar
+     */
+    String getAvatarURL();
+
+    /**
+     * Get the mood of this contact. Can return null if not found
+     *
+     * @return The mood
+     */
+    String getMood();
+
+    /**
+     * Get the mood as richtext of this contact. Can return null if not found
+     *
+     * @return The mood as richtext
+     */
+    String getRichMood();
+
+    /**
+     * Get the country this contact lives in. Can return null if not found
+     *
+     * @return The country
+     */
+    String getCountry();
+
+    /**
+     * Get the city this contact lives in. Can return null if not found
+     *
+     * @return The city
+     */
+    String getCity();
 }
