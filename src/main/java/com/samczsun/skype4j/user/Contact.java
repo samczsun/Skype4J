@@ -16,7 +16,10 @@
 
 package com.samczsun.skype4j.user;
 
+import com.samczsun.skype4j.chat.Chat;
+import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
+import com.samczsun.skype4j.exceptions.NoSuchContactException;
 
 import java.awt.image.BufferedImage;
 
@@ -118,7 +121,13 @@ public interface Contact {
      */
     void unauthorize() throws ConnectionException;
 
-    void sendRequest(String message) throws ConnectionException;
+    /**
+     * Send a authorization request to this user
+     * @param message The message to attach
+     * @throws ConnectionException If an error occurs while sending the request
+     * @throws NoSuchContactException If the user does not exist
+     */
+    void sendRequest(String message) throws ConnectionException, NoSuchContactException;
 
     /**
      * Get whether this contact is blocked
@@ -148,4 +157,10 @@ public interface Contact {
      * @return Whether this contact is a phone number
      */
     boolean isPhone();
+
+    /**
+     * Get the private conversation between you and this user
+     * @return The private conversation
+     */
+    Chat getPrivateConversation() throws ConnectionException, ChatNotFoundException;
 }

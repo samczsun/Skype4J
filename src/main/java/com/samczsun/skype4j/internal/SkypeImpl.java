@@ -366,4 +366,6 @@ public abstract class SkypeImpl implements Skype {
             throw ExceptionHandler.generateException("While setting visibility", e);
         }
     }
+
+    public abstract void updateContactList() throws ConnectionException;
 }

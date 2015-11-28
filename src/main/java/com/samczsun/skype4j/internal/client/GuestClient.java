@@ -220,4 +220,9 @@ public class GuestClient extends SkypeImpl {
     public void loadAllContacts() throws ConnectionException {
         throw new UnsupportedOperationException("Not supported with a guest account");
     }
+
+    @Override
+    public void updateContactList() {
+        throw new UnsupportedOperationException("Not supported with a guest account");
+    }
 }
