@@ -30,11 +30,15 @@ import com.samczsun.skype4j.internal.ExceptionHandler;
 import com.samczsun.skype4j.internal.MessageType;
 import com.samczsun.skype4j.internal.SkypeImpl;
 import com.samczsun.skype4j.internal.UserImpl;
+import com.samczsun.skype4j.internal.Utils;
 import com.samczsun.skype4j.internal.chat.messages.ChatMessageImpl;
 import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.User;
 import com.samczsun.skype4j.user.User.Role;
 
+import javax.imageio.ImageIO;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
@@ -53,6 +57,8 @@ public class ChatGroup extends ChatImpl implements GroupChat {
     private SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSX");
     private String topic;
     private String pictureUrl;
+    private boolean pictureUpdated;
+    private BufferedImage picture;
     private String backwardLink;
     private String syncState;
     private Set<OptionUpdateEvent.Option> enabledOptions;
@@ -89,6 +95,9 @@ public class ChatGroup extends ChatImpl implements GroupChat {
                 this.topic = props.get("topic").asString();
             } else {
                 this.topic = "";
+            }
+            if (props.get("picture") != null) {
+                this.pictureUrl = props.get("picture").asString().substring(4);
             }
             JsonArray members = object.get("members").asArray();
             for (JsonValue element : members) {
@@ -235,6 +244,44 @@ public class ChatGroup extends ChatImpl implements GroupChat {
     }
 
     @Override
+    public BufferedImage getPicture() throws ConnectionException {
+        if (pictureUrl != null) {
+            if (pictureUpdated) {
+                picture = null;
+                pictureUpdated = false;
+            }
+            if (picture == null) {
+                HttpURLConnection connection = null;
+                try {
+                    connection = Endpoints.custom(pictureUrl, getClient()).header("Authorization", Endpoints.AUTHORIZATION.provide(getClient())).get();
+                    if (connection.getResponseCode() != 200) {
+                        throw ExceptionHandler.generateException("While fetching image", connection);
+                    }
+                    this.picture = ImageIO.read(connection.getInputStream());
+                } catch (IOException e) {
+                    throw ExceptionHandler.generateException("While fetching image", e);
+                } finally {
+                    if (connection != null) {
+                        connection.disconnect();
+                    }
+                }
+            }
+            BufferedImage clone = new BufferedImage(picture.getWidth(), picture.getHeight(), picture.getType());
+            Graphics2D g2d = clone.createGraphics();
+            g2d.drawImage(picture, 0, 0, null);
+            g2d.dispose();
+            return clone;
+        }
+        return null;
+    }
+
+    @Override
+    public void setImage(BufferedImage image, String imageType) throws ConnectionException {
+        String id = Utils.uploadImage(image, imageType, Utils.ImageType.AVATAR, this);
+        putOption("picture", JsonValue.valueOf(String.format("URL@https://api.asm.skype.com/v1/objects/%s/views/avatar_fullsize", id)));
+    }
+
+    @Override
     public boolean isOptionEnabled(OptionUpdateEvent.Option option) {
         checkLoaded();
         return this.enabledOptions.contains(option);
@@ -281,6 +328,7 @@ public class ChatGroup extends ChatImpl implements GroupChat {
 
     public void updatePicture(String picture) {
         this.pictureUrl = picture;
+        pictureUpdated = true;
     }
 
     public void updateOption(OptionUpdateEvent.Option option, boolean enabled) {

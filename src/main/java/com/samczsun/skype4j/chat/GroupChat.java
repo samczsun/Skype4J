@@ -22,6 +22,7 @@ import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.NotLoadedException;
 import com.samczsun.skype4j.user.Contact;
 
+import java.awt.image.BufferedImage;
 import java.util.List;
 
 /**
@@ -41,9 +42,29 @@ public interface GroupChat extends Chat {
      *
      * @param topic The topic
      * @throws ConnectionException If an error occurs while connecting to the endpoint
-     * @throws NotLoadedException If the chat is not yet loaded
+     * @throws NotLoadedException  If the chat is not yet loaded
      */
     void setTopic(String topic) throws ConnectionException;
+
+    /**
+     * Get the current picture of the chat.
+     * The result will be cached unless the picture is updated
+     *
+     * @return The current picture
+     * @throws ConnectionException If an error occurs while fetching the picture.
+     */
+    BufferedImage getPicture() throws ConnectionException;
+
+    /**
+     * Set the image for this chat. This will occur in real time
+     * WARNING: This endpoint is not officially supported by Skype.
+     * As such, it may or may not be functional in the future
+     *
+     * @param image     The image to upload
+     * @param imageType The type of image (png, jpg, etc)
+     * @throws ConnectionException If an error occurs while connecting to the endpoint
+     */
+    void setImage(BufferedImage image, String imageType) throws ConnectionException;
 
     /**
      * Get whether an option is enabled.
@@ -58,10 +79,10 @@ public interface GroupChat extends Chat {
      * Set whether an option is enabled.
      * If the option is already enabled and a request to enable it is sent or vice versa, it will be silently ignored
      *
-     * @param option The option to set
+     * @param option  The option to set
      * @param enabled Whether to enable it or not
      * @throws ConnectionException If an error occurs while connecting to the endpoint
-     * @throws NotLoadedException If the chat is not yet loaded
+     * @throws NotLoadedException  If the chat is not yet loaded
      */
     void setOptionEnabled(OptionUpdateEvent.Option option, boolean enabled) throws ConnectionException;
 
@@ -70,7 +91,7 @@ public interface GroupChat extends Chat {
      *
      * @param contact The contact to add
      * @throws ConnectionException If an error occurs while connecting to the endpoint
-     * @throws NotLoadedException If the chat is not yet loaded
+     * @throws NotLoadedException  If the chat is not yet loaded
      */
     void add(Contact contact) throws ConnectionException;
 
@@ -79,7 +100,7 @@ public interface GroupChat extends Chat {
      *
      * @param username The username of the user to kick
      * @throws ConnectionException If an error occurs while connecting to the endpoint
-     * @throws NotLoadedException If the chat is not yet loaded
+     * @throws NotLoadedException  If the chat is not yet loaded
      */
     void kick(String username) throws ConnectionException;
 
@@ -87,7 +108,7 @@ public interface GroupChat extends Chat {
      * Leave the chat. This will occur in real time.
      *
      * @throws ConnectionException If an error occurs while connecting to the endpoint
-     * @throws NotLoadedException If the chat is not yet loaded
+     * @throws NotLoadedException  If the chat is not yet loaded
      */
     void leave() throws ConnectionException;
 
@@ -95,14 +116,15 @@ public interface GroupChat extends Chat {
      * Gets the join url for people to join.
      *
      * @return The join url
-     * @throws ConnectionException If an error occurs while connecting to the endpoint
-     * @throws NotLoadedException If the chat is not yet loaded
+     * @throws ConnectionException   If an error occurs while connecting to the endpoint
+     * @throws NotLoadedException    If the chat is not yet loaded
      * @throws IllegalStateException If joining is not enabled
      */
     String getJoinUrl() throws ConnectionException;
 
     /**
      * Load more chatmessages from the past
+     *
      * @param amount The amount of messages to load
      * @return The loaded messages
      * @throws ConnectionException If an error occurs while connecting to the endpoint

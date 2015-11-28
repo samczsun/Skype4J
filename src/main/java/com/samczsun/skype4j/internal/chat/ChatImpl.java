@@ -29,6 +29,7 @@ import com.samczsun.skype4j.internal.Endpoints;
 import com.samczsun.skype4j.internal.ExceptionHandler;
 import com.samczsun.skype4j.internal.SkypeImpl;
 import com.samczsun.skype4j.internal.UserImpl;
+import com.samczsun.skype4j.internal.Utils;
 import com.samczsun.skype4j.internal.chat.messages.ChatMessageImpl;
 import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.User;
@@ -117,45 +118,11 @@ public abstract class ChatImpl implements Chat {
     public void sendImage(BufferedImage image, String imageType, String imageName) throws ConnectionException {
         checkLoaded();
         try {
+            String id = Utils.uploadImage(image, imageType, Utils.ImageType.IMGT1, this);
             long ms = System.currentTimeMillis();
-
-            JsonObject obj = new JsonObject();
-            obj.add("type", "pish/image");
-            obj.add("permissions", new JsonObject().add(getIdentity(), new JsonArray().add("read")));
-            HttpURLConnection connection = Endpoints.OBJECTS.open(getClient()).post(obj);
-
-            if (connection.getResponseCode() != 201) {
-                throw ExceptionHandler.generateException("While sending image", connection);
-            }
-
-            JsonObject response = JsonObject.readFrom(new InputStreamReader(connection.getInputStream()));
-            String id = response.get("id").asString();
-            connection = Endpoints.IMGPSH.open(getClient(), id).header("Content-Type", "multipart/form-data").put();
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ImageIO.write(image, imageType, baos);
-            baos.flush();
-            connection.getOutputStream().write(baos.toByteArray());
-            if (connection.getResponseCode() != 201) {
-                throw ExceptionHandler.generateException("While sending image", connection);
-            }
-
-            Endpoints.EndpointConnection econn = Endpoints.IMG_STATUS.open(getClient(), id);
-            while (true) {
-                HttpURLConnection conn = econn.get();
-                if (conn.getResponseCode() != 200) {
-                    throw ExceptionHandler.generateException("While getting image status", conn);
-                }
-                JsonObject status = JsonObject.readFrom(new InputStreamReader(conn.getInputStream()));
-                if (status.get("view_state").asString().equals("ready")) {
-                    break;
-                }
-            }
-
-            ms = System.currentTimeMillis();
-
             String content = "<URIObject type=\"Picture.1\" uri=\"https://api.asm.skype.com/v1/objects/%s\" url_thumbnail=\"https://api.asm.skype.com/v1/objects/%s/views/imgt1\">MyLegacy pish <a href=\"https://api.asm.skype.com/s/i?%s\">https://api.asm.skype.com/s/i?%s</a><Title/><Description/><OriginalName v=\"%s\"/><meta type=\"photo\" originalName=\"%s\"/></URIObject>";
             content = String.format(content, id, id, id, id, imageName, imageName);
-            obj = new JsonObject();
+            JsonObject obj = new JsonObject();
             obj.add("content", content);
             obj.add("messagetype", "RichText/UriObject");
             obj.add("contenttype", "text");
