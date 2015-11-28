@@ -121,4 +121,27 @@ public interface Chat {
      * @return Whether the chat is loaded
      */
     boolean isLoaded();
+
+    /**
+     * Sets your alerts off. Does not affect anything in this API
+     *
+     * @throws ConnectionException If an error occurs while connecting to the endpoint
+     */
+    void alertsOff() throws ConnectionException;
+
+
+    /**
+     * Sets your alerts on. Does not affect anything in this API
+     *
+     * @throws ConnectionException If an error occurs while connecting to the endpoint
+     */
+    void alertsOn() throws ConnectionException;
+
+    /**
+     * Sets your alerts on to a keyword. Does not affect anything in this API
+     *
+     * @param keyword The word to alert to
+     * @throws ConnectionException If an error occurs while connecting to the endpoint
+     */
+    void alertsOn(String keyword) throws ConnectionException;
 }

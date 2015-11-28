@@ -16,8 +16,8 @@
 
 package com.samczsun.skype4j.internal.chat;
 
-import com.eclipsesource.json.JsonArray;
 import com.eclipsesource.json.JsonObject;
+import com.eclipsesource.json.JsonValue;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.messages.ChatMessage;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
@@ -35,11 +35,8 @@ import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.User;
 import org.jsoup.helper.Validate;
 
-import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.util.Collection;
 import java.util.Collections;
@@ -192,6 +189,19 @@ public abstract class ChatImpl implements Chat {
         ((UserImpl) message.getSender()).onMessage(message);
     }
 
+    public void alertsOff() throws ConnectionException {
+        putOption("alerts", JsonValue.valueOf(false), false);
+    }
+
+    public void alertsOn() throws ConnectionException {
+        alertsOn(null);
+    }
+
+    public void alertsOn(String keyword) throws ConnectionException {
+        putOption("alerts", JsonValue.valueOf(true), false);
+        putOption("alertmatches", JsonValue.valueOf(keyword), false);
+    }
+
     public boolean isLoaded() {
         return !isLoading.get() && hasLoaded.get();
     }
@@ -205,6 +215,19 @@ public abstract class ChatImpl implements Chat {
     protected void checkLoaded() {
         if (!isLoaded()) {
             throw new NotLoadedException();
+        }
+    }
+
+    protected void putOption(String option, JsonValue value, boolean global) throws ConnectionException {
+        try {
+            JsonObject obj = new JsonObject();
+            obj.add(option, value);
+            HttpURLConnection con = (global ? Endpoints.CONVERSATION_PROPERTY_GLOBAL : Endpoints.CONVERSATION_PROPERTY_SELF).open(getClient(), getIdentity(), option).put(obj);
+            if (con.getResponseCode() != 200) {
+                throw ExceptionHandler.generateException("While updating an option", con);
+            }
+        } catch (IOException e) {
+            throw ExceptionHandler.generateException("While updating an option", e);
         }
     }
 }

@@ -34,9 +34,10 @@ public class Endpoints {
     public static final Endpoints ACCEPT_CONTACT_REQUEST = new Endpoints("https://api.skype.com/users/self/contacts/auth-request/%s/accept").skypetoken();
     public static final Endpoints GET_JOIN_URL = new Endpoints("https://api.scheduler.skype.com/threads").skypetoken();
     public static final Endpoints CHAT_INFO_URL = new Endpoints("https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/?view=msnp24Equivalent").cloud().regtoken();
+    public static final Endpoints CONVERSATION_PROPERTY_SELF = new Endpoints("https://%sclient-s.gateway.messenger.live.com/v1/users/ME/conversations/%s/properties?name=%s").cloud().regtoken();
     public static final Endpoints SEND_MESSAGE_URL = new Endpoints("https://%sclient-s.gateway.messenger.live.com/v1/users/ME/conversations/%s/messages").cloud().regtoken();
     public static final Endpoints MODIFY_MEMBER_URL = new Endpoints("https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/members/8:%s").cloud().regtoken();
-    public static final Endpoints MODIFY_PROPERTY_URL = new Endpoints("https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/properties?name=%s").cloud().regtoken();
+    public static final Endpoints CONVERSATION_PROPERTY_GLOBAL = new Endpoints("https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/properties?name=%s").cloud().regtoken();
     public static final Endpoints ADD_MEMBER_URL = new Endpoints("https://client-s.gateway.messenger.live.com/v1/threads/%s/members/8:%s").regtoken();
     public static final Endpoints LOGIN_URL = new Endpoints("https://login.skype.com/login?client_id=578134&redirect_uri=https%3A%2F%2Fweb.skype.com");
     public static final Endpoints PING_URL = new Endpoints("https://web.skype.com/api/v1/session-ping").skypetoken();

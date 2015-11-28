@@ -240,7 +240,7 @@ public class ChatGroup extends ChatImpl implements GroupChat {
 
     public void setTopic(String topic) throws ConnectionException {
         checkLoaded();
-        putOption("topic", JsonValue.valueOf(topic));
+        putOption("topic", JsonValue.valueOf(topic), true);
     }
 
     @Override
@@ -278,7 +278,7 @@ public class ChatGroup extends ChatImpl implements GroupChat {
     @Override
     public void setImage(BufferedImage image, String imageType) throws ConnectionException {
         String id = Utils.uploadImage(image, imageType, Utils.ImageType.AVATAR, this);
-        putOption("picture", JsonValue.valueOf(String.format("URL@https://api.asm.skype.com/v1/objects/%s/views/avatar_fullsize", id)));
+        putOption("picture", JsonValue.valueOf(String.format("URL@https://api.asm.skype.com/v1/objects/%s/views/avatar_fullsize", id)), true);
     }
 
     @Override
@@ -290,7 +290,7 @@ public class ChatGroup extends ChatImpl implements GroupChat {
     @Override
     public void setOptionEnabled(OptionUpdateEvent.Option option, boolean enabled) throws ConnectionException {
         checkLoaded();
-        putOption(option.getId(), JsonValue.valueOf(enabled));
+        putOption(option.getId(), JsonValue.valueOf(enabled), true);
         updateOption(option, enabled);
     }
 
@@ -306,19 +306,6 @@ public class ChatGroup extends ChatImpl implements GroupChat {
             }
         } catch (IOException e) {
             throw ExceptionHandler.generateException("While adding user into group", e);
-        }
-    }
-
-    private void putOption(String option, JsonValue value) throws ConnectionException {
-        try {
-            JsonObject obj = new JsonObject();
-            obj.add(option, value);
-            HttpURLConnection con = Endpoints.MODIFY_PROPERTY_URL.open(getClient(), getIdentity(), option).put(obj);
-            if (con.getResponseCode() != 200) {
-                throw ExceptionHandler.generateException("While updating an option", con);
-            }
-        } catch (IOException e) {
-            throw ExceptionHandler.generateException("While updating an option", e);
         }
     }
 
