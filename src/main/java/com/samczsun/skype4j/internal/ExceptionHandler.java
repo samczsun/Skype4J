@@ -17,13 +17,35 @@
 package com.samczsun.skype4j.internal;
 
 import com.samczsun.skype4j.exceptions.ConnectionException;
+import sun.security.action.GetBooleanAction;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.security.AccessController;
+import java.util.List;
+import java.util.Map;
 
 public class ExceptionHandler {
+    public static boolean DEBUG;
+
+    static {
+        DEBUG = AccessController.doPrivileged(new GetBooleanAction("com.samczsun.skype4j.debugExceptions"));
+    }
+
     public static ConnectionException generateException(String reason, HttpURLConnection connection) {
         try {
+            if (DEBUG) {
+                System.out.println("URL");
+                System.out.println("\t" + connection.getURL());
+                System.out.println("Request headers");
+                for (Map.Entry<String, List<String>> header : connection.getRequestProperties().entrySet()) {
+                    System.out.println(String.format("\t%s - %s", header.getKey(), header.getValue()));
+                }
+                System.out.println("Response headers");
+                for (Map.Entry<String, List<String>> header : connection.getHeaderFields().entrySet()) {
+                    System.out.println(String.format("\t%s - %s", header.getKey(), header.getValue()));
+                }
+            }
             return new ConnectionException(reason, connection.getResponseCode(), connection.getResponseMessage());
         } catch (IOException e) {
             throw new RuntimeException(String.format("IOException while constructing exception (%s, %s)", reason, connection));
