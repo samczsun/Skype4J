@@ -35,15 +35,16 @@ public class ExceptionHandler {
     public static ConnectionException generateException(String reason, HttpURLConnection connection) {
         try {
             if (DEBUG) {
-                System.out.println("URL");
-                System.out.println("\t" + connection.getURL());
-                System.out.println("Request headers");
+                connection.disconnect();
+                System.err.println("URL");
+                System.err.println("\t" + connection.getURL());
+                System.err.println("Request headers");
                 for (Map.Entry<String, List<String>> header : connection.getRequestProperties().entrySet()) {
-                    System.out.println(String.format("\t%s - %s", header.getKey(), header.getValue()));
+                    System.err.println(String.format("\t%s - %s", header.getKey(), header.getValue()));
                 }
-                System.out.println("Response headers");
+                System.err.println("Response headers");
                 for (Map.Entry<String, List<String>> header : connection.getHeaderFields().entrySet()) {
-                    System.out.println(String.format("\t%s - %s", header.getKey(), header.getValue()));
+                    System.err.println(String.format("\t%s - %s", header.getKey(), header.getValue()));
                 }
             }
             return new ConnectionException(reason, connection.getResponseCode(), connection.getResponseMessage());
