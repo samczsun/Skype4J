@@ -31,32 +31,37 @@ import java.util.List;
 public interface User {
     /**
      * Get the username of this user
+     *
      * @return The username
      */
     String getUsername();
 
     /**
      * Get the displayname of this user
+     *
      * @return The displayname
      */
     String getDisplayName();
 
     /**
      * Get the role of this user
+     *
      * @return The role
      */
     Role getRole();
 
     /**
      * Set the role of this user
+     *
      * @param role
-     * @throws ConnectionException If an error occurs while connecting to the endpoint
+     * @throws ConnectionException   If an error occurs while connecting to the endpoint
      * @throws NoPermissionException If a permission error occurs
      */
     void setRole(Role role) throws ConnectionException, NoPermissionException;
 
     /**
      * Get the chat this user is currently in
+     *
      * @return The chat this user belongs to
      */
     Chat getChat();
@@ -69,14 +74,24 @@ public interface User {
     Skype getClient();
 
     /**
+     * Get the contact representation of this user
+     *
+     * @return The contact
+     * @throws ConnectionException If an error occurs while connecting to the endpoint
+     */
+    Contact getContact() throws ConnectionException;
+
+    /**
      * Get all the messages sent by this user, in sequential order.
      * Messages sent when this API was not loaded will not be returned
+     *
      * @return The sent messages
      */
     List<ChatMessage> getSentMessages();
 
     /**
      * Get the message based on the id
+     *
      * @param id The id issued by Skype
      * @return The message
      */

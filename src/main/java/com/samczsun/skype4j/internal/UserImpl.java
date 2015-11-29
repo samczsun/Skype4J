@@ -90,6 +90,11 @@ public class UserImpl implements User {
     }
 
     @Override
+    public Contact getContact() throws ConnectionException {
+        return getClient().getOrLoadContact(getUsername());
+    }
+
+    @Override
     public Chat getChat() {
         return this.chat;
     }
