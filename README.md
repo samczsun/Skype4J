@@ -53,6 +53,7 @@ Then add the following dependency
 </dependency>
 ```
 
+You can also download the latest build of this project from [Jenkins](http://ci.samczsun.com/job/Skype4J/) 
 ## Licensing
 
 This project is licensed under the Apache 2.0 license
