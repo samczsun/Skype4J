@@ -301,10 +301,9 @@ public class ContactImpl implements Contact {
         this.username = contact.get("id").asString();
         this.isAuthorized = contact.get("authorized").asBoolean();
         this.isBlocked = contact.get("blocked").asBoolean();
-        this.displayName = contact.get("display_name").asString();
-        this.avatarURL = contact.get("avatar_url") == null ? null : contact.get("avatar_url").asString();
-        this.displayName = contact.get("display_name").asString();
-        this.firstName = contact.get("name").asObject().get("first").asString();
+        this.displayName = Utils.getString(contact, "display_name");
+        this.avatarURL = Utils.getString(contact, "avatar_url");
+        this.firstName = contact.get("name") == null ? null : Utils.getString(contact.get("name").asObject(), "first");
         if (contact.get("locations") != null) {
             JsonObject locations = contact.get("locations").asArray().get(0).asObject();
             this.country = locations.get("country") == null ? null : locations.get("country").asString();
