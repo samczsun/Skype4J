@@ -22,6 +22,7 @@ import sun.security.action.GetBooleanAction;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.List;
 import java.util.Map;
 
@@ -29,7 +30,11 @@ public class ExceptionHandler {
     public static boolean DEBUG;
 
     static {
-        DEBUG = AccessController.doPrivileged(new GetBooleanAction("com.samczsun.skype4j.debugExceptions"));
+        DEBUG = AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
+            public Boolean run() {
+                return Boolean.getBoolean("com.samczsun.skype4j.debugExceptions");
+            }
+        });
     }
 
     public static ConnectionException generateException(String reason, HttpURLConnection connection) {
