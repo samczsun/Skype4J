@@ -39,17 +39,13 @@ skype.logout();
 Notice how both examples are extremely similar. You can switch between guest accounts and regular accounts with ease thanks to abstractation.
 ## Maven
 
-Maven is used for dependency management and deployment. In the near future this project will be added into the central repository.
-
-In the meantime, please clone this project and install it locally.
-
-Then add the following dependency
+Maven is used for dependency management and deployment. To use this API, simply add the following to your pom.xml
 
 ```
 <dependency>
   <groupId>com.samczsun</groupId>
   <artifactId>skype4j</artifactId>
-  <version>0.0.9-SNAPSHOT</version>
+  <version>0.1.4</version>
 </dependency>
 ```
 
