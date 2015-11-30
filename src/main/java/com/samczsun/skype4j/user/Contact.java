@@ -16,7 +16,10 @@
 
 package com.samczsun.skype4j.user;
 
+import com.samczsun.skype4j.chat.Chat;
+import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
+import com.samczsun.skype4j.exceptions.NoSuchContactException;
 
 import java.awt.image.BufferedImage;
 
@@ -96,4 +99,68 @@ public interface Contact {
      * @return The city
      */
     String getCity();
+
+    /**
+     * Get whether this contact is authorized by you to be a contact
+     *
+     * @return Whether the contact is authorized
+     */
+    boolean isAuthorized();
+
+    /**
+     * Authorize this contact
+     *
+     * @throws ConnectionException
+     */
+    void authorize() throws ConnectionException;
+
+    /**
+     * Unauthorize this contact
+     *
+     * @throws ConnectionException
+     */
+    void unauthorize() throws ConnectionException;
+
+    /**
+     * Send a authorization request to this user
+     * @param message The message to attach
+     * @throws ConnectionException If an error occurs while sending the request
+     * @throws NoSuchContactException If the user does not exist
+     */
+    void sendRequest(String message) throws ConnectionException, NoSuchContactException;
+
+    /**
+     * Get whether this contact is blocked
+     *
+     * @return Whether the contact is blocked
+     */
+    boolean isBlocked();
+
+    /**
+     * Block this contact
+     *
+     * @param reportAbuse Whether to report abuse
+     * @throws ConnectionException If an error occurs while connecting to the endpoint
+     */
+    void block(boolean reportAbuse) throws ConnectionException;
+
+    /**
+     * Unblock this contact
+     *
+     * @throws ConnectionException If an error occurs while connecting to the endpoint
+     */
+    void unblock() throws ConnectionException;
+
+    /**
+     * Get whether this contact is a phone number
+     *
+     * @return Whether this contact is a phone number
+     */
+    boolean isPhone();
+
+    /**
+     * Get the private conversation between you and this user
+     * @return The private conversation
+     */
+    Chat getPrivateConversation() throws ConnectionException, ChatNotFoundException;
 }

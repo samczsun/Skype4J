@@ -26,7 +26,7 @@ public class ConnectionException extends SkypeException {
     private String responseMessage;
 
     public ConnectionException(String cause, int responseCode, String responseMessage) {
-        super(cause);
+        super(cause + String.format(" (%s %s)", responseCode, responseMessage));
         this.responseCode = responseCode;
         this.responseMessage = responseMessage;
     }

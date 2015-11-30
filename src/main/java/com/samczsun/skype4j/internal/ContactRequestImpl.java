@@ -71,6 +71,18 @@ public class ContactRequestImpl implements ContactRequest {
     }
 
     @Override
+    public void decline() throws ConnectionException {
+        try {
+            HttpURLConnection connection = Endpoints.DECLINE_CONTACT_REQUEST.open(skype, sender.getUsername()).put();
+            if (connection.getResponseCode() != 201) {
+                throw ExceptionHandler.generateException("While accepting contact request", connection);
+            }
+        } catch (IOException e) {
+            throw ExceptionHandler.generateException("While accepting contact request", e);
+        }
+    }
+
+    @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;

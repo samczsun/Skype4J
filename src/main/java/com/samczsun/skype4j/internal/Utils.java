@@ -90,6 +90,10 @@ public class Utils {
         }
     }
 
+    public static String getString(JsonObject object, String key) {
+        return object.get(key) == null ? null : object.get(key).isNull() ? null : object.get(key).asString();
+    }
+
     public enum ImageType {
         IMGT1("pish/image", "imgpsh", "imgt1"),
         AVATAR("avatar/group", "avatar", "avatar_fullsize"); //Also has "avatar"

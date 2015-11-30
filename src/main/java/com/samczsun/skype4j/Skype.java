@@ -37,6 +37,19 @@ import java.util.logging.Logger;
 public interface Skype {
 
     /**
+     * Log into Skype. This will perform the following actions:
+     * 1) Log into Skype to get a Skypetoken
+     * 2) Register an endpoint to get a RegistrationToken
+     * 3) Load all contacts
+     *
+     * @throws InvalidCredentialsException If you've provided invalid credentials or if you hit a CAPTCHA
+     * @throws ConnectionException         If a network error occured while connecting
+     * @throws ParseException              If invalid HTML/XML was returned, causing Jsoup to raise an exception
+     * @throws NotParticipatingException   If the guest account cannot log in due to the chat not being open
+     */
+    void login() throws InvalidCredentialsException, ConnectionException, ParseException, NotParticipatingException;
+
+    /**
      * Subscribe to the HTTP long polling service
      * This will start reading events from Skype and calling events within this API
      *
@@ -125,6 +138,13 @@ public interface Skype {
     Contact getOrLoadContact(String username) throws ConnectionException;
 
     /**
+     * Load all contacts!
+     *
+     * @throws ConnectionException If an exception occured while fetching all contacts
+     */
+    void loadAllContacts() throws ConnectionException;
+
+    /**
      * Get all the chats loaded by this API
      *
      * @return A view of all the chats
@@ -137,16 +157,6 @@ public interface Skype {
      * @return A view of all the chats
      */
     Collection<Contact> getAllContacts();
-
-    /**
-     * Log into Skype
-     *
-     * @throws InvalidCredentialsException If you've provided invalid credentials or if you hit a CAPTCHA
-     * @throws ConnectionException         If a network error occured while connecting
-     * @throws ParseException              If invalid HTML/XML was returned, causing Jsoup to raise an exception
-     * @throws NotParticipatingException   If the guest account cannot log in due to the chat not being open
-     */
-    void login() throws InvalidCredentialsException, ConnectionException, ParseException, NotParticipatingException;
 
     /**
      * Log out and stop all threads

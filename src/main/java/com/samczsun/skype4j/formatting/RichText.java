@@ -125,9 +125,9 @@ public class RichText extends Text {
 
     private int size = -1;
 
-    private final RichText previous;
-
     private RichText next;
+
+    private RichText previous;
 
     private String text;
 
@@ -159,7 +159,7 @@ public class RichText extends Text {
      * @return The same RichText instance
      */
     public RichText withBold() {
-        this.formats.add(RichText.Format.BOLD);
+        this.formats.add(Format.BOLD);
         return this;
     }
 
@@ -169,7 +169,7 @@ public class RichText extends Text {
      * @return The same RichText instance
      */
     public RichText withUnderline() {
-        this.formats.add(RichText.Format.UNDERLINE);
+        this.formats.add(Format.UNDERLINE);
         return this;
     }
 
@@ -179,7 +179,7 @@ public class RichText extends Text {
      * @return The same RichText instance
      */
     public RichText withItalic() {
-        this.formats.add(RichText.Format.ITALIC);
+        this.formats.add(Format.ITALIC);
         return this;
     }
 
@@ -189,7 +189,7 @@ public class RichText extends Text {
      * @return The same RichText instance
      */
     public RichText withStrikethrough() {
-        this.formats.add(RichText.Format.STRIKE_THROUGH);
+        this.formats.add(Format.STRIKE_THROUGH);
         return this;
     }
 
@@ -199,7 +199,7 @@ public class RichText extends Text {
      * @return The same RichText instance
      */
     public RichText withBlink() {
-        this.formats.add(RichText.Format.BLINK);
+        this.formats.add(Format.BLINK);
         return this;
     }
 
@@ -243,17 +243,7 @@ public class RichText extends Text {
      * @return The same RichText instance
      */
     public RichText withCode() {
-        this.formats.add(RichText.Format.CODE);
-        return this;
-    }
-
-    /**
-     * Applies the given formats to the text
-     *
-     * @return The same RichText instance
-     */
-    public RichText withFormat(RichText.Format...formats) {
-        this.formats.addAll(Arrays.asList(formats));
+        this.formats.add(Format.CODE);
         return this;
     }
 
@@ -261,31 +251,11 @@ public class RichText extends Text {
         return this.formats.contains(format);
     }
 
-    /**
-     * Add a text to this text component
-     *
-     * @return The same RichText instance
-     */
+
     public RichText append(String text) {
         return append(text, false);
     }
 
-    /**
-     * Add formatted text to this text component
-     *
-     * @return The same RichText instance
-     */
-    public RichText append(String format, Object...params) {
-        Validate.notNull(format, "Format was null");
-        Validate.notNull(params, "Parameters were null. If you don't want to pass any, consider append(String)");
-        return append(String.format(format, params), false);
-    }
-
-    /**
-     * Add a child to this text component
-     *
-     * @return The same RichText instance
-     */
     public RichText append(String text, boolean clearFormat) {
         this.next = new RichText(this, text);
         if (!clearFormat) {
@@ -301,7 +271,6 @@ public class RichText extends Text {
         this.size = from.size;
     }
 
-    @Override
     public String write() {
         return this.previous != null ? this.previous.write() : this.write0();
     }
@@ -314,6 +283,7 @@ public class RichText extends Text {
                 .filter(this.formats::contains)
                 .map(Format::getOpenTag)
                 .forEach(output::append);
+
         boolean font = size != -1 || color != null;
         if (font) {
             output.append("<font ");
@@ -352,7 +322,6 @@ public class RichText extends Text {
         if (this.next != null) {
             output.append(this.next.write0());
         }
-
         return output.toString();
     }
 

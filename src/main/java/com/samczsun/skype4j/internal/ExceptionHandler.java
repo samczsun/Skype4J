@@ -20,10 +20,37 @@ import com.samczsun.skype4j.exceptions.ConnectionException;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.util.List;
+import java.util.Map;
 
 public class ExceptionHandler {
+    public static boolean DEBUG;
+
+    static {
+        DEBUG = AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
+            public Boolean run() {
+                return Boolean.getBoolean("com.samczsun.skype4j.debugExceptions");
+            }
+        });
+    }
+
     public static ConnectionException generateException(String reason, HttpURLConnection connection) {
         try {
+            if (DEBUG) {
+                connection.disconnect();
+                System.err.println("URL");
+                System.err.println("\t" + connection.getURL());
+                System.err.println("Request headers");
+                for (Map.Entry<String, List<String>> header : connection.getRequestProperties().entrySet()) {
+                    System.err.println(String.format("\t%s - %s", header.getKey(), header.getValue()));
+                }
+                System.err.println("Response headers");
+                for (Map.Entry<String, List<String>> header : connection.getHeaderFields().entrySet()) {
+                    System.err.println(String.format("\t%s - %s", header.getKey(), header.getValue()));
+                }
+            }
             return new ConnectionException(reason, connection.getResponseCode(), connection.getResponseMessage());
         } catch (IOException e) {
             throw new RuntimeException(String.format("IOException while constructing exception (%s, %s)", reason, connection));

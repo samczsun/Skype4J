@@ -271,10 +271,10 @@ public enum MessageType {
                 String blob = doc.getElementsByTag("a").get(0).attr("href");
                 blob = blob.substring(blob.indexOf('?') + 1);
                 try {
-                    HttpURLConnection statusCon = Endpoints.PICTURE_STATUS_URL.open(skype, blob).cookies(skype.getCookies()).get();
+                    HttpURLConnection statusCon = Endpoints.IMG_STATUS.open(skype, blob, "imgpsh_fullsize").cookies(skype.getCookies()).get();
                     if (statusCon.getResponseCode() == 200) {
                         JsonObject obj = JsonObject.readFrom(new InputStreamReader(statusCon.getInputStream(), "UTF-8"));
-                        Endpoints.EndpointConnection econn = Endpoints.custom(obj.get("status_location").asString(), skype);
+                        Endpoints.EndpointConnection econn = Endpoints.custom(obj.get("status_location").asString(), skype).cookies(skype.getCookies());
                         while (true) {
                             statusCon = econn.get();
                             if (statusCon.getResponseCode() == 200) {
@@ -546,8 +546,6 @@ public enum MessageType {
     private static final Pattern EVENTTIME_PATTERN = Pattern.compile("<eventtime>(\\d+)</eventtime>", Pattern.CASE_INSENSITIVE);
     private static final Pattern VALUE_PATTERN = Pattern.compile("(?:<value>(.+)</value>|<value />)", Pattern.CASE_INSENSITIVE);
     private static final Pattern ROLE_UPDATE_PATTERN = Pattern.compile("<target><id>(\\d+:.+)</id><role>(.+)</role></target>", Pattern.CASE_INSENSITIVE);
-
-    private static final String PICTURE_URL = "https://api.asm.skype.com/v1/objects/%s/views/imgpsh_fullsize";
 
     private final String value;
 

@@ -50,4 +50,10 @@ public interface ContactRequest {
      * @throws ConnectionException If the accepting of the contact request failed
      */
     void accept() throws ConnectionException;
+
+    /**
+     * Declines the contact request represented by this object
+     * @throws ConnectionException If the declining of the contact request failed
+     */
+    void decline() throws ConnectionException;
 }

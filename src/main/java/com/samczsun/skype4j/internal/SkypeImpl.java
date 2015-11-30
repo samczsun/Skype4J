@@ -38,6 +38,7 @@ import org.jsoup.helper.Validate;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.InterruptedIOException;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -90,6 +91,7 @@ public abstract class SkypeImpl implements Skype {
             return new Thread(r, "Skype4J-Poller-" + username + "-" + id.getAndIncrement());
         }
     });
+    protected final ExecutorService shutdownThread;
     protected final Map<String, Chat> allChats = new ConcurrentHashMap<>();
     protected final Map<String, Contact> allContacts = new ConcurrentHashMap<>();
     protected final List<ContactRequest> allContactRequests = new ArrayList<>();
@@ -100,6 +102,7 @@ public abstract class SkypeImpl implements Skype {
         if (logger != null) {
             this.logger = logger;
         }
+        this.shutdownThread  = Executors.newSingleThreadExecutor(new SkypeThreadFactory(this, "Shutdown"));
     }
 
     public String getRegistrationToken() {
@@ -208,18 +211,24 @@ public abstract class SkypeImpl implements Skype {
     }
 
     public void shutdown() {
-        loggedIn.set(false);
-        shutdownRequested.set(true);
-        pollThread.shutdown();
-        sessionKeepaliveThread.interrupt();
-        activeThread.interrupt();
-        scheduler.shutdownNow();
-        while (!scheduler.isTerminated()) ;
-        try {
-            scheduler.awaitTermination(1, TimeUnit.DAYS);
-            this.wss.closeBlocking();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+        if (this.loggedIn.get()) {
+            loggedIn.set(false);
+            shutdownRequested.set(true);
+            this.shutdownThread.submit(new Runnable() {
+                public void run() {
+                    pollThread.shutdown();
+                    sessionKeepaliveThread.interrupt();
+                    activeThread.interrupt();
+                    scheduler.shutdownNow();
+                    while (!scheduler.isTerminated()) ;
+                    try {
+                        wss.closeBlocking();
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    shutdownThread.shutdown();
+                }
+            });
         }
     }
 
@@ -366,4 +375,6 @@ public abstract class SkypeImpl implements Skype {
             throw ExceptionHandler.generateException("While setting visibility", e);
         }
     }
+
+    public abstract void updateContactList() throws ConnectionException;
 }

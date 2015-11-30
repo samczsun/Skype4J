@@ -105,7 +105,11 @@ public class SkypeWebSocket extends WebSocketClient {
             JsonObject body = JsonObject.readFrom(message.get("body").asString());
             int event = body.get("evt").asInt();
             if (event == 6) {
-                skype.getLogger().log(Level.SEVERE, "Unhandled websocket message '{0}'", s);
+                try {
+                    skype.updateContactList();
+                } catch (ConnectionException e) {
+                    e.printStackTrace();
+                }
             } else if (event == 14) {
                 try {
                     if (skype instanceof FullClient) {
