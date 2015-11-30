@@ -106,7 +106,7 @@ public class LocationReceivedEvent extends ChatEvent {
         }
 
         public Message toMessage() {
-            return Message.create().with(Text.rich().withLink("https://www.bing.com/maps/" + this.base64).with(Text.plain(this.text)));
+            return Message.create().with(Text.rich(this.text).withLink("https://www.bing.com/maps/" + this.base64));
         }
     }
 }

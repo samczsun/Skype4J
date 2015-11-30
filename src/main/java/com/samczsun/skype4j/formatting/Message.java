@@ -63,7 +63,7 @@ public class Message {
      */
     public String write() {
         StringBuilder result = new StringBuilder();
-        for (Text t : components) {
+        for (Text t : this.components) {
             result.append(t);
         }
         return result.toString();
@@ -112,125 +112,7 @@ public class Message {
      */
     public static Message fromHtml(String text) {
         final Message parsed = create();
-        Document doc = Jsoup.parse(text);
-        doc.getElementsByTag("body").get(0).traverse(new NodeVisitor() {
-            Stack<RichText> stack = new Stack<>();
-            @Override
-            public void head(Node node, int depth) {
-                if (!node.nodeName().equals("body")) {
-                    if (depth != 1) {
-                        if (node.nodeName().equals("b")) {
-                            RichText newText = Text.rich().withBold();
-                            stack.peek().with(newText);
-                            stack.push(newText);
-                        } else if (node.nodeName().equals("i")) {
-                            RichText newText = Text.rich().withItalic();
-                            stack.peek().with(newText);
-                            stack.push(newText);
-                        } else if (node.nodeName().equals("s")) {
-                            RichText newText = Text.rich().withStrikethrough();
-                            stack.peek().with(newText);
-                            stack.push(newText);
-                        } else if (node.nodeName().equals("u")) {
-                            RichText newText = Text.rich().withUnderline();
-                            stack.peek().with(newText);
-                            stack.push(newText);
-                        } else if (node.nodeName().equals("blink")) {
-                            RichText newText = Text.rich().withBlink();
-                            stack.peek().with(newText);
-                            stack.push(newText);
-                        } else if (node.nodeName().equals("font")) {
-                            Element e = (Element) node;
-                            RichText newText = Text.rich();
-                            if (e.hasAttr("size")) {
-                                newText.withSize(Integer.parseInt(e.attr("size")));
-                            }
-                            if (e.hasAttr("color")) {
-                                newText.withColor(Color.decode(e.attr("color")));
-                            }
-                            stack.peek().with(newText);
-                            stack.push(newText);
-                        } else if (node.nodeName().equals("a")) {
-                            Element e = (Element) node;
-                            RichText newText = Text.rich();
-                            if (e.hasAttr("href")) {
-                                newText.withLink(e.attr("href"));
-                            }
-                            stack.peek().with(newText);
-                            stack.push(newText);
-                        } else if (node.nodeName().equals("pre")) {
-                            RichText newText = Text.rich().withCode();
-                            stack.peek().with(newText);
-                            stack.push(newText);
-                        } else if (node.nodeName().equals("#text")) {
-                            stack.peek().with(Text.plain(((TextNode) node).getWholeText()));
-                        } else {
-                            RichText newText = Text.rich().with(Text.plain("UnsupportedTag(" + node.nodeName() + ")"));
-                            stack.peek().with(newText);
-                            stack.push(newText);
-                        }
-                    } else {
-                        if (node.nodeName().equals("b")) {
-                            RichText currentText = Text.rich().withBold();
-                            parsed.with(currentText);
-                            stack.push(currentText);
-                        } else if (node.nodeName().equals("i")) {
-                            RichText currentText = Text.rich().withItalic();
-                            parsed.with(currentText);
-                            stack.push(currentText);
-                        } else if (node.nodeName().equals("s")) {
-                            RichText currentText = Text.rich().withStrikethrough();
-                            parsed.with(currentText);
-                            stack.push(currentText);
-                        } else if (node.nodeName().equals("u")) {
-                            RichText currentText = Text.rich().withUnderline();
-                            parsed.with(currentText);
-                            stack.push(currentText);
-                        } else if (node.nodeName().equals("blink")) {
-                            RichText currentText = Text.rich().withBlink();
-                            parsed.with(currentText);
-                            stack.push(currentText);
-                        } else if (node.nodeName().equals("font")) {
-                            Element e = (Element) node;
-                            RichText currentText = Text.rich();
-                            if (e.hasAttr("size")) {
-                                currentText.withSize(Integer.parseInt(e.attr("size")));
-                            }
-                            if (e.hasAttr("color")) {
-                                currentText.withColor(Color.decode(e.attr("color")));
-                            }
-                            parsed.with(currentText);
-                            stack.push(currentText);
-                        } else if (node.nodeName().equals("a")) {
-                            Element e = (Element) node;
-                            RichText currentText = Text.rich();
-                            if (e.hasAttr("href")) {
-                                currentText.withLink(e.attr("href"));
-                            }
-                            parsed.with(currentText);
-                            stack.push(currentText);
-                        } else if (node.nodeName().equals("pre")) {
-                            RichText currentText = Text.rich().withCode();
-                            parsed.with(currentText);
-                            stack.push(currentText);
-                        } else if (node.nodeName().equals("#text")) {
-                            parsed.with(Text.plain(((TextNode) node).getWholeText()));
-                        } else {
-                            RichText currentText = Text.rich().with(Text.plain("UnsupportedTag(" + node.nodeName() + ")"));
-                            parsed.with(currentText);
-                            stack.push(currentText);
-                        }
-                    }
-                }
-            }
-
-            @Override
-            public void tail(Node node, int depth) {
-                if (!node.nodeName().equals("body") && !node.nodeName().equals("#text")) {
-                    stack.pop();
-                }
-            }
-        });
+        parsed.with(RichText.fromHtml(text));
         return parsed;
     }
 
