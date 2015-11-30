@@ -17,7 +17,6 @@
 package com.samczsun.skype4j.internal;
 
 import com.samczsun.skype4j.exceptions.ConnectionException;
-import sun.security.action.GetBooleanAction;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;

@@ -31,6 +31,11 @@ public class Endpoints {
             return "skype_token " + skype.getSkypeToken();
         }
     };
+    public static final Provider<String> COOKIE = new Provider<String>() {
+        public String provide(SkypeImpl skype) {
+            return "skypetoken_asm=" + skype.getSkypeToken();
+        }
+    };
     public static final Endpoints ACCEPT_CONTACT_REQUEST = new Endpoints("https://api.skype.com/users/self/contacts/auth-request/%s/accept").skypetoken();
     public static final Endpoints GET_JOIN_URL = new Endpoints("https://api.scheduler.skype.com/threads").skypetoken();
     public static final Endpoints CHAT_INFO_URL = new Endpoints("https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/?view=msnp24Equivalent").cloud().regtoken();
@@ -54,17 +59,12 @@ public class Endpoints {
     public static final Endpoints POLL = new Endpoints("https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/SELF/subscriptions/0/poll").cloud().regtoken();
     public static final Endpoints NEW_GUEST = new Endpoints("https://join.skype.com/api/v1/users/guests");
     public static final Endpoints LEAVE_GUEST = new Endpoints("https://join.skype.com/guests/leave?threadId=%s");
-    public static final Endpoints PICTURE_STATUS_URL = new Endpoints("https://api.asm.skype.com/v1/objects/%s/views/imgpsh_fullsize/status");
     public static final Endpoints ACTIVE = new Endpoints("https://client-s.gateway.messenger.live.com/v1/users/ME/endpoints/%s/active").regtoken();
     public static final Endpoints LOAD_CHATS = new Endpoints("https://client-s.gateway.messenger.live.com/v1/users/ME/conversations?startTime=%s&pageSize=%s&view=msnp24Equivalent&targetType=Passport|Skype|Lync|Thread").regtoken();
     public static final Endpoints LOAD_MESSAGES = new Endpoints("https://client-s.gateway.messenger.live.com/v1/users/ME/conversations/%s/messages?startTime=0&pageSize=%s&view=msnp24Equivalent|supportsMessageProperties&targetType=Passport|Skype|Lync|Thread").regtoken();
     public static final Endpoints OBJECTS = new Endpoints("https://api.asm.skype.com/v1/objects").defaultHeader("Authorization", AUTHORIZATION);
     public static final Endpoints UPLOAD_IMAGE = new Endpoints("https://api.asm.skype.com/v1/objects/%s/content/%s").defaultHeader("Authorization", AUTHORIZATION);
-    public static final Endpoints IMG_STATUS = new Endpoints("https://api.asm.skype.com/v1/objects/%s/views/%s/status").defaultHeader("Cookie", new Provider<String>() {
-        public String provide(SkypeImpl skype) {
-            return "skypetoken_asm=" + skype.getSkypeToken();
-        }
-    });
+    public static final Endpoints IMG_STATUS = new Endpoints("https://api.asm.skype.com/v1/objects/%s/views/%s/status").defaultHeader("Cookie", COOKIE);
     public static final Endpoints FETCH_IMAGE = new Endpoints("https://api.asm.skype.com/v1/objects/%s/views/%s").defaultHeader("Authorization", AUTHORIZATION);
     public static final Endpoints VISIBILITY = new Endpoints("https://%sclient-s.gateway.messenger.live.com/v1/users/ME/presenceDocs/messagingService").cloud().regtoken();
     public static final Endpoints SEARCH_SKYPE_DIRECTORY = new Endpoints("https://api.skype.com/search/users/any?keyWord=%s&contactTypes[]=skype").skypetoken();
