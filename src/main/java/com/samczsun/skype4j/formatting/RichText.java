@@ -16,10 +16,16 @@
 
 package com.samczsun.skype4j.formatting;
 
+import org.jsoup.Jsoup;
 import org.jsoup.helper.Validate;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.nodes.Node;
+import org.jsoup.select.Elements;
 
 import java.awt.Color;
 import java.util.*;
+import java.util.function.*;
 
 /**
  * Represents a rich text component. This component can be formatted.
@@ -28,17 +34,28 @@ import java.util.*;
 public class RichText extends Text {
 
     public enum Format{
-        BOLD("b"),
-        ITALIC("i"),
-        UNDERLINE("u"),
-        STRIKE_THROUGH("s"),
-        CODE("pre"),
-        BLINK("blink");
+        BOLD("b", RichText::withBold),
+        ITALIC("i", RichText::withItalic),
+        UNDERLINE("u", RichText::withUnderline),
+        STRIKE_THROUGH("s", RichText::withStrikethrough),
+        CODE("pre", RichText::withCode),
+        BLINK("blink", RichText::withBlink);
 
         private final String tagName;
 
-        Format(String tagName) {
+        private final Consumer<RichText> apply;
+
+        Format(String tagName, Consumer<RichText> apply) {
             this.tagName = tagName;
+            this.apply = apply;
+        }
+
+        public String getTagName() {
+            return this.tagName;
+        }
+
+        public Consumer<RichText> getApplicator() {
+            return this.apply;
         }
 
         public String getOpenTag() {
@@ -49,6 +66,56 @@ public class RichText extends Text {
             return "</" + this.tagName + ">";
         }
     }
+
+    private static final Map<String, BiConsumer<RichText, Element>> TAG_APPLIER = Collections.unmodifiableMap(
+            new HashMap<String, BiConsumer<RichText, Element>>() {{
+                    Arrays.stream(Format.values()).forEach(format -> {
+                        put(format.getTagName(), (text, elem) -> {
+                            format.getApplicator().accept(text);
+                        });
+                    });
+                    put("font", (text, elem) -> {
+                        if (elem.hasAttr("size"))
+                        {
+                            text.withSize(Integer.parseInt(elem.attr("size")));
+                        }
+                        if (elem.hasAttr("color"))
+                        {
+                            text.withColor(Color.decode(elem.attr("color")));
+                        }
+                    });
+                    put("a", (text, elem) -> {
+                        text.withLink(elem.attr("href"));
+                    });
+                    put("#text", (text, elem) -> {
+                        // How do we handle this?
+                    });
+                }}
+    );
+
+    private static final Map<String, BiPredicate<RichText, Element>> TAG_TEST = Collections.unmodifiableMap(
+            new HashMap<String, BiPredicate<RichText, Element>>() {{
+                Arrays.stream(Format.values()).forEach(format -> {
+                    put(format.getTagName(), (text, elem) -> text.hasFormat(format));
+                });
+                put("font", (text, elem) -> {
+                    boolean equal = true;
+                    if (elem.hasAttr("size") == (text.size >= 0)) {
+                        equal = equal && text.size == (Integer.parseInt(elem.attr("size")));
+                    }
+                    if (elem.hasAttr("color") == (text.color != null)) {
+                        String color = elem.attr("color");
+                        equal = equal && Objects.equals(text.color, color.substring(color.indexOf('#') + 1));
+                    }
+                    return equal;
+                });
+                put("a", (text, elem) -> elem.attr("href").equals(text.link));
+                put("#text", (text, elem) -> {
+                    // How do we handle this?
+                    return false;
+                });
+            }}
+    );
 
     private final Set<Format> formats = EnumSet.noneOf(RichText.Format.class);
 
@@ -62,7 +129,7 @@ public class RichText extends Text {
 
     private RichText next;
 
-    private final String text;
+    private String text;
 
     RichText(String text) {
         this(null, text);
@@ -71,6 +138,19 @@ public class RichText extends Text {
     RichText(RichText previous, String text) {
         this.previous = previous;
         this.text = text;
+    }
+
+    public String getText() {
+        return this.text;
+    }
+
+    RichText setText(String text) {
+        this.text = text;
+        return this;
+    }
+
+    void appendText(String text) {
+        this.text += text;
     }
 
     /**
@@ -177,6 +257,10 @@ public class RichText extends Text {
         return this;
     }
 
+    public boolean hasFormat(Format format) {
+        return this.formats.contains(format);
+    }
+
     /**
      * Add a text to this text component
      *
@@ -205,23 +289,31 @@ public class RichText extends Text {
     public RichText append(String text, boolean clearFormat) {
         this.next = new RichText(this, text);
         if (!clearFormat) {
-            this.next.formats.addAll(this.formats);
-            this.next.link = this.link;
-            this.next.color = this.color;
-            this.next.size = this.size;
+            this.next.copyFormat(this);
         }
         return this.next;
     }
 
+    private void copyFormat(RichText from) {
+        this.formats.addAll(from.formats);
+        this.link = from.link;
+        this.color = from.color;
+        this.size = from.size;
+    }
+
     @Override
     public String write() {
+        return this.previous != null ? this.previous.write() : this.write0();
+    }
+
+    private String write0() {
         StringBuilder output = new StringBuilder();
-        List<Format> formats = Arrays.asList(RichText.Format.values());
+        java.util.List<Format> formats = Arrays.asList(RichText.Format.values());
         formats.stream()
-               .filter(format -> this.previous == null || !this.previous.formats.contains(format))
-               .filter(this.formats::contains)
-               .map(Format::getOpenTag)
-               .forEach(output::append);
+                .filter(format -> this.previous == null || !this.previous.formats.contains(format))
+                .filter(this.formats::contains)
+                .map(Format::getOpenTag)
+                .forEach(output::append);
         boolean font = size != -1 || color != null;
         if (font) {
             output.append("<font ");
@@ -252,16 +344,21 @@ public class RichText extends Text {
         }
         Collections.reverse(formats);
         formats.stream()
-               .filter(format -> this.next == null || !this.next.formats.contains(format))
-               .filter(this.formats::contains)
-               .map(Format::getCloseTag)
-               .forEach(output::append);
+                .filter(format -> this.next == null || !this.next.formats.contains(format))
+                .filter(this.formats::contains)
+                .map(Format::getCloseTag)
+                .forEach(output::append);
 
         if (this.next != null) {
-            output.append(this.next); // toString is implicit
+            output.append(this.next.write0());
         }
 
         return output.toString();
+    }
+
+    @Override
+    public String toString() {
+        return this.previous != null ? this.previous.toString() : this.write();
     }
 
     @Override
@@ -303,5 +400,64 @@ public class RichText extends Text {
         result = 31 * result + this.size;
         result = 31 * result + (this.next != null ? this.next.hashCode0() : 0);
         return result;
+    }
+
+    public static RichText fromHtml(String html){
+        Document doc = Jsoup.parse(html);
+        doc.outputSettings().prettyPrint(false);
+        RichText root = new RichText("");
+        parse(root, doc.getElementsByTag("body").get(0));
+        return root;
+    }
+
+    private  static RichText parse(RichText root, Node node) {
+        RichText current = root;
+        if (node instanceof Element) {
+            Element elem = (Element) node;
+            applyTag(current, elem);
+            String inner = elem.html();
+            Elements children = elem.children();
+            if (children.size() > 0) {
+                String[] parts = new String[children.size() + 1];
+                int i = 0;
+                int index = 0;
+                for (Element child : children) {
+                    int startChild = inner.indexOf("<" + child.tag().toString(), index);
+                    int endChild = startChild + child.outerHtml().length();
+                    parts[i++] = inner.substring(index, startChild);
+                    index = endChild;
+                }
+                parts[i] = inner.substring(index);
+                Element last = elem;
+                for (int j = 0; j < parts.length; j++) {
+                    if (hasTag(root, last)) {
+                        current.appendText(parts[j]);
+                    } else {
+                        current = current.append(parts[j], true);
+                        current.copyFormat(root);
+                    }
+                    if (j < children.size()) {
+                        Element child = children.get(j);
+                        if (!hasTag(current, child)) {
+                            current = current.append("", true);
+                            current.copyFormat(root);
+                        }
+                        current = parse(current, child);
+                        last = child;
+                    }
+                }
+            } else {
+                current.appendText(inner);
+            }
+        }
+        return current;
+    }
+
+    private static void applyTag(RichText text, Element tag) {
+        RichText.TAG_APPLIER.getOrDefault(tag.tagName(), (t, elem) -> {}).accept(text, tag);
+    }
+
+    private static boolean hasTag(RichText text, Element tag) {
+        return RichText.TAG_TEST.getOrDefault(tag.tagName(), (t, elem) -> true).test(text, tag);
     }
 }
