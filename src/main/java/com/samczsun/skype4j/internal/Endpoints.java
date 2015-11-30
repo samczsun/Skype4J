@@ -33,7 +33,7 @@ public class Endpoints {
     };
     public static final Provider<String> COOKIE = new Provider<String>() {
         public String provide(SkypeImpl skype) {
-            return "skypetoken_asm=" + skype.getSkypeToken();
+            return skype.getSkypeToken();
         }
     };
     public static final Endpoints ACCEPT_CONTACT_REQUEST = new Endpoints("https://api.skype.com/users/self/contacts/auth-request/%s/accept").skypetoken();

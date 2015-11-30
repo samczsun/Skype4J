@@ -274,7 +274,7 @@ public enum MessageType {
                     HttpURLConnection statusCon = Endpoints.IMG_STATUS.open(skype, blob, "imgpsh_fullsize").cookies(skype.getCookies()).get();
                     if (statusCon.getResponseCode() == 200) {
                         JsonObject obj = JsonObject.readFrom(new InputStreamReader(statusCon.getInputStream(), "UTF-8"));
-                        Endpoints.EndpointConnection econn = Endpoints.custom(obj.get("status_location").asString(), skype).cookies(skype.getCookies());
+                        Endpoints.EndpointConnection econn = Endpoints.custom(obj.get("status_location").asString(), skype).cookie("skypetoken_asm", Endpoints.COOKIE.provide(skype));
                         while (true) {
                             statusCon = econn.get();
                             if (statusCon.getResponseCode() == 200) {
@@ -286,7 +286,7 @@ public enum MessageType {
                                 throw ExceptionHandler.generateException("While getting URI object", statusCon);
                             }
                         }
-                        HttpURLConnection con = Endpoints.custom(obj.get("view_location").asString(), skype).get();
+                        HttpURLConnection con = Endpoints.custom(obj.get("view_location").asString(), skype).cookie("skypetoken_asm", Endpoints.COOKIE.provide(skype)).get();
                         if (con.getResponseCode() == 200) {
                             ByteArrayInputStream input = StreamUtils.copy(con.getInputStream());
                             BufferedImage img = ImageIO.read(input);
