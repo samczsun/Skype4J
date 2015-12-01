@@ -95,6 +95,7 @@
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <version>2.10.3</version>
                 <configuration>
+                    <quiet>true</quiet>
                     <charset>UTF-8</charset>
                     <docencoding>UTF-8</docencoding>
                     <sourcepath>${basedir}/src/main/java/</sourcepath>

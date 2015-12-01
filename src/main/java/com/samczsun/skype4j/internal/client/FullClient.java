@@ -163,7 +163,7 @@ public class FullClient extends SkypeImpl {
     }
 
     @Override
-    public GroupChat createGroupChat(Contact... contacts) throws ConnectionException, ChatNotFoundException {
+    public GroupChat createGroupChat(Contact... contacts) throws ConnectionException {
         try {
             JsonObject obj = new JsonObject();
             JsonArray allContacts = new JsonArray();

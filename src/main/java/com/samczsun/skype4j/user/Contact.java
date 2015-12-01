@@ -110,14 +110,14 @@ public interface Contact {
     /**
      * Authorize this contact
      *
-     * @throws ConnectionException
+     * @throws ConnectionException If an error occurs while connecting to the endpoint
      */
     void authorize() throws ConnectionException;
 
     /**
      * Unauthorize this contact
      *
-     * @throws ConnectionException
+     * @throws ConnectionException If an error occurs while connecting to the endpoint
      */
     void unauthorize() throws ConnectionException;
 
@@ -161,6 +161,8 @@ public interface Contact {
     /**
      * Get the private conversation between you and this user
      * @return The private conversation
+     * @throws ConnectionException If an error occurs while connecting to the endpoint
+     * @throws ChatNotFoundException If the contact does not exist or is a phone
      */
     Chat getPrivateConversation() throws ConnectionException, ChatNotFoundException;
 }

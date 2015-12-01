@@ -89,15 +89,17 @@ public interface Skype {
      *
      * @param name The name of the chat
      * @return The chat
-     * @throws ConnectionException If an exception occurs while fetching chat details
+     * @throws ConnectionException   If an exception occurs while fetching chat details
+     * @throws ChatNotFoundException If the chat does not exist
      */
     Chat getOrLoadChat(String name) throws ConnectionException, ChatNotFoundException;
 
     /**
      * Join the chat with the given id in the format of 19:xxxxx@thread.skype
+     *
      * @param chatId The skype chat id
      * @return The group chat object
-     * @throws ConnectionException If an exception occurs while joining the chat
+     * @throws ConnectionException   If an exception occurs while joining the chat
      * @throws ChatNotFoundException If the chat does not exist
      * @throws NoPermissionException If the chat is not public
      */
@@ -105,6 +107,7 @@ public interface Skype {
 
     /**
      * Load amount of chats in the past
+     *
      * @param amount The amount of chats
      * @return The chats loaded
      * @throws ConnectionException If an error occurs while connecting
@@ -181,18 +184,18 @@ public interface Skype {
 
     /**
      * Create a new group chat with the selected contacts. You will be automatically added to the group
-     * If an error occurs while creating the chat, an {@link ConnectionException} or an {@link ChatNotFoundException} will be thrown
      *
      * @param contacts The contacts to add
      * @return The newly created group chat
-     * @throws ConnectionException
-     * @throws ChatNotFoundException
+     * @throws ConnectionException If an error occurs while connecting to the endpoint
      */
-    GroupChat createGroupChat(Contact... contacts) throws ConnectionException, ChatNotFoundException;
+    GroupChat createGroupChat(Contact... contacts) throws ConnectionException;
 
     /**
      * Set your current visibility
+     *
      * @param visibility The visibility to set
+     * @throws ConnectionException If an error occurs while connecting to the endpoint
      */
     void setVisibility(Visibility visibility) throws ConnectionException;
 }

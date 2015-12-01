@@ -36,7 +36,7 @@ public interface ReceivedFile {
 
     /**
      * Get the tid. Not sure what this does
-     * @return
+     * @return The tid
      */
     long getTid();
 }

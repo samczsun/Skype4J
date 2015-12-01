@@ -212,7 +212,7 @@ public class GuestClient extends SkypeImpl {
     }
 
     @Override
-    public GroupChat createGroupChat(Contact... contacts) throws ConnectionException, ChatNotFoundException {
+    public GroupChat createGroupChat(Contact... contacts) throws ConnectionException {
         throw new UnsupportedOperationException("Not supported with a guest account");
     }
 

@@ -53,7 +53,7 @@ public interface User {
     /**
      * Set the role of this user
      *
-     * @param role
+     * @param role The new role
      * @throws ConnectionException   If an error occurs while connecting to the endpoint
      * @throws NoPermissionException If a permission error occurs
      */

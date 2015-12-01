@@ -17,17 +17,10 @@
 package com.samczsun.skype4j.formatting;
 
 import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.nodes.Node;
-import org.jsoup.nodes.TextNode;
-import org.jsoup.select.NodeVisitor;
 
-import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Stack;
 
 /**
  * Represents a formatted message
@@ -40,6 +33,7 @@ public class Message {
 
     /**
      * Create a new message
+     *
      * @return The message object
      */
     public static Message create() {
@@ -49,6 +43,7 @@ public class Message {
     /**
      * Add a child to this message
      *
+     * @param text The child
      * @return The same message instance
      */
     public Message with(Text text) {
@@ -81,7 +76,7 @@ public class Message {
     /**
      * Get the value of this message as plaintext
      *
-     * @return
+     * @return The plaintext value of this object
      */
     public String asPlaintext() {
         return Jsoup.parse(write()).text();
@@ -90,7 +85,8 @@ public class Message {
     /**
      * Get the child component at the given index
      *
-     * @return The same text component at the given index
+     * @param index The index of the child
+     * @return The child component
      */
     public Text child(int index) {
         return this.components.get(index);
@@ -107,6 +103,7 @@ public class Message {
 
     /**
      * Parse a message from raw HTML
+     *
      * @param text The HTML to parse from
      * @return The message object
      */
