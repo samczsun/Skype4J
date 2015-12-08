@@ -30,7 +30,6 @@ import org.jsoup.Connection;
 
 import java.net.HttpURLConnection;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
@@ -57,19 +56,11 @@ public class GuestClient extends SkypeImpl {
                         .add("spaceId", "Skype4J")
                         .add("flowId", "Skype4J"));
         this.skypeToken = response.get("skypetoken").asString();
+        Connection.Response asmResponse = getAsmToken();
+        this.cookies = new HashMap<>(asmResponse.cookies());
 
-        Map<String, String> tCookies = new HashMap<>();
-        Connection.Response asmResponse = getAsmToken(tCookies, skypeToken);
-        tCookies.putAll(asmResponse.cookies());
-
-        HttpURLConnection registrationToken = registerEndpoint(skypeToken);
-        String[] splits = registrationToken.getHeaderField("Set-RegistrationToken").split(";");
-        String tRegistrationToken = splits[0];
-        String tEndpointId = splits[2].split("=")[1];
-
-        this.registrationToken = tRegistrationToken;
-        this.endpointId = tEndpointId;
-        this.cookies = tCookies;
+        HttpURLConnection registrationToken = registerEndpoint();
+        this.setRegistrationToken(registrationToken.getHeaderField("Set-RegistrationToken"));
 
         try {
             this.registerWebSocket();
@@ -98,6 +89,11 @@ public class GuestClient extends SkypeImpl {
 
     @Override
     public void loadAllContacts() throws ConnectionException {
+        throw new UnsupportedOperationException("Not supported with a guest account");
+    }
+
+    @Override
+    public void getContactRequests(boolean fromWebsocket) throws ConnectionException {
         throw new UnsupportedOperationException("Not supported with a guest account");
     }
 

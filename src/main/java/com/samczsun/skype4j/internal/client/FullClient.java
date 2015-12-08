@@ -33,7 +33,6 @@ import com.samczsun.skype4j.internal.Endpoints;
 import com.samczsun.skype4j.internal.ExceptionHandler;
 import com.samczsun.skype4j.internal.SkypeImpl;
 import com.samczsun.skype4j.internal.StreamUtils;
-import com.samczsun.skype4j.internal.Utils;
 import com.samczsun.skype4j.internal.threads.KeepaliveThread;
 import com.samczsun.skype4j.user.Contact;
 import org.jsoup.Connection.Method;
@@ -57,11 +56,23 @@ import java.util.regex.Pattern;
 
 public class FullClient extends SkypeImpl {
     private static final Pattern URL_PATTERN = Pattern.compile("threads/(.*)", Pattern.CASE_INSENSITIVE);
+
     private final String password;
 
     public FullClient(String username, String password, Set<String> resources, Logger customLogger) {
         super(username, resources, customLogger);
         this.password = password;
+    }
+
+    @Override
+    public void login() throws InvalidCredentialsException, ConnectionException, ParseException {
+        login(new String[0]);
+    }
+
+    @Override
+    public void logout() throws ConnectionException {
+        Endpoints.LOGOUT_URL.open(this).expect(200, "While logging out").cookies(cookies).get();
+        shutdown();
     }
 
     @Override
@@ -71,27 +82,18 @@ public class FullClient extends SkypeImpl {
                 .as(JsonObject.class)
                 .expect(200, "While loading contacts")
                 .get();
-        Utils
-                .asStream(object.get("contacts").asArray())
-                .map(JsonValue::asObject)
-                .filter(val -> val.get("suggested") == null || !val.get("suggested").asBoolean())
-                .forEach(this::loadContact0);
-    }
-
-    private void loadContact0(JsonObject object) {
-        if (!this.allContacts.containsKey(object.get("id").asString())) {
-            ContactImpl contact = new ContactImpl(this, object);
-            this.allContacts.put(object.get("id").asString(), contact);
+        for (JsonValue value : object.get("contacts").asArray()) {
+            JsonObject obj = value.asObject();
+            if (obj.get("suggested") == null || !obj.get("suggested").asBoolean()) {
+                if (!allContacts.containsKey(obj.get("id").asString())) {
+                    this.allContacts.put(obj.get("id").asString(), new ContactImpl(this, obj));
+                }
+            }
         }
     }
 
     @Override
-    public void logout() throws ConnectionException {
-        Endpoints.LOGOUT_URL.open(this).expect(200, "While logging out").cookies(cookies).get();
-        shutdown();
-    }
-
-    public void checkForNewContactRequests() throws ConnectionException, IOException {
+    public void getContactRequests(boolean fromWebsocket) throws ConnectionException {
         JsonArray array = Endpoints.AUTH_REQUESTS_URL
                 .open(this)
                 .as(JsonArray.class)
@@ -104,34 +106,17 @@ public class FullClient extends SkypeImpl {
                         getOrLoadContact(contactRequestObj.get("sender").asString()),
                         contactRequestObj.get("greeting").asString(), this);
                 if (!this.allContactRequests.contains(request)) {
-                    ContactRequestEvent event = new ContactRequestEvent(request);
-                    getEventDispatcher().callEvent(event);
+                    if (fromWebsocket) {
+                        ContactRequestEvent event = new ContactRequestEvent(request);
+                        getEventDispatcher().callEvent(event);
+                    }
                     this.allContactRequests.add(request);
                 }
             } catch (java.text.ParseException e) {
                 getLogger().log(Level.WARNING, "Could not parse date for contact request", e);
             }
         }
-        this.updateContactList();
-    }
-
-
-    private void loadAuthorizationRequests() throws ConnectionException {
-        JsonArray array = Endpoints.AUTH_REQUESTS_URL
-                .open(this)
-                .as(JsonArray.class)
-                .expect(200, "While loading authorization requests")
-                .get();
-        for (JsonValue contactRequest : array) {
-            JsonObject contactRequestObj = contactRequest.asObject();
-            try {
-                this.allContactRequests.add(new ContactRequestImpl(contactRequestObj.get("event_time").asString(),
-                        getOrLoadContact(contactRequestObj.get("sender").asString()),
-                        contactRequestObj.get("greeting").asString(), this));
-            } catch (java.text.ParseException e) {
-                getLogger().log(Level.WARNING, "Could not parse date for authorization request", e);
-            }
-        }
+        if (fromWebsocket) this.updateContactList();
     }
 
     @Override
@@ -152,80 +137,32 @@ public class FullClient extends SkypeImpl {
 
     @Override
     public GroupChat createGroupChat(Contact... contacts) throws ConnectionException {
-        try {
-            JsonObject obj = new JsonObject();
-            JsonArray allContacts = new JsonArray();
-            JsonObject me = new JsonObject();
-            me.add("id", "8:" + this.getUsername());
-            me.add("role", "Admin");
-            allContacts.add(me);
-            for (Contact contact : contacts) {
-                JsonObject other = new JsonObject();
-                other.add("id", "8:" + contact.getUsername());
-                other.add("role", "User");
-                allContacts.add(other);
-            }
-            obj.add("members", allContacts);
-            HttpURLConnection con = Endpoints.THREAD_URL.open(this).dontConnect().post(obj);
-            if (con.getResponseCode() != 201) {
-                throw ExceptionHandler.generateException("While creating group chat", con);
-            }
-            String url = con.getHeaderField("Location");
-            Matcher chatMatcher = URL_PATTERN.matcher(url);
-            if (chatMatcher.find()) {
-                GroupChat result = (GroupChat) this.getChat(chatMatcher.group(1));
-                while (result == null) {
-                    result = (GroupChat) this.getChat(chatMatcher.group(1));
-                }
-                return result;
-            } else {
-                throw new IllegalArgumentException("Unable to create chat");
-            }
-        } catch (IOException e) {
-            throw ExceptionHandler.generateException("While creating group chat", e);
+        JsonObject obj = new JsonObject();
+        JsonArray allContacts = new JsonArray();
+        allContacts.add(new JsonObject().add("id", "8:" + this.getUsername()).add("role", "Admin"));
+        for (Contact contact : contacts) {
+            allContacts.add(new JsonObject().add("id", "8:" + contact.getUsername()).add("role", "User"));
         }
-    }
-
-    private Response postToLogin(String username, String password, String[] captchaData) throws ConnectionException {
-        try {
-            Map<String, String> data = new HashMap<>();
-            Document loginDocument = Jsoup.connect(Endpoints.LOGIN_URL.url()).get();
-            Element loginForm = loginDocument.getElementById("loginForm");
-            for (Element input : loginForm.getElementsByTag("input")) {
-                data.put(input.attr("name"), input.attr("value"));
-            }
-            Date now = new Date();
-            data.put("timezone_field", new SimpleDateFormat("XXX").format(now).replace(':', '|'));
-            data.put("username", username);
-            data.put("password", password);
-            data.put("js_time", String.valueOf(now.getTime() / 1000));
-            if (captchaData.length > 0) {
-                data.put("hip_solution", captchaData[0]);
-                data.put("hip_token", captchaData[1]);
-                data.put("fid", captchaData[2]);
-                data.put("hip_type", "visual");
-                data.put("captcha_provider", "Hip");
-            } else {
-                data.remove("hip_solution");
-                data.remove("hip_token");
-                data.remove("fid");
-                data.remove("hip_type");
-                data.remove("captcha_provider");
-            }
-            return Jsoup.connect(Endpoints.LOGIN_URL.url()).data(data).method(Method.POST).execute();
-        } catch (IOException e) {
-            throw new ConnectionException("While submitting credentials", e);
+        obj.add("members", allContacts);
+        HttpURLConnection con = Endpoints.THREAD_URL
+                .open(this)
+                .as(HttpURLConnection.class)
+                .expect(201, "While creating group chat")
+                .post(obj);
+        String url = con.getHeaderField("Location");
+        Matcher chatMatcher = URL_PATTERN.matcher(url);
+        if (chatMatcher.find()) {
+            String id = chatMatcher.group(1);
+            while (this.getChat(id) == null) ;
+            return (GroupChat) this.getChat(id);
+        } else {
+            throw ExceptionHandler.generateException("No chat location", con);
         }
-    }
-
-    public void login() throws InvalidCredentialsException, ConnectionException, ParseException {
-        login(new String[0]);
     }
 
     private void login(String[] captchaData) throws InvalidCredentialsException, ConnectionException, ParseException {
-        final Map<String, String> tCookies = new HashMap<>();
         final Response loginResponse = postToLogin(username, password, captchaData);
-        tCookies.putAll(loginResponse.cookies());
+        this.cookies = new HashMap<>(loginResponse.cookies());
         Document loginResponseDocument;
         try {
             loginResponseDocument = loginResponse.parse();
@@ -234,17 +171,14 @@ public class FullClient extends SkypeImpl {
         }
         Elements inputs = loginResponseDocument.select("input[name=skypetoken]");
         if (inputs.size() > 0) {
-            String tSkypeToken = inputs.get(0).attr("value");
-            Response asmResponse = getAsmToken(tCookies, tSkypeToken);
-            tCookies.putAll(asmResponse.cookies());
-            this.skypeToken = tSkypeToken;
-            this.cookies = tCookies;
+            this.skypeToken = inputs.get(0).attr("value");
+            Response asmResponse = getAsmToken();
+            this.cookies.putAll(asmResponse.cookies());
 
-            HttpURLConnection registrationToken = registerEndpoint(tSkypeToken);
-            setRegistrationToken(registrationToken.getHeaderField("Set-RegistrationToken"));
+            registerEndpoint();
 
             this.loadAllContacts();
-            this.loadAuthorizationRequests();
+            this.getContactRequests(false);
             try {
                 this.registerWebSocket();
             } catch (Exception e) {
@@ -315,6 +249,38 @@ public class FullClient extends SkypeImpl {
                             "Could not find error message. Dumping entire page. \n" + loginResponseDocument.html());
                 }
             }
+        }
+    }
+
+    private Response postToLogin(String username, String password, String[] captchaData) throws ConnectionException {
+        try {
+            Map<String, String> data = new HashMap<>();
+            Document loginDocument = Jsoup.connect(Endpoints.LOGIN_URL.url()).get();
+            Element loginForm = loginDocument.getElementById("loginForm");
+            for (Element input : loginForm.getElementsByTag("input")) {
+                data.put(input.attr("name"), input.attr("value"));
+            }
+            Date now = new Date();
+            data.put("timezone_field", new SimpleDateFormat("XXX").format(now).replace(':', '|'));
+            data.put("username", username);
+            data.put("password", password);
+            data.put("js_time", String.valueOf(now.getTime() / 1000));
+            if (captchaData.length > 0) {
+                data.put("hip_solution", captchaData[0]);
+                data.put("hip_token", captchaData[1]);
+                data.put("fid", captchaData[2]);
+                data.put("hip_type", "visual");
+                data.put("captcha_provider", "Hip");
+            } else {
+                data.remove("hip_solution");
+                data.remove("hip_token");
+                data.remove("fid");
+                data.remove("hip_type");
+                data.remove("captcha_provider");
+            }
+            return Jsoup.connect(Endpoints.LOGIN_URL.url()).data(data).method(Method.POST).execute();
+        } catch (IOException e) {
+            throw ExceptionHandler.generateException("While submitting credentials", e);
         }
     }
 }

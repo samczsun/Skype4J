@@ -23,7 +23,6 @@ import com.samczsun.skype4j.exceptions.ConnectionException;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -39,35 +38,28 @@ public class Endpoints {
     private static Map<Class<?>, Converter<?>> converters = new HashMap<>();
 
     static {
-        converters.put(InputStream.class, (skype, in) -> in.getInputStream());
-        converters.put(HttpURLConnection.class, (skype, in) -> in);
-        converters.put(JsonObject.class, (skype, in) -> Utils.parseJsonObject(in.getInputStream()));
-        converters.put(JsonArray.class, (skype, in) -> Utils.parseJsonArray(in.getInputStream()));
-        converters.put(String.class, (skype, in) -> StreamUtils.readFully(in.getInputStream()));
-        converters.put(BufferedImage.class, (skype, in) -> ImageIO.read(in.getInputStream()));
+        converters.put(InputStream.class, HttpURLConnection::getInputStream);
+        converters.put(HttpURLConnection.class, in -> in);
+        converters.put(JsonObject.class, in -> Utils.parseJsonObject(in.getInputStream()));
+        converters.put(JsonArray.class, in -> Utils.parseJsonArray(in.getInputStream()));
+        converters.put(String.class, in -> StreamUtils.readFully(in.getInputStream()));
+        converters.put(BufferedImage.class, in -> ImageIO.read(in.getInputStream()));
     }
 
     public static <T> T convert(Class<?> type, SkypeImpl skype, HttpURLConnection in) throws IOException {
-        return (T) converters.get(type).convert(skype, in);
+        return (T) converters.get(type).convert(in);
     }
 
-    public static final Provider<String> AUTHORIZATION = new Provider<String>() {
-        public String provide(SkypeImpl skype) {
-            return "skype_token " + skype.getSkypeToken();
-        }
-    };
-    public static final Provider<String> COOKIE = new Provider<String>() {
-        public String provide(SkypeImpl skype) {
-            return "skypetoken_asm=" + skype.getSkypeToken();
-        }
-    };
+    public static final Provider<String> AUTHORIZATION = skype -> "skype_token " + skype.getSkypeToken();
+    public static final Provider<String> COOKIE = skype -> "skypetoken_asm=" + skype.getSkypeToken();
     public static final Endpoints ACCEPT_CONTACT_REQUEST = new Endpoints(
             "https://api.skype.com/users/self/contacts/auth-request/%s/accept").skypetoken();
     public static final Endpoints GET_JOIN_URL = new Endpoints("https://api.scheduler.skype.com/threads").skypetoken();
     public static final Endpoints CHAT_INFO_URL = new Endpoints(
             "https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/?view=msnp24Equivalent").cloud().regtoken();
     public static final Endpoints CONVERSATION_PROPERTY_SELF = new Endpoints(
-            "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/conversations/%s/properties?name=%s").cloud()
+            "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/conversations/%s/properties?name=%s")
+            .cloud()
             .regtoken();
     public static final Endpoints SEND_MESSAGE_URL = new Endpoints(
             "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/conversations/%s/messages").cloud().regtoken();
@@ -95,13 +87,16 @@ public class Endpoints {
             .cloud()
             .regtoken();
     public static final Endpoints SUBSCRIPTIONS_URL = new Endpoints(
-            "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/SELF/subscriptions").cloud()
+            "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/SELF/subscriptions")
+            .cloud()
             .regtoken();
     public static final Endpoints MESSAGINGSERVICE_URL = new Endpoints(
-            "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/%s/presenceDocs/messagingService").cloud()
+            "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/%s/presenceDocs/messagingService")
+            .cloud()
             .regtoken();
     public static final Endpoints POLL = new Endpoints(
-            "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/SELF/subscriptions/%s/poll").cloud()
+            "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/SELF/subscriptions/%s/poll")
+            .cloud()
             .regtoken();
     public static final Endpoints NEW_GUEST = new Endpoints("https://join.skype.com/api/v1/users/guests");
     public static final Endpoints LEAVE_GUEST = new Endpoints("https://join.skype.com/guests/leave?threadId=%s");
@@ -122,7 +117,8 @@ public class Endpoints {
     public static final Endpoints FETCH_IMAGE = new Endpoints(
             "https://api.asm.skype.com/v1/objects/%s/views/%s").defaultHeader("Authorization", AUTHORIZATION);
     public static final Endpoints VISIBILITY = new Endpoints(
-            "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/presenceDocs/messagingService").cloud()
+            "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/presenceDocs/messagingService")
+            .cloud()
             .regtoken();
     public static final Endpoints SEARCH_SKYPE_DIRECTORY = new Endpoints(
             "https://api.skype.com/search/users/any?keyWord=%s&contactTypes[]=skype").skypetoken();
@@ -147,6 +143,8 @@ public class Endpoints {
             "https://api.skype.com/users/self/contacts/auth-request/%s").skypetoken();
     public static final Endpoints CONTACT_INFO = new Endpoints(
             "https://api.skype.com/users/self/contacts/profiles").skypetoken();
+    public static final Endpoints RECONNECT_WEBSOCKET = new Endpoints(
+            "https://go.trouter.io/v2/h?ccid=%s&dom=web.skype.com");
 
     private boolean requiresCloud;
     private boolean requiresRegToken;
@@ -391,6 +389,6 @@ public class Endpoints {
     }
 
     public interface Converter<T> {
-        T convert(SkypeImpl skype, HttpURLConnection connection) throws IOException;
+        T convert(HttpURLConnection connection) throws IOException;
     }
 }

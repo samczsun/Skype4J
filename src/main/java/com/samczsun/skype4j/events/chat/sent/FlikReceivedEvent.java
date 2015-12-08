@@ -14,12 +14,28 @@
  *    limitations under the License.
  */
 
-package com.samczsun.skype4j.formatting;
+package com.samczsun.skype4j.events.chat.sent;
 
-public interface IFlik {
-    String getEtag();
+import com.samczsun.skype4j.chat.Chat;
+import com.samczsun.skype4j.events.chat.ChatEvent;
+import com.samczsun.skype4j.formatting.IFlik;
+import com.samczsun.skype4j.user.User;
 
-    String getDescription();
+public class FlikReceivedEvent extends ChatEvent {
+    private User sender;
+    private IFlik sent;
 
-    String getId();
+    public FlikReceivedEvent(Chat c, User sender, IFlik sent) {
+        super(c);
+        this.sender = sender;
+        this.sent = sent;
+    }
+
+    public User getSender() {
+        return this.sender;
+    }
+
+    public IFlik getFlik() {
+        return this.sent;
+    }
 }

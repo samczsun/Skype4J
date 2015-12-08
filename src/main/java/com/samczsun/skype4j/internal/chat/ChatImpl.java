@@ -23,6 +23,7 @@ import com.samczsun.skype4j.chat.messages.ChatMessage;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.NotLoadedException;
+import com.samczsun.skype4j.formatting.IFlik;
 import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.formatting.Text;
 import com.samczsun.skype4j.internal.Endpoints;
@@ -141,6 +142,21 @@ public abstract class ChatImpl implements Chat {
         } catch (IOException e) {
             throw ExceptionHandler.generateException("While sending message", e);
         }
+    }
+
+    @Override
+    public void sendFlik(IFlik flik) throws ConnectionException {
+        checkLoaded();
+        long ms = System.currentTimeMillis();
+        String content = "<URIObject type=\"Video.1/Flik.1\" uri=\"https://static.asm.skype.com/pes/v1/items/%s\" url_thumbnail=\"https://static.asm.skype.com/pes/v1/items/%s/views/thumbnail\"><a href=\"https://static.asm.skype.com/pes/v1/items/%s/views/default\">https://static.asm.skype.com/pes/v1/items/%s/views/default</a><OriginalName v=\"\"/></URIObject>";
+        content = String.format(content, flik.getId(), flik.getId(), flik.getId(), flik.getId());
+        JsonObject obj = new JsonObject();
+        obj.add("content", content);
+        obj.add("messagetype", "RichText/Media_FlikMsg");
+        obj.add("contenttype", "text");
+        obj.add("clientmessageid", String.valueOf(ms));
+
+        Endpoints.SEND_MESSAGE_URL.open(getClient(), getIdentity()).expect(201, "While sending message").post(obj);
     }
 
     @Override

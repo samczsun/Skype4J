@@ -18,16 +18,25 @@ package com.samczsun.skype4j.formatting.lang;
 
 import com.samczsun.skype4j.formatting.IFlik;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public enum DefaultFlik implements IFlik {
 
     ;
 
+    private String id;
     private String etag;
     private String desc;
 
-    DefaultFlik(String etag, String desc) {
+    DefaultFlik(String id, String etag, String desc) {
+        this.id = id;
         this.etag = etag;
         this.desc = desc;
+    }
+
+    public String getId() {
+        return this.id;
     }
 
     public String getEtag() {
@@ -36,5 +45,17 @@ public enum DefaultFlik implements IFlik {
 
     public String getDescription() {
         return this.desc;
+    }
+
+    private static final Map<String, IFlik> fliks = new HashMap<>();
+
+    static {
+        for (IFlik flik : values()) {
+            fliks.put(flik.getId(), flik);
+        }
+    }
+
+    public static IFlik getById(String id) {
+        return fliks.get(id);
     }
 }

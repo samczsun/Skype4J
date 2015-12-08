@@ -20,6 +20,7 @@ import com.samczsun.skype4j.Skype;
 import com.samczsun.skype4j.chat.messages.ChatMessage;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.NotLoadedException;
+import com.samczsun.skype4j.formatting.IFlik;
 import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.User;
@@ -78,6 +79,14 @@ public interface Chat {
      * @throws ConnectionException If an error occurs while connecting to the endpoint
      */
     void sendFile(File file) throws ConnectionException;
+
+    /**
+     * Sends a FlikMsg to this chat
+     *
+     * @param flik The appropriate lang-based Flik message
+     * @throws ConnectionException If an error occurs while connecting to the endpoint
+     */
+    void sendFlik(IFlik flik) throws ConnectionException;
 
     /**
      * Get the {@link User} object represented by that username. Usernames are case insensitive

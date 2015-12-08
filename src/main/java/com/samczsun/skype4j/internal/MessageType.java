@@ -33,15 +33,16 @@ import com.samczsun.skype4j.events.chat.message.MessageSentEvent;
 import com.samczsun.skype4j.events.chat.message.SmsReceivedEvent;
 import com.samczsun.skype4j.events.chat.sent.ContactReceivedEvent;
 import com.samczsun.skype4j.events.chat.sent.FileReceivedEvent;
+import com.samczsun.skype4j.events.chat.sent.FlikReceivedEvent;
 import com.samczsun.skype4j.events.chat.sent.LocationReceivedEvent;
 import com.samczsun.skype4j.events.chat.sent.MultiContactReceivedEvent;
 import com.samczsun.skype4j.events.chat.sent.PictureReceivedEvent;
 import com.samczsun.skype4j.events.chat.sent.TypingReceivedEvent;
 import com.samczsun.skype4j.events.chat.user.LegacyMemberAddedEvent;
+import com.samczsun.skype4j.events.chat.user.LegacyMemberUpgradedEvent;
 import com.samczsun.skype4j.events.chat.user.MultiUserAddEvent;
 import com.samczsun.skype4j.events.chat.user.UserAddEvent;
 import com.samczsun.skype4j.events.chat.user.UserRemoveEvent;
-import com.samczsun.skype4j.events.chat.user.LegacyMemberUpgradedEvent;
 import com.samczsun.skype4j.events.chat.user.action.OptionUpdateEvent;
 import com.samczsun.skype4j.events.chat.user.action.PictureUpdateEvent;
 import com.samczsun.skype4j.events.chat.user.action.RoleUpdateEvent;
@@ -49,7 +50,9 @@ import com.samczsun.skype4j.events.chat.user.action.TopicUpdateEvent;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.SkypeException;
+import com.samczsun.skype4j.formatting.IFlik;
 import com.samczsun.skype4j.formatting.Message;
+import com.samczsun.skype4j.formatting.lang.en.Flik;
 import com.samczsun.skype4j.internal.chat.ChatGroup;
 import com.samczsun.skype4j.internal.chat.ChatImpl;
 import com.samczsun.skype4j.internal.chat.messages.ChatMessageImpl;
@@ -324,13 +327,17 @@ public enum MessageType {
     },
     RICH_TEXT_MEDIA_FLIK_MSG("RichText/Media_FlikMsg") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) {
-            skype.getEventDispatcher().callEvent(new UnsupportedEvent(name(), resource.toString()));
-            skype
-                    .getLogger()
-                    .log(Level.SEVERE,
-                            name() + " is in need of implementation! Please open a ticket with the following JSON data");
-            skype.getLogger().log(Level.SEVERE, resource.toString());
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, IOException, ChatNotFoundException {
+            ChatImpl chat = getChat(resource, skype);
+            UserImpl sender = getSender(resource, chat);
+            String content = Utils.getString(resource, "content");
+            Validate.notNull(content, "Null content");
+            Matcher matcher = URIOBJECT_URI.matcher(content);
+            Validate.isTrue(matcher.find(), "Bad match");
+            String id = (id = matcher.group(1)).substring(id.lastIndexOf('/') + 1, id.length());
+            IFlik flik = Flik.getById(id);
+            Validate.notNull(flik, "No such flik");
+            skype.getEventDispatcher().callEvent(new FlikReceivedEvent(chat, sender, flik));
         }
     },
     EVENT_SKYPE_VIDEO_MESSAGE("Event/SkypeVideoMessage") {
@@ -440,7 +447,7 @@ public enum MessageType {
             if (timeMatcher.find() && valueMatcher.find()) {
                 long time = Long.parseLong(timeMatcher.group(1));
                 String topic = valueMatcher.groupCount() > 0 ? HtmlEscape.unescapeHtml(valueMatcher.group(1)) : "";
-                TopicUpdateEvent event = new TopicUpdateEvent(initiator, time, ((ChatGroup)chat).getTopic(), topic);
+                TopicUpdateEvent event = new TopicUpdateEvent(initiator, time, ((ChatGroup) chat).getTopic(), topic);
                 skype.getEventDispatcher().callEvent(event);
                 ((ChatGroup) chat).updateTopic(topic);
             } else {
@@ -612,6 +619,8 @@ public enum MessageType {
     private static final Pattern VIDEOMESSAGE = Pattern.compile("<videomessage[^>]*?\\ssid=\"([a-f0-9]{32})\"",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern URIOBJECT = Pattern.compile("<URIObject[^>]*?\\stype=\"([^\"]+?)\"",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern URIOBJECT_URI = Pattern.compile("<URIObject[^>]*?\\suri=\"([^\"]+?)\"",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern CONVERSATION = Pattern.compile("/(\\d+:[^?]*)");
     private static final Pattern INITIATOR = Pattern.compile("<initiator>(\\d+:.+)</initiator>");

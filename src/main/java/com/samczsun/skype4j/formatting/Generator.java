@@ -125,13 +125,14 @@ public class Generator {
                         int x = 0;
                         String enumname = obj.get("description").asString().toUpperCase().replace(' ', '_').replaceAll("[^a-zA-Z]", "");
                         String orig = enumname;
+                        String id = obj.get("id").asString();
                         String etag = obj.get("etag").asString();
                         String desc = obj.get("description").asString();
                         while (!enumnames.add(enumname)) {
                             enumname = orig + "_" + (++x);
                         }
-                        pr.println(String.format("    %s(\"%s\",\"%s\")" + (i == emoticons.size() - 1 ? ";" : ","),
-                                enumname, etag, desc));
+                        pr.println(String.format("    %s(\"%s\", \"%s\", \"%s\")" + (i == emoticons.size() - 1 ? ";" : ","),
+                                enumname, id, etag, desc));
                     }
                 } else {
                     pr.println(next);

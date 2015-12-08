@@ -112,6 +112,8 @@ public abstract class SkypeImpl implements Skype {
     protected final Map<String, Contact> allContacts = new ConcurrentHashMap<>();
     protected final List<ContactRequest> allContactRequests = new ArrayList<>();
 
+    private JsonObject trouterData;
+
     public SkypeImpl(String username, Set<String> resources, Logger logger) {
         this.username = username;
         this.resources = Collections.unmodifiableSet(new HashSet<>(resources));
@@ -368,7 +370,7 @@ public abstract class SkypeImpl implements Skype {
         return Collections.unmodifiableCollection(this.allContacts.values());
     }
 
-    protected HttpURLConnection registerEndpoint(String skypeToken) throws ConnectionException {
+    protected HttpURLConnection registerEndpoint() throws ConnectionException {
         HttpURLConnection connection = Endpoints.ENDPOINTS_URL
                 .open(this)
                 .as(HttpURLConnection.class)
@@ -388,7 +390,7 @@ public abstract class SkypeImpl implements Skype {
         }
     }
 
-    protected Connection.Response getAsmToken(Map<String, String> cookies, String skypeToken) throws ConnectionException {
+    protected Connection.Response getAsmToken() throws ConnectionException {
         try {
             return Jsoup
                     .connect(Endpoints.TOKEN_AUTH_URL.url())
@@ -408,28 +410,40 @@ public abstract class SkypeImpl implements Skype {
                 .put(new JsonObject().add("status", visibility.internalName()));
     }
 
+    public abstract void getContactRequests(boolean fromWebsocket) throws ConnectionException;
+
     public abstract void updateContactList() throws ConnectionException;
 
     public void registerWebSocket() throws ConnectionException, InterruptedException, URISyntaxException, KeyManagementException, NoSuchAlgorithmException, UnsupportedEncodingException {
-        JsonObject trouter = Endpoints.TROUTER_URL
-                .open(this)
-                .as(JsonObject.class)
-                .expect(200, "While fetching trouter data")
-                .get();
+        if (this.isShutdownRequested() || !this.isLoggedIn()) return;
+        boolean needsToRegister = false;
+        if (trouterData == null) {
+            trouterData = Endpoints.TROUTER_URL
+                    .open(this)
+                    .as(JsonObject.class)
+                    .expect(200, "While fetching trouter data")
+                    .get();
+            needsToRegister = true;
+        } else {
+            Endpoints.RECONNECT_WEBSOCKET
+                    .open(this, trouterData.get("connId"))
+                    .expect(200, "Requesting websocket reconnect")
+                    .post();
+        }
 
         JsonObject policyResponse = Endpoints.POLICIES_URL
                 .open(this)
                 .as(JsonObject.class)
                 .expect(200, "While fetching policy data")
-                .post(new JsonObject().add("sr", trouter.get("connId")));
+                .post(new JsonObject().add("sr", trouterData.get("connId")));
 
         Map<String, String> data = new HashMap<>();
         for (JsonObject.Member value : policyResponse) {
             data.put(value.getName(), value.getValue().asString());
         }
-        data.put("r", trouter.get("instance").asString());
-        data.put("p", String.valueOf(trouter.get("instancePort").asInt()));
-        data.put("ccid", trouter.get("ccid").asString());
+        data.put("r", trouterData.get("instance").asString());
+        data.put("p", String.valueOf(trouterData.get("instancePort").asInt()));
+        data.put("ccid", trouterData.get("ccid").asString());
         data.put("v", "v2"); //TODO: MAGIC VALUE
         data.put("dom", "web.skype.com"); //TODO: MAGIC VALUE
         data.put("auth", "true"); //TODO: MAGIC VALUE
@@ -449,7 +463,7 @@ public abstract class SkypeImpl implements Skype {
                     .append("&");
         }
 
-        String socketURL = trouter.get("socketio").asString();
+        String socketURL = trouterData.get("socketio").asString();
         socketURL = socketURL.substring(socketURL.indexOf('/') + 2);
         socketURL = socketURL.substring(0, socketURL.indexOf(':'));
 
@@ -459,22 +473,24 @@ public abstract class SkypeImpl implements Skype {
                 .expect(200, "While fetching websocket details")
                 .get();
 
-        Endpoints.REGISTRATIONS
-                .open(this)
-                .expect(202, "While registering websocket")
-                .post(new JsonObject()
-                        .add("clientDescription", new JsonObject()
-                                .add("aesKey", "")
-                                .add("languageId", "en-US")
-                                .add("platform", "Chrome")
-                                .add("platformUIVersion", "908/1.16.0.82//skype.com")
-                                .add("templateKey", "SkypeWeb_1.1"))
-                        .add("registrationId", UUID.randomUUID().toString())
-                        .add("nodeId", "")
-                        .add("transports", new JsonObject().add("TROUTER", new JsonArray().add(new JsonObject()
-                                .add("context", "")
-                                .add("ttl", 3600)
-                                .add("path", trouter.get("surl"))))));
+        if (needsToRegister) {
+            Endpoints.REGISTRATIONS
+                    .open(this)
+                    .expect(202, "While registering websocket")
+                    .post(new JsonObject()
+                            .add("clientDescription", new JsonObject()
+                                    .add("aesKey", "")
+                                    .add("languageId", "en-US")
+                                    .add("platform", "Chrome")
+                                    .add("platformUIVersion", "908/1.16.0.82//skype.com")
+                                    .add("templateKey", "SkypeWeb_1.1"))
+                            .add("registrationId", UUID.randomUUID().toString())
+                            .add("nodeId", "")
+                            .add("transports", new JsonObject().add("TROUTER", new JsonArray().add(new JsonObject()
+                                    .add("context", "")
+                                    .add("ttl", 3600)
+                                    .add("path", trouterData.get("surl"))))));
+        }
 
         this.wss = new SkypeWebSocket(this,
                 new URI(String.format("%s/socket.io/1/websocket/%s?%s", "wss://" + socketURL,
@@ -490,13 +506,13 @@ public abstract class SkypeImpl implements Skype {
                     .post(buildSubscriptionObject());
             if (connection.getResponseCode() == 404) {
                 setRegistrationToken(connection.getHeaderField("Set-RegistrationToken"));
-                Endpoints.custom("https://" + this.cloud + "client-s.gateway.messenger.live.com/v1/users/ME/endpoints/" + this.endpointIdEncoded, this)
-                         .header("RegistrationToken", getRegistrationToken())
-                         .expect(200, "Err").put(new JsonObject());
-                connection = Endpoints.SUBSCRIPTIONS_URL
-                        .open(this)
-                        .dontConnect()
-                        .post(buildSubscriptionObject());
+                Endpoints
+                        .custom("https://" + this.cloud + "client-s.gateway.messenger.live.com/v1/users/ME/endpoints/" + this.endpointIdEncoded,
+                                this)
+                        .header("RegistrationToken", getRegistrationToken())
+                        .expect(200, "Err")
+                        .put(new JsonObject());
+                connection = Endpoints.SUBSCRIPTIONS_URL.open(this).dontConnect().post(buildSubscriptionObject());
             }
             if (connection.getResponseCode() != 201) {
                 throw ExceptionHandler.generateException("While subscribing", connection);
@@ -516,7 +532,7 @@ public abstract class SkypeImpl implements Skype {
         }
     }
 
-    public void setRegistrationToken(String registrationToken)  {
+    public void setRegistrationToken(String registrationToken) {
         String[] splits = registrationToken.split(";");
         String tRegistrationToken = splits[0];
         String tEndpointId = splits[2].split("=")[1];

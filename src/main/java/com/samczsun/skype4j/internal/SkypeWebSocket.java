@@ -116,9 +116,9 @@ public class SkypeWebSocket extends WebSocketClient {
             } else if (event == 14) {
                 try {
                     if (skype instanceof FullClient) {
-                        ((FullClient) skype).checkForNewContactRequests();
+                        skype.getContactRequests(true);
                     }
-                } catch (ConnectionException | IOException e) {
+                } catch (ConnectionException e) {
                     skype.getLogger().log(Level.SEVERE, String.format("Unhandled exception while parsing websocket message '%s'", s), e);
                 }
             } else {
