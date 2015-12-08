@@ -285,7 +285,13 @@ public class RichText extends Text {
                 .forEach(output::append);
 
         boolean font = size != -1 || color != null;
-        if (font) {
+        boolean openFont = font;
+        boolean openLink = this.link != null;
+        if (this.previous != null) {
+            openLink = openLink && !this.link.equals(this.previous.link);
+            openFont = openFont && (this.size != this.previous.size || !Objects.equals(this.color, this.previous.color));
+        }
+        if (openFont) {
             output.append("<font ");
             if (size != -1) {
                 output.append("size=\"").append(size).append("\" ");
@@ -296,7 +302,7 @@ public class RichText extends Text {
             output.setLength(output.length() - 1);
             output.append(">");
         }
-        if (this.link != null) {
+        if (openLink) {
             output.append("<a href=\"").append(this.link).append("\">");
         }
         output.append(this.text);

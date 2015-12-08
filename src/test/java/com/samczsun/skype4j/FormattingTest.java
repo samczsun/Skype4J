@@ -34,6 +34,22 @@ public class FormattingTest {
     }
 
     @Test
+    public void testFont() {
+        Message message = Message.create()
+                .with(Text.rich("test").withColor(Color.BLACK).withSize(10));
+        String html = "<font color=\"#000000\" size=\"10\">test</font>";
+        Assert.assertEquals(Message.fromHtml(html), message);
+    }
+
+    @Test
+    public void testLink() {
+        Message message = Message.create()
+                .with(Text.rich("test").withLink("http://google.com"));
+        String html = "<a href=\"http://google.com\">test</a>";
+        Assert.assertEquals(Message.fromHtml(html), message);
+    }
+
+    @Test
     public void testBuilding() {
         Message message = Message.create()
                 .with(Text.plain("Plain"))
