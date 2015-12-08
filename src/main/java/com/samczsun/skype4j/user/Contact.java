@@ -22,6 +22,7 @@ import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.NoSuchContactException;
 
 import java.awt.image.BufferedImage;
+import java.io.UnsupportedEncodingException;
 
 /**
  * Represents a contact
@@ -127,7 +128,7 @@ public interface Contact {
      * @throws ConnectionException If an error occurs while sending the request
      * @throws NoSuchContactException If the user does not exist
      */
-    void sendRequest(String message) throws ConnectionException, NoSuchContactException;
+    void sendRequest(String message) throws ConnectionException, NoSuchContactException, UnsupportedEncodingException;
 
     /**
      * Get whether this contact is blocked

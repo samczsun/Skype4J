@@ -35,4 +35,8 @@ public class RegisteredListener {
     public void handleEvent(Event e) throws IllegalAccessException, IllegalArgumentException, InvocationTargetException {
         this.method.invoke(listener, e);
     }
+
+    public Method getMethod() {
+        return this.method;
+    }
 }

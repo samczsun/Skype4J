@@ -14,10 +14,13 @@
  *    limitations under the License.
  */
 
-package com.samczsun.skype4j.chat.messages;
+package com.samczsun.skype4j.events.chat.user;
 
-/**
- * Represents a message that was received
- */
-public interface ReceivedMessage extends ChatMessage {
+import com.samczsun.skype4j.events.chat.user.UserEvent;
+import com.samczsun.skype4j.user.User;
+
+public class LegacyMemberUpgradedEvent extends UserEvent {
+    public LegacyMemberUpgradedEvent(User user) {
+        super(user);
+    }
 }

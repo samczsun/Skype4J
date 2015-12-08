@@ -14,10 +14,13 @@
  *    limitations under the License.
  */
 
-package com.samczsun.skype4j.chat.messages;
+package com.samczsun.skype4j.formatting;
 
-/**
- * Represents a message that was received
- */
-public interface ReceivedMessage extends ChatMessage {
+import java.util.List;
+
+public interface IEmoticon {
+    String getId();
+    List<String> getShortcuts();
+    String getEtag();
+    String getDescription();
 }

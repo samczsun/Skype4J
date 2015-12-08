@@ -24,7 +24,6 @@ import com.samczsun.skype4j.events.contact.ContactRequestEvent;
 import com.samczsun.skype4j.events.error.MinorErrorEvent;
 import com.samczsun.skype4j.events.misc.CaptchaEvent;
 import com.samczsun.skype4j.exceptions.CaptchaException;
-import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.InvalidCredentialsException;
 import com.samczsun.skype4j.exceptions.ParseException;
@@ -33,12 +32,9 @@ import com.samczsun.skype4j.internal.ContactRequestImpl;
 import com.samczsun.skype4j.internal.Endpoints;
 import com.samczsun.skype4j.internal.ExceptionHandler;
 import com.samczsun.skype4j.internal.SkypeImpl;
-import com.samczsun.skype4j.internal.SkypeWebSocket;
 import com.samczsun.skype4j.internal.StreamUtils;
 import com.samczsun.skype4j.internal.Utils;
-import com.samczsun.skype4j.internal.threads.ActiveThread;
 import com.samczsun.skype4j.internal.threads.KeepaliveThread;
-import com.samczsun.skype4j.internal.threads.PollThread;
 import com.samczsun.skype4j.user.Contact;
 import org.jsoup.Connection.Method;
 import org.jsoup.Connection.Response;
@@ -48,19 +44,12 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URLEncoder;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -75,48 +64,18 @@ public class FullClient extends SkypeImpl {
         this.password = password;
     }
 
-    public void subscribe() throws ConnectionException {
-        try {
-            HttpURLConnection connection = Endpoints.SUBSCRIPTIONS_URL.open(this).post(buildSubscriptionObject());
-
-            int code = connection.getResponseCode();
-            if (code != 201) {
-                throw ExceptionHandler.generateException("While subscribing", connection);
-            }
-
-            connection = Endpoints.MESSAGINGSERVICE_URL.open(this, URLEncoder.encode(endpointId, "UTF-8")).put(buildRegistrationObject());
-            code = connection.getResponseCode();
-            if (code != 200) {
-                throw ExceptionHandler.generateException("While submitting a messaging service", connection);
-            }
-
-            (pollThread = new PollThread(this)).start();
-            (activeThread = new ActiveThread(this, endpointId)).start();
-        } catch (IOException io) {
-            throw ExceptionHandler.generateException("While subscribing", io);
-        } catch (ConnectionException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     @Override
     public void loadAllContacts() throws ConnectionException {
-        try {
-            HttpURLConnection connection = Endpoints.GET_ALL_CONTACTS.open(this, getUsername(), "default").get();
-            if (connection.getResponseCode() != 200) {
-                throw ExceptionHandler.generateException("While loading all contacts", connection);
-            }
-            JsonObject obj = Utils.parseJsonObject(connection.getInputStream());
-            for (JsonValue value : obj.get("contacts").asArray()) {
-                if (value.asObject().get("suggested") == null || !value.asObject().get("suggested").asBoolean()) {
-                    loadContact0(value.asObject());
-                }
-            }
-        } catch (IOException e) {
-            throw ExceptionHandler.generateException("While loading all contacts", e);
-        }
+        JsonObject object = Endpoints.GET_ALL_CONTACTS
+                .open(this, getUsername(), "default")
+                .as(JsonObject.class)
+                .expect(200, "While loading contacts")
+                .get();
+        Utils
+                .asStream(object.get("contacts").asArray())
+                .map(JsonValue::asObject)
+                .filter(val -> val.get("suggested") == null || !val.get("suggested").asBoolean())
+                .forEach(this::loadContact0);
     }
 
     private void loadContact0(JsonObject object) {
@@ -128,28 +87,22 @@ public class FullClient extends SkypeImpl {
 
     @Override
     public void logout() throws ConnectionException {
-        try {
-            HttpURLConnection con = Endpoints.LOGOUT_URL.open(this).cookies(cookies).get();
-            if (con.getResponseCode() != 302) {
-                throw ExceptionHandler.generateException("While logging out", con);
-            }
-            shutdown();
-        } catch (IOException e) {
-            throw ExceptionHandler.generateException("While logging out", e);
-        }
+        Endpoints.LOGOUT_URL.open(this).expect(200, "While logging out").cookies(cookies).get();
+        shutdown();
     }
 
     public void checkForNewContactRequests() throws ConnectionException, IOException {
-        HttpURLConnection connection = Endpoints.AUTH_REQUESTS_URL.open(this).get();
-        if (connection.getResponseCode() != 200) {
-            throw ExceptionHandler.generateException("While fetching contact requests", connection);
-        }
-
-        JsonArray contactRequests = Utils.parseJsonArray(connection.getInputStream());
-        for (JsonValue contactRequest : contactRequests) {
+        JsonArray array = Endpoints.AUTH_REQUESTS_URL
+                .open(this)
+                .as(JsonArray.class)
+                .expect(200, "While loading authorization requests")
+                .get();
+        for (JsonValue contactRequest : array) {
             JsonObject contactRequestObj = contactRequest.asObject();
             try {
-                ContactRequestImpl request = new ContactRequestImpl(contactRequestObj.get("event_time").asString(), getOrLoadContact(contactRequestObj.get("sender").asString()), contactRequestObj.get("greeting").asString(), this);
+                ContactRequestImpl request = new ContactRequestImpl(contactRequestObj.get("event_time").asString(),
+                        getOrLoadContact(contactRequestObj.get("sender").asString()),
+                        contactRequestObj.get("greeting").asString(), this);
                 if (!this.allContactRequests.contains(request)) {
                     ContactRequestEvent event = new ContactRequestEvent(request);
                     getEventDispatcher().callEvent(event);
@@ -160,6 +113,41 @@ public class FullClient extends SkypeImpl {
             }
         }
         this.updateContactList();
+    }
+
+
+    private void loadAuthorizationRequests() throws ConnectionException {
+        JsonArray array = Endpoints.AUTH_REQUESTS_URL
+                .open(this)
+                .as(JsonArray.class)
+                .expect(200, "While loading authorization requests")
+                .get();
+        for (JsonValue contactRequest : array) {
+            JsonObject contactRequestObj = contactRequest.asObject();
+            try {
+                this.allContactRequests.add(new ContactRequestImpl(contactRequestObj.get("event_time").asString(),
+                        getOrLoadContact(contactRequestObj.get("sender").asString()),
+                        contactRequestObj.get("greeting").asString(), this));
+            } catch (java.text.ParseException e) {
+                getLogger().log(Level.WARNING, "Could not parse date for authorization request", e);
+            }
+        }
+    }
+
+    @Override
+    public void updateContactList() throws ConnectionException {
+        JsonObject obj = Endpoints.GET_ALL_CONTACTS
+                .open(this, getUsername(), "notification")
+                .as(JsonObject.class)
+                .expect(200, "While loading contacts")
+                .get();
+        for (JsonValue value : obj.get("contacts").asArray()) {
+            if (value.asObject().get("suggested") == null || !value.asObject().get("suggested").asBoolean()) {
+                String id = value.asObject().get("id").asString();
+                ContactImpl impl = (ContactImpl) allContacts.get(id);
+                impl.update(value.asObject());
+            }
+        }
     }
 
     @Override
@@ -178,7 +166,7 @@ public class FullClient extends SkypeImpl {
                 allContacts.add(other);
             }
             obj.add("members", allContacts);
-            HttpURLConnection con = Endpoints.THREAD_URL.open(this).post(obj);
+            HttpURLConnection con = Endpoints.THREAD_URL.open(this).dontConnect().post(obj);
             if (con.getResponseCode() != 201) {
                 throw ExceptionHandler.generateException("While creating group chat", con);
             }
@@ -247,19 +235,13 @@ public class FullClient extends SkypeImpl {
         Elements inputs = loginResponseDocument.select("input[name=skypetoken]");
         if (inputs.size() > 0) {
             String tSkypeToken = inputs.get(0).attr("value");
-
             Response asmResponse = getAsmToken(tCookies, tSkypeToken);
             tCookies.putAll(asmResponse.cookies());
+            this.skypeToken = tSkypeToken;
+            this.cookies = tCookies;
 
             HttpURLConnection registrationToken = registerEndpoint(tSkypeToken);
-            String[] splits = registrationToken.getHeaderField("Set-RegistrationToken").split(";");
-            String tRegistrationToken = splits[0];
-            String tEndpointId = splits[2].split("=")[1];
-
-            this.skypeToken = tSkypeToken;
-            this.registrationToken = tRegistrationToken;
-            this.endpointId = tEndpointId;
-            this.cookies = tCookies;
+            setRegistrationToken(registrationToken.getHeaderField("Set-RegistrationToken"));
 
             this.loadAllContacts();
             this.loadAuthorizationRequests();
@@ -284,7 +266,7 @@ public class FullClient extends SkypeImpl {
                 }
                 if (url != null) {
                     try {
-                        HttpURLConnection connection = Endpoints.custom(url, this).get();
+                        HttpURLConnection connection = Endpoints.custom(url, this).dontConnect().get();
                         if (connection.getResponseCode() == 200) {
                             String rawjs = StreamUtils.readFully(connection.getInputStream());
                             Pattern p = Pattern.compile("imageurl:'([^']*)'");
@@ -310,7 +292,8 @@ public class FullClient extends SkypeImpl {
                                 }
                             }
                         } else {
-                            MinorErrorEvent err = new MinorErrorEvent(MinorErrorEvent.ErrorSource.PARSING_CAPTCHA, ExceptionHandler.generateException("", connection));
+                            MinorErrorEvent err = new MinorErrorEvent(MinorErrorEvent.ErrorSource.PARSING_CAPTCHA,
+                                    ExceptionHandler.generateException("", connection));
                             getEventDispatcher().callEvent(err);
                         }
                     } catch (IOException e) {
@@ -328,133 +311,10 @@ public class FullClient extends SkypeImpl {
                         throw new InvalidCredentialsException(span.text());
                     }
                 } else {
-                    throw new InvalidCredentialsException("Could not find error message. Dumping entire page. \n" + loginResponseDocument.html());
+                    throw new InvalidCredentialsException(
+                            "Could not find error message. Dumping entire page. \n" + loginResponseDocument.html());
                 }
             }
-        }
-    }
-
-    private void loadAuthorizationRequests() throws ConnectionException {
-        try {
-            HttpURLConnection connection = Endpoints.AUTH_REQUESTS_URL.open(this).get();
-            if (connection.getResponseCode() != 200) {
-                throw ExceptionHandler.generateException("While loading authorization requests", connection);
-            }
-
-            JsonArray contactRequests = Utils.parseJsonArray(connection.getInputStream());
-            for (JsonValue contactRequest : contactRequests) {
-                JsonObject contactRequestObj = contactRequest.asObject();
-                try {
-                    this.allContactRequests.add(new ContactRequestImpl(contactRequestObj.get("event_time").asString(), getOrLoadContact(contactRequestObj.get("sender").asString()), contactRequestObj.get("greeting").asString(), this));
-                } catch (java.text.ParseException e) {
-                    getLogger().log(Level.WARNING, "Could not parse date for authorization request", e);
-                }
-            }
-        } catch (IOException e) {
-            throw ExceptionHandler.generateException("While loading authorization requests", e);
-        }
-    }
-
-    private void registerWebSocket() throws ConnectionException, InterruptedException, URISyntaxException, KeyManagementException, NoSuchAlgorithmException {
-        try {
-            HttpURLConnection connection = Endpoints.TROUTER_URL.open(this).get();
-            if (connection.getResponseCode() != 200) {
-                throw ExceptionHandler.generateException("While fetching trouter data", connection);
-            }
-
-            JsonObject trouter = JsonObject.readFrom(new InputStreamReader(connection.getInputStream(), "UTF-8"));
-
-            JsonObject policyData = new JsonObject();
-            policyData.add("sr", trouter.get("connId"));
-            connection = Endpoints.POLICIES_URL.open(this).header("User-Agent", "Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36").post(policyData);
-
-            if (connection.getResponseCode() != 200) {
-                throw ExceptionHandler.generateException("While fetching policy data", connection);
-            }
-
-            JsonObject policyResponse = JsonObject.readFrom(new InputStreamReader(connection.getInputStream(), "UTF-8"));
-
-            Map<String, String> data = new HashMap<>();
-            for (JsonObject.Member value : policyResponse) {
-                data.put(value.getName(), value.getValue().asString());
-            }
-            data.put("r", trouter.get("instance").asString());
-            data.put("p", String.valueOf(trouter.get("instancePort").asInt()));
-            data.put("ccid", trouter.get("ccid").asString());
-            data.put("v", "v2"); //TODO: MAGIC VALUE
-            data.put("dom", "web.skype.com"); //TODO: MAGIC VALUE
-            data.put("auth", "true"); //TODO: MAGIC VALUE
-            data.put("tc", new JsonObject().add("cv", "2015.8.18").add("hr", "").add("v", "1.15.133").toString()); //TODO: MAGIC VALUE
-            data.put("timeout", "55");
-            data.put("t", String.valueOf(System.currentTimeMillis()));
-            StringBuilder args = new StringBuilder();
-            for (Map.Entry<String, String> entry : data.entrySet()) {
-                args.append(URLEncoder.encode(entry.getKey(), "UTF-8")).append("=").append(URLEncoder.encode(entry.getValue(), "UTF-8")).append("&");
-            }
-
-            String socketURL = trouter.get("socketio").asString();
-            socketURL = socketURL.substring(socketURL.indexOf('/') + 2);
-            socketURL = socketURL.substring(0, socketURL.indexOf(':'));
-
-            connection = Endpoints.custom(String.format("%s/socket.io/1/?%s", "https://" + socketURL, args.toString()), this).get();
-            if (connection.getResponseCode() != 200) {
-                throw ExceptionHandler.generateException("While fetching websocket details", connection);
-            }
-
-            String websocketData = StreamUtils.readFully(connection.getInputStream());
-            JsonObject clientDescription = new JsonObject();
-            clientDescription.add("aesKey", "");
-            clientDescription.add("languageId", "en-US");
-            clientDescription.add("platform", "Chrome");
-            clientDescription.add("platformUIVersion", "908/1.16.0.82//skype.com");
-            clientDescription.add("templateKey", "SkypeWeb_1.1");
-
-            JsonObject trouterObject = new JsonObject();
-            trouterObject.add("context", "");
-            trouterObject.add("ttl", 3600);
-            trouterObject.add("path", trouter.get("surl"));
-
-            JsonArray trouterArray = new JsonArray();
-            trouterArray.add(trouterObject);
-
-            JsonObject transports = new JsonObject();
-            transports.add("TROUTER", trouterArray);
-
-            JsonObject registrationObject = new JsonObject();
-            registrationObject.add("clientDescription", clientDescription);
-            registrationObject.add("registrationId", UUID.randomUUID().toString());
-            registrationObject.add("nodeId", "");
-            registrationObject.add("transports", transports);
-
-            connection = Endpoints.REGISTRATIONS.open(this).post(registrationObject);
-            if (connection.getResponseCode() != 202) {
-                throw ExceptionHandler.generateException("While registering websocket", connection);
-            }
-
-            this.wss = new SkypeWebSocket(this, new URI(String.format("%s/socket.io/1/websocket/%s?%s", "wss://" + socketURL, websocketData.split(":")[0], args.toString())));
-            this.wss.connectBlocking();
-        } catch (IOException e) {
-            throw ExceptionHandler.generateException("While creating websocket", e);
-        }
-    }
-
-    @Override
-    public void updateContactList() throws ConnectionException {
-        try {
-            HttpURLConnection connection = Endpoints.GET_ALL_CONTACTS.open(this, getUsername(), "notification").get();
-            if (connection.getResponseCode() != 200) {
-                throw ExceptionHandler.generateException("While loading all contacts", connection);
-            }
-            JsonObject obj = Utils.parseJsonObject(connection.getInputStream());
-            for (JsonValue value : obj.get("contacts").asArray()) {
-                if (value.asObject().get("suggested") == null || !value.asObject().get("suggested").asBoolean()) {
-                    String id = value.asObject().get("id").asString();
-                    ContactImpl impl = (ContactImpl) allContacts.get(id);
-                    impl.update(value.asObject());
-                }
-            }
-        } catch (IOException e) {
-            throw ExceptionHandler.generateException("While loading all contacts", e);
         }
     }
 }

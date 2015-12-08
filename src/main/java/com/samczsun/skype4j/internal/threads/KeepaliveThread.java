@@ -17,13 +17,9 @@
 package com.samczsun.skype4j.internal.threads;
 
 import com.samczsun.skype4j.events.error.MajorErrorEvent;
+import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.internal.Endpoints;
-import com.samczsun.skype4j.internal.ExceptionHandler;
 import com.samczsun.skype4j.internal.SkypeImpl;
-
-import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.util.logging.Level;
 
 public class KeepaliveThread extends Thread {
     private SkypeImpl skype;
@@ -34,22 +30,16 @@ public class KeepaliveThread extends Thread {
     }
 
     public void run() {
-        HttpURLConnection connection = null;
         while (skype.isLoggedIn()) {
             try {
-                connection = Endpoints.PING_URL.open(skype).cookies(skype.getCookies()).connect("POST", "sessionId=" + skype.getGuid().toString());
-                if (connection.getResponseCode() != 200) {
-                    MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.SESSION_KEEPALIVE, ExceptionHandler.generateException("While maintaining session", connection));
-                    skype.getEventDispatcher().callEvent(event);
-                }
-            } catch (IOException e) {
+                Endpoints.PING_URL.open(skype)
+                        .expect(200, "While maintaining session")
+                        .cookies(skype.getCookies())
+                        .connect("POST", "sessionId=" + skype.getGuid().toString());
+            } catch (ConnectionException e) {
                 MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.SESSION_KEEPALIVE, e);
                 skype.getEventDispatcher().callEvent(event);
                 skype.shutdown();
-            } finally {
-                if (connection != null) {
-                    connection.disconnect();
-                }
             }
             try {
                 Thread.sleep(300000);

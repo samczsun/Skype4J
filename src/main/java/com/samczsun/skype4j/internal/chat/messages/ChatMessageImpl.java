@@ -85,7 +85,6 @@ public abstract class ChatMessageImpl implements ChatMessage {
         Validate.isTrue(chat instanceof ChatImpl, "Chat must be instanceof ChatImpl");
         Validate.notNull(user, "User must not be null");
         Validate.isTrue(user instanceof UserImpl, "User must be instanceof UserImpl");
-        Validate.notNull(message, "Message must not be null");
         if (((ChatImpl) chat).getClient().getUsername().equals(user.getUsername())) {
             return new SentMessageImpl(chat, user, id, clientId, time, message, skype);
         } else {

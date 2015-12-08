@@ -14,10 +14,27 @@
  *    limitations under the License.
  */
 
-package com.samczsun.skype4j.chat.messages;
+package com.samczsun.skype4j.formatting.lang;
 
-/**
- * Represents a message that was received
- */
-public interface ReceivedMessage extends ChatMessage {
+import com.samczsun.skype4j.formatting.IFlik;
+
+public enum DefaultFlik implements IFlik {
+
+    ;
+
+    private String etag;
+    private String desc;
+
+    DefaultFlik(String etag, String desc) {
+        this.etag = etag;
+        this.desc = desc;
+    }
+
+    public String getEtag() {
+        return this.etag;
+    }
+
+    public String getDescription() {
+        return this.desc;
+    }
 }

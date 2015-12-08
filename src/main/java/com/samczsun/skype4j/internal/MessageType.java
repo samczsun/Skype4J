@@ -17,7 +17,6 @@
 package com.samczsun.skype4j.internal;
 
 import com.eclipsesource.json.JsonObject;
-import com.samczsun.skype4j.Skype;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.messages.ChatMessage;
 import com.samczsun.skype4j.chat.messages.ReceivedMessage;
@@ -25,16 +24,24 @@ import com.samczsun.skype4j.chat.messages.SentMessage;
 import com.samczsun.skype4j.chat.objects.ReceivedFile;
 import com.samczsun.skype4j.events.UnsupportedEvent;
 import com.samczsun.skype4j.events.chat.ChatJoinedEvent;
+import com.samczsun.skype4j.events.chat.ChatQuitEvent;
 import com.samczsun.skype4j.events.chat.call.CallReceivedEvent;
-import com.samczsun.skype4j.events.chat.message.MessageEditedByOtherEvent;
+import com.samczsun.skype4j.events.chat.message.MessageDeletedEvent;
 import com.samczsun.skype4j.events.chat.message.MessageEditedEvent;
 import com.samczsun.skype4j.events.chat.message.MessageReceivedEvent;
 import com.samczsun.skype4j.events.chat.message.MessageSentEvent;
 import com.samczsun.skype4j.events.chat.message.SmsReceivedEvent;
-import com.samczsun.skype4j.events.chat.sent.*;
+import com.samczsun.skype4j.events.chat.sent.ContactReceivedEvent;
+import com.samczsun.skype4j.events.chat.sent.FileReceivedEvent;
+import com.samczsun.skype4j.events.chat.sent.LocationReceivedEvent;
+import com.samczsun.skype4j.events.chat.sent.MultiContactReceivedEvent;
+import com.samczsun.skype4j.events.chat.sent.PictureReceivedEvent;
+import com.samczsun.skype4j.events.chat.sent.TypingReceivedEvent;
+import com.samczsun.skype4j.events.chat.user.LegacyMemberAddedEvent;
 import com.samczsun.skype4j.events.chat.user.MultiUserAddEvent;
 import com.samczsun.skype4j.events.chat.user.UserAddEvent;
 import com.samczsun.skype4j.events.chat.user.UserRemoveEvent;
+import com.samczsun.skype4j.events.chat.user.LegacyMemberUpgradedEvent;
 import com.samczsun.skype4j.events.chat.user.action.OptionUpdateEvent;
 import com.samczsun.skype4j.events.chat.user.action.PictureUpdateEvent;
 import com.samczsun.skype4j.events.chat.user.action.RoleUpdateEvent;
@@ -50,175 +57,185 @@ import com.samczsun.skype4j.internal.chat.objects.ReceivedFileImpl;
 import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.User;
 import com.samczsun.skype4j.user.User.Role;
-import org.jsoup.Jsoup;
+import org.jsoup.helper.Validate;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.parser.Parser;
 import org.unbescape.html.HtmlEscape;
 
-import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public enum MessageType {
     UNKNOWN("Unknown") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) {
-            throw new IllegalArgumentException("Got an unknown tag. Please open a issue at the GitHub repo");
+            skype.getEventDispatcher().callEvent(new UnsupportedEvent(name(), resource.toString()));
+            skype
+                    .getLogger()
+                    .log(Level.SEVERE, "Got an unknown tag! Please open a ticket with the following JSON data");
+            skype.getLogger().log(Level.SEVERE, resource.toString());
         }
     },
-    TEXT("Text") {
+    TEXT_INTERNAL("TextInternalShouldNotBeUsedOutside") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) throws SkypeException, IOException {
-            MessageType.RICH_TEXT.handle(skype, resource);
-        }
-    },
-    RICH_TEXT("RichText") {
-        @Override
-        public void handle(final SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
+            String content = Utils.getString(resource, "content");
+            ChatImpl chat = getChat(resource, skype);
+            UserImpl user = getSender(resource, chat);
+
+            if (content == null) {
+                final String clientId = resource.get("skypeeditedid").asString();
+                ChatMessage m = user.getMessageById(clientId);
+                if (m != null) {
+                    MessageDeletedEvent event = new MessageDeletedEvent(m);
+                    skype.getEventDispatcher().callEvent(event);
+                    ((ChatMessageImpl) m).edit0(null);
+                }
+                return;
+            }
+
+            content = stripMetadata(content);
+
             if (resource.get("clientmessageid") != null) { // New message
                 String clientId = resource.get("clientmessageid").asString();
                 String id = resource.get("id").asString();
-                String content = resource.get("content").asString();
-                String from = resource.get("from").asString();
-                String url = resource.get("conversationLink").asString();
-                ChatImpl c = (ChatImpl) getChat(url, skype);
-                User u = getUser(from, c);
-                ChatMessage m = ChatMessageImpl.createMessage(c, u, id, clientId, System.currentTimeMillis(), Message.fromHtml(stripMetadata(content)), skype);
-                c.onMessage(m);
-                if (m instanceof ReceivedMessage) {
-                    MessageReceivedEvent event = new MessageReceivedEvent((ReceivedMessage) m);
-                    skype.getEventDispatcher().callEvent(event);
-                } else {
-                    MessageSentEvent event = new MessageSentEvent((SentMessage) m);
-                    skype.getEventDispatcher().callEvent(event);
+                if (resource.get("content") == null) {
+                    throw new IllegalArgumentException("Null content? " + resource);
                 }
-            } else if (resource.get("skypeeditedid") != null) { // Edited
-                // message
-                String url = resource.get("conversationLink").asString();
-                String from = resource.get("from").asString();
-                final Chat c = getChat(url, skype);
-                final User u = getUser(from, c); // If not original sender, then
-                // fake
+                if (user != null) {
+                    ChatMessage m = ChatMessageImpl.createMessage(chat, user, id, clientId, System.currentTimeMillis(),
+                            Message.fromHtml(content), skype);
+                    chat.onMessage(m);
+                    if (m instanceof ReceivedMessage) {
+                        MessageReceivedEvent event = new MessageReceivedEvent((ReceivedMessage) m);
+                        skype.getEventDispatcher().callEvent(event);
+                    } else {
+                        MessageSentEvent event = new MessageSentEvent((SentMessage) m);
+                        skype.getEventDispatcher().callEvent(event);
+                    }
+                } else {
+                    throw new IllegalArgumentException("Null sender? " + resource);
+                }
+            } else if (resource.get("skypeeditedid") != null) {
                 final String clientId = resource.get("skypeeditedid").asString();
                 final String id = resource.get("id").asString();
-                String content = resource.get("content").asString();
-                content = stripMetadata(content);
-                boolean faker = false;
                 if (content.startsWith("Edited previous message: ")) {
                     content = content.substring("Edited previous message: ".length());
-                    ChatMessage m = u.getMessageById(clientId);
+                    ChatMessage m = user.getMessageById(clientId);
                     if (m != null) {
                         MessageEditedEvent evnt = new MessageEditedEvent(m, content);
                         skype.getEventDispatcher().callEvent(evnt);
                         ((ChatMessageImpl) m).edit0(Message.fromHtml(content));
-                    } else {
-                        faker = true;
                     }
-                } else {
-                    faker = true;
-                }
-                if (faker) {
-                    Message originalContent = null;
-                    for (User user : c.getAllUsers()) {
-                        if (user.getMessageById(clientId) != null) {
-                            originalContent = user.getMessageById(clientId).getContent();
-                        }
-                    }
-                    final Message finalOriginalContent = originalContent;
-                    MessageEditedByOtherEvent event = new MessageEditedByOtherEvent(new ChatMessage() {
-                        public String getClientId() {
-                            return clientId;
-                        }
-
-                        public Message getContent() {
-                            return finalOriginalContent;
-                        }
-
-                        public long getSentTime() {
-                            return System.currentTimeMillis();
-                        }
-
-                        public User getSender() {
-                            return u;
-                        }
-
-                        public void edit(Message newMessage) throws SkypeException {
-                            throw new UnsupportedOperationException();
-                        }
-
-                        public void delete() throws SkypeException {
-                            throw new UnsupportedOperationException();
-                        }
-
-                        public Chat getChat() {
-                            return c;
-                        }
-
-                        @Override
-                        public Skype getClient() {
-                            return skype;
-                        }
-
-                        public String getId() {
-                            return id;
-                        }
-                    }, content, u);
-                    skype.getEventDispatcher().callEvent(event);
                 }
             } else {
                 throw new IllegalArgumentException("Message had no id - hacking by user or skype changed their api");
             }
         }
     },
+    TEXT("Text") {
+        @Override
+        public void handle(SkypeImpl skype, JsonObject resource) throws SkypeException, IOException {
+            MessageType.TEXT_INTERNAL.handle(skype, resource);
+        }
+    },
+    RICH_TEXT("RichText") {
+        @Override
+        public void handle(final SkypeImpl skype, JsonObject resource) throws SkypeException, IOException {
+            String content = Utils.getString(resource, "content");
+            Validate.notNull(content, "Null content");
+            Matcher matcher = URIOBJECT.matcher(content);
+            if (matcher.find()) {
+                String type = matcher.group(1).split("\\.")[0];
+                if (type.equalsIgnoreCase("credit")) {
+                    throw new IllegalArgumentException(
+                            "This event needs an implementation. Please open a ticket with the stacktrace");
+                } else if (type.equalsIgnoreCase("poll")) {
+                    throw new IllegalArgumentException(
+                            "This event needs an implementation. Please open a ticket with the stacktrace");
+                } else {
+                    throw new IllegalArgumentException("Unknown rich type " + type);
+                }
+            } else {
+                MessageType.TEXT_INTERNAL.handle(skype, resource);
+            }
+        }
+    },
     RICH_TEXT_CONTACTS("RichText/Contacts") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
-            String from = resource.get("from").asString();
-            String url = resource.get("conversationLink").asString();
-            String content = resource.get("content").asString();
-            Document doc = Parser.xmlParser().parseInput(content, "");
+            String content = Utils.getString(resource, "content");
+            String chatId = Utils.getString(resource, "conversationLink");
+            String author = getAuthor(resource);
+            Validate.notNull(content, "Null content");
+            Validate.notNull(chatId, "Null chat");
+            Validate.notNull(author, "Null author");
+            String username = getUsername(author);
+            Validate.notNull(username, "Null username");
+            Chat chat = getChat(chatId, skype);
+            Validate.notNull(chat, "Null chatobj");
+            User initiator = chat.getUser(username);
+            Validate.notNull(initiator, "Null initiator");
+
             List<Contact> contacts = new ArrayList<>();
-            for (Element e : doc.getElementsByTag("c")) {
-                Matcher m = CONTACT_PATTERN.matcher(e.outerHtml());
-                if (m.find()) {
-                    String username;
-                    if (m.group(2).equals("s")) username = m.group(6);
-                    else username = m.group(4);
-                    contacts.add(skype.getOrLoadContact(username));
+            Matcher matcher = CONTACT_PATTERN.matcher(content);
+            while (matcher.find()) {
+                String contactUsername;
+                if (matcher.group(2).equals("s")) contactUsername = matcher.group(6);
+                else contactUsername = matcher.group(4);
+                Contact contact = skype.getOrLoadContact(contactUsername);
+                if (contact != null) {
+                    contacts.add(contact);
                 } else {
-                    throw conformError("Contact");
+                    skype.getLogger().log(Level.SEVERE, "Null contact (" + contactUsername + ")");
                 }
             }
-            Chat c = getChat(url, skype);
-            User u = getUser(from, c);
-            ContactReceivedEvent event = contacts.size() == 1 ? new ContactReceivedEvent(c, u, contacts.get(0)) : new MultiContactReceivedEvent(c, u, contacts);
-            skype.getEventDispatcher().callEvent(event);
+
+            if (contacts.size() > 0) {
+                ContactReceivedEvent event = contacts.size() == 1 ? new ContactReceivedEvent(chat, initiator,
+                        contacts.get(0)) : new MultiContactReceivedEvent(chat, initiator, contacts);
+                skype.getEventDispatcher().callEvent(event);
+            } else {
+                throw new IllegalArgumentException("No contacts sent");
+            }
         }
     },
     RICH_TEXT_FILES("RichText/Files") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
-            String from = resource.get("from").asString();
-            String url = resource.get("conversationLink").asString();
-            String content = resource.get("content").asString();
+            String content = Utils.getString(resource, "content");
+            String chatId = Utils.getString(resource, "conversationLink");
+            String author = getAuthor(resource);
+            Validate.notNull(content, "Null content");
+            Validate.notNull(chatId, "Null chat");
+            Validate.notNull(author, "Null author");
+            String username = getUsername(author);
+            Validate.notNull(username, "Null username");
+            Chat chat = getChat(chatId, skype);
+            Validate.notNull(chat, "Null chatobj");
+            User initiator = chat.getUser(username);
+            Validate.notNull(initiator, "Null initiator");
             Document doc = Parser.xmlParser().parseInput(content, "");
 
-            List<ReceivedFile> receivedFiles = new ArrayList<>();
-            for (Element fe : doc.getElementsByTag("file")) {
-                receivedFiles.add(new ReceivedFileImpl(fe.text(), Long.parseLong(fe.attr("size")), Long.parseLong(fe.attr("tid"))));
-            }
+            List<ReceivedFile> receivedFiles = doc
+                    .getElementsByTag("file")
+                    .stream()
+                    .map(fe -> new ReceivedFileImpl(fe.text(), Long.parseLong(fe.attr("size")),
+                            Long.parseLong(fe.attr("tid"))))
+                    .collect(Collectors.toList());
 
-            Chat c = getChat(url, skype);
-            User u = getUser(from, c);
-            FileReceivedEvent event = new FileReceivedEvent(c, u, Collections.unmodifiableList(receivedFiles));
+            FileReceivedEvent event = new FileReceivedEvent(chat, initiator,
+                    Collections.unmodifiableList(receivedFiles));
             skype.getEventDispatcher().callEvent(event);
         }
     },
@@ -233,7 +250,8 @@ public enum MessageType {
             Matcher m = SMS_PATTERN.matcher(content);
             if (m.find()) {
                 String message = m.group(1);
-                ChatMessage chatmessage = ChatMessageImpl.createMessage(c, u, null, null, System.currentTimeMillis(), Message.fromHtml(message), skype); //No clientmessageid?
+                ChatMessage chatmessage = ChatMessageImpl.createMessage(c, u, null, null, System.currentTimeMillis(),
+                        Message.fromHtml(message), skype); //No clientmessageid?
                 SmsReceivedEvent event = new SmsReceivedEvent((ReceivedMessage) chatmessage);
                 skype.getEventDispatcher().callEvent(event);
             } else {
@@ -251,7 +269,9 @@ public enum MessageType {
             if (m.find()) {
                 String location = m.group(1);
                 String text = m.group(2);
-                LocationReceivedEvent event = new LocationReceivedEvent(c, u, new LocationReceivedEvent.LocationInfo(location, text));
+                LocationReceivedEvent event = new LocationReceivedEvent(c, u,
+                        new LocationReceivedEvent.LocationInfo(location, text));
+                skype.getEventDispatcher().callEvent(event);
             } else {
                 throw conformError("Location");
             }
@@ -266,40 +286,37 @@ public enum MessageType {
             User u = getUser(from, c);
             String content = resource.get("content").asString();
             Document doc = Parser.xmlParser().parseInput(content, "");
+            if (doc.getElementsByTag("meta").size() == 0) {
+                throw new IllegalArgumentException("No meta? " + resource);
+            }
             Element meta = doc.getElementsByTag("meta").get(0);
             if (meta.attr("type").equalsIgnoreCase("photo")) {
                 String blob = doc.getElementsByTag("a").get(0).attr("href");
                 blob = blob.substring(blob.indexOf('?') + 1);
-                try {
-                    HttpURLConnection statusCon = Endpoints.IMG_STATUS.open(skype, blob, "imgpsh_fullsize").cookies(skype.getCookies()).get();
-                    if (statusCon.getResponseCode() == 200) {
-                        JsonObject obj = JsonObject.readFrom(new InputStreamReader(statusCon.getInputStream(), "UTF-8"));
-                        Endpoints.EndpointConnection econn = Endpoints.custom(obj.get("status_location").asString(), skype).cookie("skypetoken_asm", Endpoints.COOKIE.provide(skype));
-                        while (true) {
-                            statusCon = econn.get();
-                            if (statusCon.getResponseCode() == 200) {
-                                obj = JsonObject.readFrom(new InputStreamReader(statusCon.getInputStream(), "UTF-8"));
-                                if (obj.get("content_state").asString().equalsIgnoreCase("ready")) {
-                                    break;
-                                }
-                            } else {
-                                throw ExceptionHandler.generateException("While getting URI object", statusCon);
-                            }
-                        }
-                        HttpURLConnection con = Endpoints.custom(obj.get("view_location").asString(), skype).cookie("skypetoken_asm", Endpoints.COOKIE.provide(skype)).get();
-                        if (con.getResponseCode() == 200) {
-                            ByteArrayInputStream input = StreamUtils.copy(con.getInputStream());
-                            BufferedImage img = ImageIO.read(input);
-                            skype.getEventDispatcher().callEvent(new PictureReceivedEvent(c, u, meta.attr("originalName"), img));
-                        } else {
-                            throw ExceptionHandler.generateException("While getting URI object", con);
-                        }
-                    } else {
-                        throw ExceptionHandler.generateException("While getting URI object", statusCon);
+                JsonObject obj = Endpoints.IMG_STATUS
+                        .open(skype, blob, "imgpsh_fullsize")
+                        .as(JsonObject.class)
+                        .cookies(skype.getCookies())
+                        .expect(200, "While getting URI object")
+                        .get();
+                Endpoints.EndpointConnection econn = Endpoints
+                        .custom(obj.get("status_location").asString(), skype)
+                        .as(JsonObject.class)
+                        .expect(200, "While getting URI object")
+                        .header("Cookie", Endpoints.COOKIE.provide(skype));
+                while (true) {
+                    obj = econn.get();
+                    if (obj.get("content_state").asString().equalsIgnoreCase("ready")) {
+                        break;
                     }
-                } catch (IOException e) {
-                    throw new ConnectionException("While fetching picture", e);
                 }
+                BufferedImage img = Endpoints
+                        .custom(obj.get("view_location").asString(), skype)
+                        .header("Cookie", Endpoints.COOKIE.provide(skype))
+                        .as(BufferedImage.class)
+                        .expect(200, "While getting URI object")
+                        .get();
+                skype.getEventDispatcher().callEvent(new PictureReceivedEvent(c, u, meta.attr("originalName"), img));
             } else {
                 throw new IllegalArgumentException("Unknown meta type " + meta.attr("type"));
             }
@@ -309,76 +326,99 @@ public enum MessageType {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) {
             skype.getEventDispatcher().callEvent(new UnsupportedEvent(name(), resource.toString()));
-            throw new IllegalArgumentException("This event is in need of implementation! Please open a ticket with this stacktrace");
+            skype
+                    .getLogger()
+                    .log(Level.SEVERE,
+                            name() + " is in need of implementation! Please open a ticket with the following JSON data");
+            skype.getLogger().log(Level.SEVERE, resource.toString());
         }
     },
     EVENT_SKYPE_VIDEO_MESSAGE("Event/SkypeVideoMessage") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) {
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, IOException, ChatNotFoundException {
+            ChatImpl chat = getChat(resource, skype);
+            UserImpl sender = getSender(resource, chat);
+            String content = Utils.getString(resource, "content");
+            if (content == null) throw new IllegalArgumentException("Null content");
+            Matcher matcher = VIDEOMESSAGE.matcher(content);
+            if (!matcher.find()) throw new IllegalArgumentException("Videomessage conformity");
+            String sid = matcher.group(1);
+            if (sender == null) {
+                throw new IllegalArgumentException("Null user");
+            }
+            String location = "https://vm.skype.com/users/8:" + skype.getUsername() + "/video_mails/" + sid;
             skype.getEventDispatcher().callEvent(new UnsupportedEvent(name(), resource.toString()));
-            throw new IllegalArgumentException("This event is in need of implementation! Please open a ticket with this stacktrace");
         }
     },
     THREAD_ACTIVITY_ADD_MEMBER("ThreadActivity/AddMember") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
-            String url = resource.get("conversationLink").asString();
-            Chat c = getChat(url, skype);
+            ChatImpl chat = getChat(resource, skype);
+            UserImpl initiator = getInitiator(resource, chat);
             List<User> usersAdded = new ArrayList<>();
-            Document xml = Jsoup.parse(resource.get("content").asString(), "", Parser.xmlParser());
-            User initiator = c.getUser(xml.getElementsByTag("initiator").get(0).text());
-            for (Element e : xml.getElementsByTag("target")) {
-                String username = e.text().substring(2);
-                ((ChatImpl) c).addUser(username);
-                if (username.equals(skype.getUsername())) {
-                    ChatJoinedEvent event = new ChatJoinedEvent(c);
-                    skype.getEventDispatcher().callEvent(event);
-                } else {
-                    usersAdded.add(c.getUser(username));
+            boolean addedSelf = false;
+            Matcher matcher = SINGLE_TARGET.matcher(resource.get("content").asString());
+            while (matcher.find()) {
+                String username = getUsername(matcher.group(1));
+                chat.addUser(username);
+                usersAdded.add(chat.getUser(username));
+                if (username.equalsIgnoreCase(skype.getUsername())) {
+                    addedSelf = true;
                 }
             }
+
             UserAddEvent event = null;
-            if (usersAdded.size() == 1) {
+            if (usersAdded.size() == 0) {
+                throw new IllegalArgumentException("No targets");
+            } else if (usersAdded.size() == 1) {
                 event = new UserAddEvent(usersAdded.get(0), initiator);
-                skype.getEventDispatcher().callEvent(event);
             } else if (usersAdded.size() > 1) {
                 event = new MultiUserAddEvent(usersAdded, initiator);
-                skype.getEventDispatcher().callEvent(event);
+            }
+            skype.getEventDispatcher().callEvent(event);
+
+            if (addedSelf) {
+                ChatJoinedEvent cje = new ChatJoinedEvent(chat, initiator);
+                skype.getEventDispatcher().callEvent(cje);
             }
         }
     },
     THREAD_ACTIVITY_DELETE_MEMBER("ThreadActivity/DeleteMember") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
-            String url = resource.get("conversationLink").asString();
-            Chat c = getChat(url, skype);
+            ChatImpl chat = getChat(resource, skype);
+            UserImpl initiator = getInitiator(resource, chat);
             List<User> usersRemoved = new ArrayList<>();
-            Document xml = Jsoup.parse(resource.get("content").asString(), "", Parser.xmlParser());
-            User initiator = c.getUser(xml.getElementsByTag("initiator").get(0).text());
-            for (Element e : xml.getElementsByTag("target")) {
-                String username = e.text().substring(2);
-                usersRemoved.add(c.getUser(username));
-                ((ChatImpl) c).removeUser(username);
+            Matcher matcher = SINGLE_TARGET.matcher(resource.get("content").asString());
+            while (matcher.find()) {
+                String username = getUsername(matcher.group(1));
+                usersRemoved.add(chat.getUser(username));
+                if (username.equalsIgnoreCase(skype.getUsername())) {
+                    ChatQuitEvent event = new ChatQuitEvent(chat, initiator);
+                    skype.getEventDispatcher().callEvent(event);
+                }
+                chat.removeUser(username);
             }
-            UserRemoveEvent event = null;
-            if (usersRemoved.size() == 1) {
-                event = new UserRemoveEvent(usersRemoved.get(0), initiator);
-            } else {
+
+            if (usersRemoved.size() == 0) {
+                throw new IllegalArgumentException("No targets");
+            } else if (usersRemoved.size() == 1) {
+                UserRemoveEvent event = new UserRemoveEvent(usersRemoved.get(0), initiator);
+                skype.getEventDispatcher().callEvent(event);
+            } else if (usersRemoved.size() > 1) {
                 throw new IllegalArgumentException("More than one user removed?");
             }
-            skype.getEventDispatcher().callEvent(event);
         }
     },
     THREAD_ACTIVITY_ROLE_UPDATE("ThreadActivity/RoleUpdate") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
+            ChatImpl chat = getChat(resource, skype);
+            UserImpl initiator = getInitiator(resource, chat);
             String content = resource.get("content").asString();
-            Chat chat = getChat(resource.get("conversationLink").asString(), skype);
-            Matcher initiatorMatcher = INITIATOR_PATTERN.matcher(content);
             Matcher timeMatcher = EVENTTIME_PATTERN.matcher(content);
             Matcher roleMatcher = ROLE_UPDATE_PATTERN.matcher(content);
-            if (initiatorMatcher.find() && timeMatcher.find() && roleMatcher.find()) {
-                User initiator = getUser(initiatorMatcher.group(1), chat);
+            if (timeMatcher.find() && roleMatcher.find()) {
                 long time = Long.parseLong(timeMatcher.group(1));
                 User target = chat.getUser(roleMatcher.group(1).substring(2));
                 Role role = Role.getByName(roleMatcher.group(2));
@@ -393,15 +433,14 @@ public enum MessageType {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
             String content = resource.get("content").asString();
-            Chat chat = getChat(resource.get("conversationLink").asString(), skype);
-            Matcher initiatorMatcher = INITIATOR_PATTERN.matcher(content);
+            ChatImpl chat = getChat(resource, skype);
+            UserImpl initiator = getInitiator(resource, chat);
             Matcher timeMatcher = EVENTTIME_PATTERN.matcher(content);
             Matcher valueMatcher = VALUE_PATTERN.matcher(content);
-            if (initiatorMatcher.find() && timeMatcher.find() && valueMatcher.find()) {
-                User user = getUser(initiatorMatcher.group(1), chat);
+            if (timeMatcher.find() && valueMatcher.find()) {
                 long time = Long.parseLong(timeMatcher.group(1));
                 String topic = valueMatcher.groupCount() > 0 ? HtmlEscape.unescapeHtml(valueMatcher.group(1)) : "";
-                TopicUpdateEvent event = new TopicUpdateEvent(user, time, topic);
+                TopicUpdateEvent event = new TopicUpdateEvent(initiator, time, ((ChatGroup)chat).getTopic(), topic);
                 skype.getEventDispatcher().callEvent(event);
                 ((ChatGroup) chat).updateTopic(topic);
             } else {
@@ -413,15 +452,14 @@ public enum MessageType {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
             String content = resource.get("content").asString();
-            Chat chat = getChat(resource.get("conversationLink").asString(), skype);
-            Matcher initiatorMatcher = INITIATOR_PATTERN.matcher(content);
+            ChatImpl chat = getChat(resource, skype);
+            UserImpl initiator = getInitiator(resource, chat);
             Matcher timeMatcher = EVENTTIME_PATTERN.matcher(content);
             Matcher valueMatcher = VALUE_PATTERN.matcher(content);
-            if (initiatorMatcher.find() && timeMatcher.find() && valueMatcher.find()) {
-                User user = getUser(initiatorMatcher.group(1), chat);
+            if (timeMatcher.find() && valueMatcher.find()) {
                 long time = Long.parseLong(timeMatcher.group(1));
                 String picurl = valueMatcher.group(1).substring(4);
-                PictureUpdateEvent event = new PictureUpdateEvent(user, time, picurl);
+                PictureUpdateEvent event = new PictureUpdateEvent(initiator, time, picurl);
                 skype.getEventDispatcher().callEvent(event);
                 ((ChatGroup) chat).updatePicture(picurl);
             } else {
@@ -433,15 +471,15 @@ public enum MessageType {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
             String content = resource.get("content").asString();
-            Chat chat = getChat(resource.get("conversationLink").asString(), skype);
-            Matcher initiatorMatcher = INITIATOR_PATTERN.matcher(content);
+            ChatImpl chat = getChat(resource, skype);
+            UserImpl initiator = getInitiator(resource, chat);
             Matcher timeMatcher = EVENTTIME_PATTERN.matcher(content);
             Matcher valueMatcher = VALUE_PATTERN.matcher(content);
-            if (initiatorMatcher.find() && timeMatcher.find() && valueMatcher.find()) {
-                User user = getUser(initiatorMatcher.group(1), chat);
+            if (timeMatcher.find() && valueMatcher.find()) {
                 long time = Long.parseLong(timeMatcher.group(1));
                 boolean enabled = Boolean.parseBoolean(valueMatcher.group(1));
-                OptionUpdateEvent event = new OptionUpdateEvent(user, time, OptionUpdateEvent.Option.HISTORY_DISCLOSED, enabled);
+                OptionUpdateEvent event = new OptionUpdateEvent(initiator, time,
+                        OptionUpdateEvent.Option.HISTORY_DISCLOSED, enabled);
                 skype.getEventDispatcher().callEvent(event);
                 ((ChatGroup) chat).updateOption(OptionUpdateEvent.Option.HISTORY_DISCLOSED, enabled);
             } else {
@@ -453,15 +491,15 @@ public enum MessageType {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
             String content = resource.get("content").asString();
-            Chat chat = getChat(resource.get("conversationLink").asString(), skype);
-            Matcher initiatorMatcher = INITIATOR_PATTERN.matcher(content);
+            ChatImpl chat = getChat(resource, skype);
+            UserImpl initiator = getInitiator(resource, chat);
             Matcher timeMatcher = EVENTTIME_PATTERN.matcher(content);
             Matcher valueMatcher = VALUE_PATTERN.matcher(content);
-            if (initiatorMatcher.find() && timeMatcher.find() && valueMatcher.find()) {
-                User user = getUser(initiatorMatcher.group(1), chat);
+            if (timeMatcher.find() && valueMatcher.find()) {
                 long time = Long.parseLong(timeMatcher.group(1));
                 boolean enabled = Boolean.parseBoolean(valueMatcher.group(1));
-                OptionUpdateEvent event = new OptionUpdateEvent(user, time, OptionUpdateEvent.Option.JOINING_ENABLED, enabled);
+                OptionUpdateEvent event = new OptionUpdateEvent(initiator, time,
+                        OptionUpdateEvent.Option.JOINING_ENABLED, enabled);
                 skype.getEventDispatcher().callEvent(event);
                 ((ChatGroup) chat).updateOption(OptionUpdateEvent.Option.JOINING_ENABLED, enabled);
             } else {
@@ -471,18 +509,48 @@ public enum MessageType {
     },
     THREAD_ACTIVITY_LEGACY_MEMBER_ADDED("ThreadActivity/LegacyMemberAdded") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) {
-            skype.getEventDispatcher().callEvent(new UnsupportedEvent(name(), resource.toString()));
-            skype.getLogger().log(Level.SEVERE, name() + " is in need of implementation! Please open a ticket with the following JSON data");
-            skype.getLogger().log(Level.SEVERE, resource.toString());
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, IOException, ChatNotFoundException {
+            String content = Utils.getString(resource, "content");
+            String chatId = Utils.getString(resource, "conversationLink");
+            if (content == null) {
+                throw new IllegalArgumentException("Null content");
+            }
+            if (chatId == null) {
+                throw new IllegalArgumentException("Null chat");
+            }
+            Matcher matcher = SINGLE_TARGET.matcher(content);
+            if (!matcher.find()) {
+                throw new IllegalArgumentException("Target conformity");
+            }
+            Chat chat = getChat(chatId, skype);
+            User user = chat.getUser(matcher.group(1).substring(2));
+            if (user == null) {
+                throw new IllegalArgumentException("Null user");
+            }
+            skype.getEventDispatcher().callEvent(new LegacyMemberAddedEvent(user));
         }
     },
     THREAD_ACTIVITY_LEGACY_MEMBER_UPGRADED("ThreadActivity/LegacyMemberUpgraded") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) {
-            skype.getEventDispatcher().callEvent(new UnsupportedEvent(name(), resource.toString()));
-            skype.getLogger().log(Level.SEVERE, name() + " is in need of implementation! Please open a ticket with the following JSON data");
-            skype.getLogger().log(Level.SEVERE, resource.toString());
+        public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, IOException, ChatNotFoundException {
+            String content = Utils.getString(resource, "content");
+            String chatId = Utils.getString(resource, "conversationLink");
+            if (content == null) {
+                throw new IllegalArgumentException("Null content");
+            }
+            if (chatId == null) {
+                throw new IllegalArgumentException("Null chat");
+            }
+            Matcher matcher = SINGLE_TARGET.matcher(content);
+            if (!matcher.find()) {
+                throw new IllegalArgumentException("Target conformity");
+            }
+            Chat chat = getChat(chatId, skype);
+            User user = chat.getUser(matcher.group(1).substring(2));
+            if (user == null) {
+                throw new IllegalArgumentException("Null user");
+            }
+            skype.getEventDispatcher().callEvent(new LegacyMemberUpgradedEvent(user));
         }
     },
     EVENT_CALL("Event/Call") {
@@ -492,9 +560,7 @@ public enum MessageType {
             String url = resource.get("conversationLink").asString();
             String content = resource.get("content").asString();
 
-            boolean finished;
-            finished = content.startsWith("<ended/>") || content.startsWith("<partlist type=\"ended\"");
-
+            boolean finished = content.startsWith("<ended/>") || content.startsWith("<partlist type=\"ended\"");
 
             ChatImpl c = (ChatImpl) getChat(url, skype);
             User u = getUser(from, c);
@@ -515,7 +581,6 @@ public enum MessageType {
         }
     },
     CONTROL_CLEAR_TYPING("Control/ClearTyping") {
-        //YaR
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
             Chat c = getChat(resource.get("conversationLink").asString(), skype);
@@ -526,26 +591,50 @@ public enum MessageType {
     },
     CONTROL_LIVE_STATE("Control/LiveState") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) {
-            skype.getEventDispatcher().callEvent(new UnsupportedEvent(name(), resource.toString()));
-            skype.getLogger().log(Level.SEVERE, name() + " is in need of implementation! Please open a ticket with the following JSON data");
-            skype.getLogger().log(Level.SEVERE, resource.toString());
+        public void handle(SkypeImpl skype, JsonObject resource) { //No plans to implement sound API as of yet
+//            skype.getEventDispatcher().callEvent(new UnsupportedEvent(name(), resource.toString()));
+//            skype.getLogger().log(Level.SEVERE, name() + " is in need of implementation! Please open a ticket with the following JSON data");
+//            skype.getLogger().log(Level.SEVERE, resource.toString());
         }
     };
 
+    private static final Map<String, Pattern> METADATA = new HashMap<>();
+
+    static {
+        METADATA.put("text", Pattern.compile("Edited previous message: "));
+        METADATA.put("edited", Pattern.compile("</?[e_m][^<>]+>"));
+        METADATA.put("quoted", Pattern.compile("(<(?:/?)(?:quote|legacyquote)[^>]*>)", Pattern.CASE_INSENSITIVE));
+    }
+
+    private static final Pattern NAME = Pattern.compile("/((?:\\d+:|live:)[^/]+)");
+    private static final Pattern USERNAME = Pattern.compile("^((\\d+):)+");
+    private static final Pattern SINGLE_TARGET = Pattern.compile("<target>(\\d+:[^<]+)</target>");
+    private static final Pattern VIDEOMESSAGE = Pattern.compile("<videomessage[^>]*?\\ssid=\"([a-f0-9]{32})\"",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern URIOBJECT = Pattern.compile("<URIObject[^>]*?\\stype=\"([^\"]+?)\"",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern CONVERSATION = Pattern.compile("/(\\d+:[^?]*)");
+    private static final Pattern INITIATOR = Pattern.compile("<initiator>(\\d+:.+)</initiator>");
+
     private static final Map<String, MessageType> byValue = new HashMap<>();
-    private static final Pattern URL_PATTERN = Pattern.compile("conversations/(.*)", Pattern.CASE_INSENSITIVE);
     private static final Pattern USER_PATTERN = Pattern.compile("8:(.*)", Pattern.CASE_INSENSITIVE);
     private static final Pattern STRIP_EDIT_PATTERN = Pattern.compile("</?[e_m][^<>]+>", Pattern.CASE_INSENSITIVE);
-    private static final Pattern STRIP_QUOTE_PATTERN = Pattern.compile("(<(?:/?)(?:quote|legacyquote)[^>]*>)", Pattern.CASE_INSENSITIVE);
-    private static final Pattern STRIP_EMOTICON_PATTERN = Pattern.compile("(<(?:/?)(?:ss)[^>]*>)", Pattern.CASE_INSENSITIVE);
-    private static final Pattern CONTACT_PATTERN = Pattern.compile("(<c t=\"([^\"]+?)\"( p=\"([^\"]+?)\")?( s=\"([^\"]+?)\")?( f=\"([^\"]+?)\")? */>)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern STRIP_QUOTE_PATTERN = Pattern.compile("(<(?:/?)(?:quote|legacyquote)[^>]*>)",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern STRIP_EMOTICON_PATTERN = Pattern.compile("(<(?:/?)(?:ss)[^>]*>)",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern CONTACT_PATTERN = Pattern.compile(
+            "(<c t=\"([^\"]+?)\"( p=\"([^\"]+?)\")?( s=\"([^\"]+?)\")?( f=\"([^\"]+?)\")?/>)",
+            Pattern.CASE_INSENSITIVE);
     private static final Pattern SMS_PATTERN = Pattern.compile("<sms alt=\"([^\"]+?)\">", Pattern.CASE_INSENSITIVE);
-    private static final Pattern LOCATION_PATTERN = Pattern.compile("<a[^>]+href=\"https://www.bing.com/maps([^\"]+)\"[^>]*>([^<]*)", Pattern.CASE_INSENSITIVE);
-    private static final Pattern INITIATOR_PATTERN = Pattern.compile("<initiator>(\\d+:.+)</initiator>", Pattern.CASE_INSENSITIVE);
-    private static final Pattern EVENTTIME_PATTERN = Pattern.compile("<eventtime>(\\d+)</eventtime>", Pattern.CASE_INSENSITIVE);
-    private static final Pattern VALUE_PATTERN = Pattern.compile("(?:<value>(.+)</value>|<value />)", Pattern.CASE_INSENSITIVE);
-    private static final Pattern ROLE_UPDATE_PATTERN = Pattern.compile("<target><id>(\\d+:.+)</id><role>(.+)</role></target>", Pattern.CASE_INSENSITIVE);
+    private static final Pattern LOCATION_PATTERN = Pattern.compile(
+            "<a[^>]+href=\"https://www.bing.com/maps([^\"]+)\"[^>]*>([^<]*)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern EVENTTIME_PATTERN = Pattern.compile("<eventtime>(\\d+)</eventtime>",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern VALUE_PATTERN = Pattern.compile("(?:<value>(.+)</value>|<value />)",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern ROLE_UPDATE_PATTERN = Pattern.compile(
+            "<target><id>(\\d+:.+)</id><role>(.+)</role></target>", Pattern.CASE_INSENSITIVE);
 
     private final String value;
 
@@ -566,17 +655,27 @@ public enum MessageType {
     }
 
     public static MessageType getByName(String messageType) {
-        return byValue.get(messageType);
+        return byValue.getOrDefault(messageType, MessageType.UNKNOWN);
     }
 
-    public static Chat getChat(String url, Skype skype) throws ConnectionException, ChatNotFoundException, IOException {
-        Matcher m = URL_PATTERN.matcher(url);
+    public ChatImpl getChat(JsonObject resource, SkypeImpl skype) throws ConnectionException, IOException, ChatNotFoundException {
+        String chatId = Utils.getString(resource, "conversationLink");
+        if (chatId == null) {
+            throw new IllegalArgumentException("Null chat");
+        }
+        return getChat(chatId, skype);
+    }
+
+    public UserImpl getSender(JsonObject resource, ChatImpl chat) {
+        String author = getAuthor(resource);
+        String username = getUsername(author);
+        return chat.getUser(username);
+    }
+
+    public static ChatImpl getChat(String url, SkypeImpl skype) throws ConnectionException, ChatNotFoundException, IOException {
+        Matcher m = CONVERSATION.matcher(url);
         if (m.find()) {
-            Chat find = skype.getChat(m.group(1));
-            if (find == null) {
-                find = skype.loadChat(m.group(1));
-            }
-            return find;
+            return skype.getOrLoadChat(m.group(1));
         }
         throw conformError("Chat URL");
     }
@@ -589,11 +688,42 @@ public enum MessageType {
         throw conformError("User");
     }
 
+    public static String getAuthor(JsonObject resource) {
+        String from = Utils.getString(resource, "from");
+        if (from == null) throw new IllegalArgumentException("Null from");
+        Matcher matcher = NAME.matcher(from);
+        return matcher.find() ? matcher.group(1) : from;
+    }
+
+    private static String getUsername(String author) {
+        Matcher matcher = USERNAME.matcher(author);
+        return matcher.find() ? matcher.replaceAll("") : author;
+    }
+
+    private static UserImpl getInitiator(JsonObject resource, ChatImpl chat) {
+        String content = Utils.getString(resource, "content");
+        if (content == null) throw new IllegalArgumentException("Null content");
+        Matcher matcher = INITIATOR.matcher(content);
+        if (matcher.find()) {
+            UserImpl user = chat.getUser(getUsername(matcher.group(1)));
+            if (user != null) {
+                return user;
+            }
+            throw new IllegalArgumentException("Unknown user");
+        }
+        throw new IllegalArgumentException("Malformatted content");
+    }
+
+
     private static IllegalArgumentException conformError(String object) {
         return new IllegalArgumentException(String.format("%s did not conform to format expected", object));
     }
 
-    public static String stripMetadata(String message) {
-        return STRIP_EMOTICON_PATTERN.matcher(STRIP_QUOTE_PATTERN.matcher(STRIP_EDIT_PATTERN.matcher(message).replaceAll("")).replaceAll("")).replaceAll("");
+    public static String stripMetadata(String content) {
+        for (Pattern pattern : METADATA.values()) {
+            Matcher m = pattern.matcher(content);
+            content = m.find() ? m.replaceAll("") : content;
+        }
+        return content;
     }
 }

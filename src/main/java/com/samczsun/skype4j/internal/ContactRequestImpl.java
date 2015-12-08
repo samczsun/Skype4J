@@ -21,8 +21,6 @@ import com.samczsun.skype4j.internal.client.FullClient;
 import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.ContactRequest;
 
-import java.io.IOException;
-import java.net.HttpURLConnection;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -60,26 +58,18 @@ public class ContactRequestImpl implements ContactRequest {
 
     @Override
     public void accept() throws ConnectionException {
-        try {
-            HttpURLConnection connection = Endpoints.ACCEPT_CONTACT_REQUEST.open(skype, sender.getUsername()).put();
-            if (connection.getResponseCode() != 201) {
-                throw ExceptionHandler.generateException("While accepting contact request", connection);
-            }
-        } catch (IOException e) {
-            throw ExceptionHandler.generateException("While accepting contact request", e);
-        }
+        Endpoints.ACCEPT_CONTACT_REQUEST
+                .open(skype, sender.getUsername())
+                .expect(201, "While accepting contact request")
+                .put();
     }
 
     @Override
     public void decline() throws ConnectionException {
-        try {
-            HttpURLConnection connection = Endpoints.DECLINE_CONTACT_REQUEST.open(skype, sender.getUsername()).put();
-            if (connection.getResponseCode() != 201) {
-                throw ExceptionHandler.generateException("While accepting contact request", connection);
-            }
-        } catch (IOException e) {
-            throw ExceptionHandler.generateException("While accepting contact request", e);
-        }
+        Endpoints.DECLINE_CONTACT_REQUEST
+                .open(skype, sender.getUsername())
+                .expect(201, "While declining contact request")
+                .put();
     }
 
     @Override

@@ -17,10 +17,17 @@
 package com.samczsun.skype4j.events.chat;
 
 import com.samczsun.skype4j.chat.Chat;
+import com.samczsun.skype4j.user.User;
 
-@Deprecated
 public class ChatJoinedEvent extends ChatEvent {
-    public ChatJoinedEvent(Chat c) {
+    private User initiator;
+
+    public ChatJoinedEvent(Chat c, User initiator) {
         super(c);
+        this.initiator = initiator;
+    }
+
+    public User getInitiator() {
+        return this.initiator;
     }
 }

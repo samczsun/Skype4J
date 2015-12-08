@@ -23,12 +23,8 @@ import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.formatting.Text;
 import com.samczsun.skype4j.internal.Endpoints;
-import com.samczsun.skype4j.internal.ExceptionHandler;
 import com.samczsun.skype4j.internal.SkypeImpl;
 import com.samczsun.skype4j.user.User;
-
-import java.io.IOException;
-import java.net.HttpURLConnection;
 
 public class SentMessageImpl extends ChatMessageImpl implements SentMessage {
     public SentMessageImpl(Chat chat, User user, String id, String clientId, long time, Message message, SkypeImpl skype) {
@@ -37,20 +33,12 @@ public class SentMessageImpl extends ChatMessageImpl implements SentMessage {
 
     @Override
     public void edit(Message newMessage) throws ConnectionException {
-        try {
-            JsonObject obj = new JsonObject();
-            obj.add("content", newMessage.write());
-            obj.add("messagetype", "RichText");
-            obj.add("contenttype", "text");
-            obj.add("skypeeditedid", this.getClientId());
-
-            HttpURLConnection con = Endpoints.SEND_MESSAGE_URL.open(getClient(), getChat().getIdentity()).post(obj);
-            if (con.getResponseCode() != 201) {
-                throw ExceptionHandler.generateException("While editing a message", con);
-            }
-        } catch (IOException e) {
-            throw ExceptionHandler.generateException("While editing a message", e);
-        }
+        Endpoints.SEND_MESSAGE_URL.open(getClient(), getChat().getIdentity())
+                .expect(201, "While editing message")
+                .post(new JsonObject().add("content", newMessage.write())
+                        .add("messagetype", "RichText")
+                        .add("contenttype", "text")
+                        .add("skypeeditedid", getClientId()));
     }
 
     @Override

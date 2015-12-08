@@ -18,14 +18,9 @@ package com.samczsun.skype4j.internal.threads;
 
 import com.eclipsesource.json.JsonObject;
 import com.samczsun.skype4j.events.error.MajorErrorEvent;
+import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.internal.Endpoints;
-import com.samczsun.skype4j.internal.ExceptionHandler;
 import com.samczsun.skype4j.internal.SkypeImpl;
-
-import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.net.URLEncoder;
-import java.util.logging.Level;
 
 public class ActiveThread extends Thread {
 
@@ -41,13 +36,10 @@ public class ActiveThread extends Thread {
     public void run() {
         while (!skype.isLoggedIn()) {
             try {
-                HttpURLConnection connection = Endpoints.ACTIVE.open(skype, URLEncoder.encode(endpoint, "UTF-8")).post(new JsonObject().add("timeout", 12));
-                if (connection.getResponseCode() != 201) {
-                    MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.SESSION_ACTIVE, ExceptionHandler.generateException("While submitting keepalive", connection));
-                    skype.getEventDispatcher().callEvent(event);
-                    skype.shutdown();
-                }
-            } catch (IOException e) {
+                Endpoints.ACTIVE.open(skype, endpoint)
+                        .expect(201, "While submitting keepalive")
+                        .post(new JsonObject().add("timeout", 12));
+            } catch (ConnectionException e) {
                 MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.SESSION_ACTIVE, e);
                 skype.getEventDispatcher().callEvent(event);
                 skype.shutdown();
@@ -55,7 +47,6 @@ public class ActiveThread extends Thread {
             try {
                 Thread.sleep(12000);
             } catch (InterruptedException e) {
-                skype.getLogger().log(Level.SEVERE, "Active thread was interrupted", e);
             }
         }
     }

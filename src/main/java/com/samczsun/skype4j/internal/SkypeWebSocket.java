@@ -17,6 +17,7 @@
 package com.samczsun.skype4j.internal;
 
 import com.eclipsesource.json.JsonObject;
+import com.samczsun.skype4j.events.error.MajorErrorEvent;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.internal.client.FullClient;
 import org.java_websocket.SSLSocketChannel2;
@@ -40,7 +41,6 @@ import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 
@@ -58,15 +58,17 @@ public class SkypeWebSocket extends WebSocketClient {
         sc.init(null, trustAllCerts, new java.security.SecureRandom());
         this.setWebSocketFactory(new DefaultSSLWebSocketClientFactory(sc, singleThreaded) {
             private boolean called = false;
+
             @Override
-            public ByteChannel wrapChannel(SocketChannel channel, SelectionKey key, String host, int port ) throws IOException {
+            public ByteChannel wrapChannel(SocketChannel channel, SelectionKey key, String host, int port) throws IOException {
                 if (!called) {
                     Thread.currentThread().setName("Skype4J-WSMainThread-" + skype.getUsername());
                 }
-                SSLEngine e = sslcontext.createSSLEngine( host, port );
-                e.setUseClientMode( true );
-                ByteChannel c = new SSLSocketChannel2( channel, e, exec, key ) {
+                SSLEngine e = sslcontext.createSSLEngine(host, port);
+                e.setUseClientMode(true);
+                ByteChannel c = new SSLSocketChannel2(channel, e, exec, key) {
                     private boolean called = false;
+
                     @Override
                     public int write(ByteBuffer buffer) throws IOException {
                         if (!called) {
@@ -85,6 +87,7 @@ public class SkypeWebSocket extends WebSocketClient {
     public void onOpen(ServerHandshake serverHandshake) {
         (pingThread = new Thread("Skype4J-Pinger-" + skype.getUsername()) {
             AtomicInteger currentPing = new AtomicInteger(1);
+
             public void run() {
                 while (true) {
                     try {
@@ -119,7 +122,7 @@ public class SkypeWebSocket extends WebSocketClient {
                     skype.getLogger().log(Level.SEVERE, String.format("Unhandled exception while parsing websocket message '%s'", s), e);
                 }
             } else {
-                skype.getLogger().log(Level.SEVERE, "Unhandled websocket message '{0}'", s);
+                skype.getLogger().log(Level.SEVERE, String.format("Unhandled websocket message '%s'", s));
             }
 
             JsonObject trouterRequest = new JsonObject();
@@ -139,6 +142,30 @@ public class SkypeWebSocket extends WebSocketClient {
             response.add("trouter-client", trouterClient);
             response.add("body", "");
             this.send("3:::" + response.toString());
+        } else if (s.startsWith("5:")) {
+            if (s.contains("reconnect")) {
+                try {
+                    skype.registerWebSocket();
+                } catch (Exception e) {
+                    MajorErrorEvent error = new MajorErrorEvent(MajorErrorEvent.ErrorSource.REGISTERING_WEBSOCKET, e);
+                    skype.getEventDispatcher().callEvent(error);
+                }
+            }
+        } else if (s.equals("0::")) {
+            try {
+                this.closeBlocking();
+            } catch (InterruptedException e) {
+                MajorErrorEvent error = new MajorErrorEvent(MajorErrorEvent.ErrorSource.CLOSING_WEBSOCKET, e);
+                skype.getEventDispatcher().callEvent(error);
+            } finally {
+                if (this.pingThread.isAlive()) {
+                    this.pingThread.interrupt();
+                }
+                if (!this.singleThreaded.isTerminated()) {
+                    singleThreaded.shutdown();
+                    while (!singleThreaded.isTerminated()) ;
+                }
+            }
         }
     }
 
@@ -146,7 +173,15 @@ public class SkypeWebSocket extends WebSocketClient {
     public void onClose(int i, String s, boolean b) {
         pingThread.interrupt();
         singleThreaded.shutdown();
-        while (!singleThreaded.isTerminated());
+        while (!singleThreaded.isTerminated()) ;
+        if (skype.getWebSocket() == this) {
+            try {
+                skype.registerWebSocket();
+            } catch (Exception e) {
+                MajorErrorEvent error = new MajorErrorEvent(MajorErrorEvent.ErrorSource.REGISTERING_WEBSOCKET, e);
+                skype.getEventDispatcher().callEvent(error);
+            }
+        }
     }
 
     @Override

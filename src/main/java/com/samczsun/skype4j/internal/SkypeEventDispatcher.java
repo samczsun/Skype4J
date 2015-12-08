@@ -23,6 +23,7 @@ import com.samczsun.skype4j.events.EventHandler;
 import com.samczsun.skype4j.events.Listener;
 import com.samczsun.skype4j.events.error.MinorErrorEvent;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -44,17 +45,14 @@ public class SkypeEventDispatcher implements EventDispatcher {
         Class<?> c = l.getClass();
         for (Method m : c.getMethods()) {
             if (m.getAnnotation(EventHandler.class) != null && m.getParameterTypes().length == 1 && Event.class.isAssignableFrom(m.getParameterTypes()[0])) {
+                RegisteredListener reglistener = new RegisteredListener(l, m);
                 Class<?> eventType = m.getParameterTypes()[0];
-                while (eventType != Event.class) {
-                    List<RegisteredListener> methods = listeners.get(eventType);
-                    if (methods == null) {
-                        methods = new ArrayList<>();
-                        listeners.put(eventType, methods);
-                    }
-                    RegisteredListener reglistener = new RegisteredListener(l, m);
-                    methods.add(reglistener);
-                    eventType = eventType.getSuperclass();
+                List<RegisteredListener> methods = listeners.get(eventType);
+                if (methods == null) {
+                    methods = new ArrayList<>();
+                    listeners.put(eventType, methods);
                 }
+                methods.add(reglistener);
             }
         }
     }
@@ -64,11 +62,24 @@ public class SkypeEventDispatcher implements EventDispatcher {
     }
 
     private void callEvent(Event e, boolean tryNotify) { //todo bake
-        List<RegisteredListener> methods = listeners.get(e.getClass());
+        List<RegisteredListener> methods = new ArrayList<>();
+        Class<?> eventType = e.getClass();
+        while (true) {
+            List<RegisteredListener> m = listeners.get(eventType);
+            if (m != null) {
+                methods.addAll(m);
+            }
+            if (eventType == Event.class) {
+                break;
+            }
+            eventType = eventType.getSuperclass();
+        }
         if (methods != null) {
             for (RegisteredListener method : methods) {
                 try {
                     method.handleEvent(e);
+                } catch (InvocationTargetException ex) {
+                    instance.getLogger().log(Level.SEVERE, "Could not handle " + e.getClass(), ex.getTargetException());
                 } catch (Throwable t) {
                     t.printStackTrace();
                     if (tryNotify) {

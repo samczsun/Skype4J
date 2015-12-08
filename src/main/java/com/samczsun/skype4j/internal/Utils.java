@@ -28,7 +28,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
+import java.util.Iterator;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 public class Utils {
 
@@ -53,41 +55,46 @@ public class Utils {
 
     public static String uploadImage(BufferedImage image, String imageType, ImageType uploadType, ChatImpl chat) throws ConnectionException {
         try {
-            JsonObject obj = new JsonObject();
-            obj.add("type", uploadType.mime);
-            obj.add("permissions", new JsonObject().add(chat.getIdentity(), new JsonArray().add("read")));
-            HttpURLConnection connection = Endpoints.OBJECTS.open(chat.getClient()).post(obj);
-
-            if (connection.getResponseCode() != 201) {
-                throw ExceptionHandler.generateException("While uploading image", connection);
-            }
-
-            JsonObject response = JsonObject.readFrom(new InputStreamReader(connection.getInputStream()));
-            String id = response.get("id").asString();
-            connection = Endpoints.UPLOAD_IMAGE.open(chat.getClient(), id, uploadType.endpoint).header("Content-Type", "multipart/form-data").put();
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             ImageIO.write(image, imageType, baos);
             baos.flush();
-            connection.getOutputStream().write(baos.toByteArray());
-            if (connection.getResponseCode() != 201) {
-                throw ExceptionHandler.generateException("While uploading image", connection);
-            }
-
-            Endpoints.EndpointConnection econn = Endpoints.IMG_STATUS.open(chat.getClient(), id, uploadType.id);
-            while (true) {
-                HttpURLConnection conn = econn.get();
-                if (conn.getResponseCode() != 200) {
-                    throw ExceptionHandler.generateException("While getting image status", conn);
-                }
-                JsonObject status = JsonObject.readFrom(new InputStreamReader(conn.getInputStream()));
-                if (status.get("view_state").asString().equals("ready")) {
-                    break;
-                }
-            }
-            return id;
+            return upload(baos.toByteArray(), uploadType, null, chat);
         } catch (IOException e) {
             throw ExceptionHandler.generateException("While uploading image", e);
         }
+    }
+
+    public static String upload(byte[] data, ImageType type, JsonObject extra, ChatImpl chat) throws ConnectionException {
+        JsonObject obj = new JsonObject();
+        obj.add("type", type.mime);
+        obj.add("permissions", new JsonObject().add(chat.getIdentity(), new JsonArray().add("read")));
+        if (extra != null) extra.forEach(m -> obj.add(m.getName(), m.getValue()));
+
+        JsonObject response = Endpoints.OBJECTS
+                .open(chat.getClient())
+                .as(JsonObject.class)
+                .expect(201, "While uploading data")
+                .post(obj);
+
+        String id = response.get("id").asString();
+
+        Endpoints.UPLOAD_IMAGE
+                .open(chat.getClient(), id, type.endpoint)
+                .header("Content-Type", "multipart/form-data")
+                .expect(201, "While uploading data")
+                .connect("PUT", data);
+
+        Endpoints.EndpointConnection econn = Endpoints.IMG_STATUS
+                .open(chat.getClient(), id, type.id)
+                .as(JsonObject.class)
+                .expect(200, "While getting upload status");
+        while (true) {
+            JsonObject status = econn.get();
+            if (status.get("view_state").asString().equals("ready")) {
+                break;
+            }
+        }
+        return id;
     }
 
     public static String getString(JsonObject object, String key) {
@@ -96,7 +103,8 @@ public class Utils {
 
     public enum ImageType {
         IMGT1("pish/image", "imgpsh", "imgt1"),
-        AVATAR("avatar/group", "avatar", "avatar_fullsize"); //Also has "avatar"
+        AVATAR("avatar/group", "avatar", "avatar_fullsize"), //Also has "avatar"
+        FILE("sharing/file", "original", "thumbnail");
 
         private String mime;
         private String endpoint;
@@ -107,5 +115,18 @@ public class Utils {
             this.endpoint = endpoint;
             this.id = id;
         }
+    }
+
+    public static <T> Stream<T> asStream(Iterable<T> sourceIterable) {
+        return asStream(sourceIterable.iterator());
+    }
+
+    public static <T> Stream<T> asStream(Iterator<T> sourceIterator) {
+        return asStream(sourceIterator, false);
+    }
+
+    public static <T> Stream<T> asStream(Iterator<T> sourceIterator, boolean parallel) {
+        Iterable<T> iterable = () -> sourceIterator;
+        return StreamSupport.stream(iterable.spliterator(), parallel);
     }
 }

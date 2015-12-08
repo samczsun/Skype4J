@@ -14,26 +14,10 @@
  *    limitations under the License.
  */
 
-package com.samczsun.skype4j.events.chat.message;
+package com.samczsun.skype4j.formatting;
 
-import com.samczsun.skype4j.chat.messages.ChatMessage;
-import com.samczsun.skype4j.user.User;
+public interface IFlik {
+    String getEtag();
 
-public class MessageEditedByOtherEvent extends MessageEvent {
-    private final User malicious;
-    private final String newContent;
-
-    public MessageEditedByOtherEvent(ChatMessage message, String newContent, User user) {
-        super(message);
-        this.malicious = user;
-        this.newContent = newContent;
-    }
-
-    public User getMaliciousUser() {
-        return this.malicious;
-    }
-
-    public String getNewContent() {
-        return this.newContent;
-    }
+    String getDescription();
 }

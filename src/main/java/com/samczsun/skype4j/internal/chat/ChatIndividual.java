@@ -16,7 +16,6 @@
 
 package com.samczsun.skype4j.internal.chat;
 
-import com.samczsun.skype4j.Skype;
 import com.samczsun.skype4j.chat.IndividualChat;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
@@ -40,15 +39,15 @@ public class ChatIndividual extends ChatImpl implements IndividualChat {
             return;
         }
         isLoading.set(true);
-        Map<String, User> newUsers = new HashMap<>();
+        Map<String, UserImpl> newUsers = new HashMap<>();
         String username = this.getIdentity().substring(2);
-        User user = users.get(username.toLowerCase());
+        UserImpl user = users.get(username.toLowerCase());
         if (user == null) {
             user = new UserImpl(username, this, getClient());
         }
         newUsers.put(username.toLowerCase(), user);
         this.partner = user;
-        User me = users.get(getClient().getUsername().toLowerCase());
+        UserImpl me = users.get(getClient().getUsername().toLowerCase());
         if (me == null) {
             me = new UserImpl(getClient().getUsername(), this, getClient());
             newUsers.put(getClient().getUsername().toLowerCase(), me);

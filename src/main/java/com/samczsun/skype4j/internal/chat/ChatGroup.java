@@ -26,22 +26,16 @@ import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.internal.Endpoints;
-import com.samczsun.skype4j.internal.ExceptionHandler;
 import com.samczsun.skype4j.internal.MessageType;
 import com.samczsun.skype4j.internal.SkypeImpl;
 import com.samczsun.skype4j.internal.UserImpl;
 import com.samczsun.skype4j.internal.Utils;
 import com.samczsun.skype4j.internal.chat.messages.ChatMessageImpl;
 import com.samczsun.skype4j.user.Contact;
-import com.samczsun.skype4j.user.User;
 import com.samczsun.skype4j.user.User.Role;
 
-import javax.imageio.ImageIO;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -72,19 +66,16 @@ public class ChatGroup extends ChatImpl implements GroupChat {
             return;
         }
         enabledOptions = new HashSet<>();
-        boolean thrown = false;
         try {
             isLoading.set(true);
-            Map<String, User> newUsers = new HashMap<>();
-            HttpURLConnection con = Endpoints.CHAT_INFO_URL.open(getClient(), getIdentity()).get();
+            Map<String, UserImpl> newUsers = new HashMap<>();
+            JsonObject object = Endpoints.CHAT_INFO_URL
+                    .open(getClient(), getIdentity())
+                    .as(JsonObject.class)
+                    .on(404, ChatNotFoundException::new)
+                    .expect(200, "While loading users")
+                    .get();
 
-            if (con.getResponseCode() == 404) {
-                throw new ChatNotFoundException();
-            }
-            if (con.getResponseCode() != 200) {
-                throw ExceptionHandler.generateException("While loading users", con);
-            }
-            JsonObject object = JsonObject.readFrom(new InputStreamReader(con.getInputStream(), "UTF-8"));
             JsonObject props = object.get("properties").asObject();
             for (OptionUpdateEvent.Option option : OptionUpdateEvent.Option.values()) {
                 if (props.get(option.getId()) != null && props.get(option.getId()).asString().equals("true")) {
@@ -117,76 +108,71 @@ public class ChatGroup extends ChatImpl implements GroupChat {
 
             this.users.clear();
             this.users.putAll(newUsers);
-        } catch (IOException e) {
-            thrown = true;
-            throw ExceptionHandler.generateException("While loading", e);
+            hasLoaded.set(true);
         } finally {
-            if (!thrown) {
-                hasLoaded.set(true);
-            }
             isLoading.set(false);
         }
     }
 
     public List<ChatMessage> loadMoreMessages(int amount) throws ConnectionException {
-        try {
-            JsonObject data = null;
-            if (backwardLink == null) {
-                if (syncState == null) {
-                    HttpURLConnection connection = Endpoints.LOAD_MESSAGES.open(getClient(), getIdentity(), amount).get();
-                    if (connection.getResponseCode() != 200) {
-                        throw ExceptionHandler.generateException("While loading messages", connection);
-                    }
-                    data = JsonObject.readFrom(new InputStreamReader(connection.getInputStream()));
-                } else {
-                    return Collections.emptyList();
-                }
+        JsonObject data = null;
+        if (backwardLink == null) {
+            if (syncState == null) {
+                data = Endpoints.LOAD_MESSAGES
+                        .open(getClient(), getIdentity(), amount)
+                        .as(JsonObject.class)
+                        .expect(200, "While loading messages")
+                        .get();
             } else {
-                Matcher matcher = SkypeImpl.PAGE_SIZE_PATTERN.matcher(this.backwardLink);
-                matcher.find();
-                String url = matcher.replaceAll("pageSize=" + amount);
-                HttpURLConnection connection = Endpoints.custom(url, getClient()).header("RegistrationToken", getClient().getRegistrationToken()).get();
-                if (connection.getResponseCode() != 200) {
-                    throw ExceptionHandler.generateException("While loading chats", connection);
-                }
-                data = JsonObject.readFrom(new InputStreamReader(connection.getInputStream()));
+                return Collections.emptyList();
             }
-            List<ChatMessage> messages = new ArrayList<>();
-
-            for (JsonValue value : data.get("messages").asArray()) {
-                try {
-                    JsonObject msg = value.asObject();
-                    if (msg.get("messagetype").asString().equals("RichText")) {
-                        UserImpl u = (UserImpl) MessageType.getUser(msg.get("from").asString(), this);
-                        ChatMessage m = ChatMessageImpl.createMessage(this, u, msg.get("id").asString(), msg.get("id").asString(), formatter.parse(msg.get("originalarrivaltime").asString()).getTime(), Message.fromHtml(MessageType.stripMetadata(msg.get("content").asString())), getClient());
-                        this.messages.add(0, m);
-                        u.insertMessage(m, 0);
-                        messages.add(m);
-                    }
-                } catch (ParseException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-
-            JsonObject metadata = data.get("_metadata").asObject();
-            if (metadata.get("backwardLink") != null) {
-                this.backwardLink = metadata.get("backwardLink").asString();
-            } else {
-                this.backwardLink = null;
-            }
-            this.syncState = metadata.get("syncState").asString();
-            return messages;
-        } catch (IOException e) {
-            throw ExceptionHandler.generateException("While loading messages", e);
+        } else {
+            Matcher matcher = SkypeImpl.PAGE_SIZE_PATTERN.matcher(this.backwardLink);
+            matcher.find();
+            String url = matcher.replaceAll("pageSize=" + amount);
+            data = Endpoints
+                    .custom(url, getClient())
+                    .header("RegistrationToken", getClient().getRegistrationToken())
+                    .as(JsonObject.class)
+                    .expect(200, "While loading messages")
+                    .get();
         }
+        List<ChatMessage> messages = new ArrayList<>();
+
+        for (JsonValue value : data.get("messages").asArray()) {
+            try {
+                JsonObject msg = value.asObject();
+                if (msg.get("messagetype").asString().equals("RichText")) {
+                    UserImpl u = (UserImpl) MessageType.getUser(msg.get("from").asString(), this);
+                    ChatMessage m = ChatMessageImpl.createMessage(this, u, msg.get("id").asString(),
+                            msg.get("id").asString(),
+                            formatter.parse(msg.get("originalarrivaltime").asString()).getTime(),
+                            Message.fromHtml(MessageType.stripMetadata(msg.get("content").asString())), getClient());
+                    this.messages.add(0, m);
+                    u.insertMessage(m, 0);
+                    messages.add(m);
+                }
+            } catch (ParseException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        JsonObject metadata = data.get("_metadata").asObject();
+        if (metadata.get("backwardLink") != null) {
+            this.backwardLink = metadata.get("backwardLink").asString();
+        } else {
+            this.backwardLink = null;
+        }
+        this.syncState = metadata.get("syncState").asString();
+        return messages;
     }
 
     public void addUser(String username) throws ConnectionException {
         if (!users.containsKey(username.toLowerCase())) {
-            User user = new UserImpl(username, this, getClient());
+            UserImpl user = new UserImpl(username, this, getClient());
             users.put(username.toLowerCase(), user);
         } else if (!username.equalsIgnoreCase(getClient().getUsername())) { //Skype...
-//            throw new IllegalArgumentException(username + " joined the chat even though he was already in it?");
+            throw new IllegalArgumentException(username + " joined the chat even though he was already in it?");
         }
     }
 
@@ -196,14 +182,10 @@ public class ChatGroup extends ChatImpl implements GroupChat {
 
     public void kick(String username) throws ConnectionException {
         checkLoaded();
-        try {
-            HttpURLConnection con = Endpoints.MODIFY_MEMBER_URL.open(getClient(), getIdentity(), username).delete();
-            if (con.getResponseCode() != 200) {
-                throw ExceptionHandler.generateException("While kicking user", con);
-            }
-        } catch (IOException e) {
-            throw ExceptionHandler.generateException("While kicking user", e);
-        }
+        Endpoints.MODIFY_MEMBER_URL
+                .open(getClient(), getIdentity(), username)
+                .expect(200, "While kicking user")
+                .delete();
     }
 
     public void leave() throws ConnectionException {
@@ -214,19 +196,15 @@ public class ChatGroup extends ChatImpl implements GroupChat {
     public String getJoinUrl() throws ConnectionException {
         checkLoaded();
         if (isOptionEnabled(OptionUpdateEvent.Option.JOINING_ENABLED)) {
-            try {
-                JsonObject data = new JsonObject();
-                data.add("baseDomain", "https://join.skype.com/launch/");
-                data.add("threadId", this.getIdentity());
-                HttpURLConnection connection = Endpoints.GET_JOIN_URL.open(getClient()).post(data);
-                if (connection.getResponseCode() != 200) {
-                    throw ExceptionHandler.generateException("While getting join URL", connection);
-                }
-                JsonObject object = JsonObject.readFrom(new InputStreamReader(connection.getInputStream(), "UTF-8"));
-                return object.get("JoinUrl").asString();
-            } catch (IOException e) {
-                throw ExceptionHandler.generateException("While getting join URL", e);
-            }
+            JsonObject data = new JsonObject();
+            data.add("baseDomain", "https://join.skype.com/launch/");
+            data.add("threadId", this.getIdentity());
+            JsonObject object = Endpoints.GET_JOIN_URL
+                    .open(getClient())
+                    .as(JsonObject.class)
+                    .expect(200, "While getting join URL")
+                    .post(data);
+            return object.get("JoinUrl").asString();
         } else {
             throw new IllegalStateException("Joining is not enabled");
         }
@@ -251,20 +229,12 @@ public class ChatGroup extends ChatImpl implements GroupChat {
                 pictureUpdated = false;
             }
             if (picture == null) {
-                HttpURLConnection connection = null;
-                try {
-                    connection = Endpoints.custom(pictureUrl, getClient()).header("Authorization", Endpoints.AUTHORIZATION.provide(getClient())).get();
-                    if (connection.getResponseCode() != 200) {
-                        throw ExceptionHandler.generateException("While fetching image", connection);
-                    }
-                    this.picture = ImageIO.read(connection.getInputStream());
-                } catch (IOException e) {
-                    throw ExceptionHandler.generateException("While fetching image", e);
-                } finally {
-                    if (connection != null) {
-                        connection.disconnect();
-                    }
-                }
+                this.picture = Endpoints
+                        .custom(pictureUrl, getClient())
+                        .as(BufferedImage.class)
+                        .expect(200, "While fetching image")
+                        .header("Authorization", Endpoints.AUTHORIZATION.provide(getClient()))
+                        .get();
             }
             BufferedImage clone = new BufferedImage(picture.getWidth(), picture.getHeight(), picture.getType());
             Graphics2D g2d = clone.createGraphics();
@@ -278,7 +248,8 @@ public class ChatGroup extends ChatImpl implements GroupChat {
     @Override
     public void setImage(BufferedImage image, String imageType) throws ConnectionException {
         String id = Utils.uploadImage(image, imageType, Utils.ImageType.AVATAR, this);
-        putOption("picture", JsonValue.valueOf(String.format("URL@https://api.asm.skype.com/v1/objects/%s/views/avatar_fullsize", id)), true);
+        putOption("picture", JsonValue.valueOf(
+                String.format("URL@https://api.asm.skype.com/v1/objects/%s/views/avatar_fullsize", id)), true);
     }
 
     @Override
@@ -297,16 +268,10 @@ public class ChatGroup extends ChatImpl implements GroupChat {
     @Override
     public void add(Contact contact) throws ConnectionException {
         checkLoaded();
-        try {
-            JsonObject obj = new JsonObject();
-            obj.add("role", "User");
-            HttpURLConnection con = Endpoints.ADD_MEMBER_URL.open(getClient(), getIdentity(), contact.getUsername()).put();
-            if (con.getResponseCode() != 200) {
-                throw ExceptionHandler.generateException("While adding user into group", con);
-            }
-        } catch (IOException e) {
-            throw ExceptionHandler.generateException("While adding user into group", e);
-        }
+        Endpoints.ADD_MEMBER_URL
+                .open(getClient(), getIdentity(), contact.getUsername())
+                .expect(200, "While adding user to group")
+                .put(new JsonObject().add("role", "User"));
     }
 
     public void updateTopic(String topic) {

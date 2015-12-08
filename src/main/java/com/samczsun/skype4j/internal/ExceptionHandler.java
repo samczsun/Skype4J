@@ -29,10 +29,8 @@ public class ExceptionHandler {
     public static boolean DEBUG;
 
     static {
-        DEBUG = AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
-            public Boolean run() {
-                return Boolean.getBoolean("com.samczsun.skype4j.debugExceptions");
-            }
+        DEBUG = AccessController.doPrivileged((PrivilegedAction<Boolean>) () -> {
+            return Boolean.getBoolean("com.samczsun.skype4j.debugExceptions");
         });
     }
 

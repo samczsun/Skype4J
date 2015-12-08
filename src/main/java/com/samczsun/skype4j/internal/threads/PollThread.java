@@ -20,6 +20,7 @@ import com.eclipsesource.json.JsonObject;
 import com.eclipsesource.json.JsonValue;
 import com.samczsun.skype4j.events.error.MajorErrorEvent;
 import com.samczsun.skype4j.events.error.MinorErrorEvent;
+import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.internal.Endpoints;
 import com.samczsun.skype4j.internal.EventType;
 import com.samczsun.skype4j.internal.ExceptionHandler;
@@ -28,34 +29,37 @@ import com.samczsun.skype4j.internal.SkypeThreadFactory;
 import com.samczsun.skype4j.internal.Utils;
 
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class PollThread extends Thread {
     private final SkypeImpl skype;
     private final ExecutorService inputFetcher;
+    private final String endpointId;
 
-    public PollThread(SkypeImpl skype) {
+    public PollThread(SkypeImpl skype, String endpointId) {
         super(String.format("Skype4J-Poller-%s", skype.getUsername()));
         this.skype = skype;
         this.inputFetcher = Executors.newSingleThreadExecutor(new SkypeThreadFactory(skype, "PollBlocker"));
+        this.endpointId = endpointId;
     }
 
     public void run() {
-        final Endpoints.EndpointConnection epconn = Endpoints.POLL.open(skype).header("Content-Type", "application/json");
-        final AtomicReference<IOException> pendingException = new AtomicReference<>();
-        final AtomicReference<HttpURLConnection> connection = new AtomicReference<>();
-        final Object lock = new Object();
+        int pollId = 0;
         while (skype.isLoggedIn()) {
-            try {
-                connection.set(epconn.post());
-                inputFetcher.execute(new Runnable() {
-                    public void run() {
+            final Endpoints.EndpointConnection epconn = Endpoints.POLL
+                    .open(skype, pollId)
+                    .header("Content-Type", "application/json")
+                    .dontConnect();
+            final AtomicReference<IOException> pendingException = new AtomicReference<>();
+            final AtomicReference<HttpURLConnection> connection = new AtomicReference<>();
+            final Object lock = new Object();
+            while (skype.isLoggedIn()) {
+                try {
+                    connection.set(epconn.post());
+                    inputFetcher.execute(() -> {
                         try {
                             connection.get().getResponseCode();
                         } catch (IOException e) {
@@ -65,36 +69,69 @@ public class PollThread extends Thread {
                                 lock.notify();
                             }
                         }
+                    });
+
+                    synchronized (lock) {
+                        lock.wait();
                     }
-                });
 
-                synchronized (lock) {
-                    lock.wait();
-                }
-
-                if (pendingException.get() != null) {
-                    throw pendingException.get();
-                }
-
-                if (connection.get().getResponseCode() != 200) {
-                    MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.POLLING_SKYPE, ExceptionHandler.generateException("While polling Skype", connection.get()));
-                    skype.getEventDispatcher().callEvent(event);
-                    skype.shutdown();
-                    return;
-                }
-
-                if (skype.getScheduler().isShutdown()) {
-                    if (!skype.isShutdownRequested()) {
-                        MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.THREAD_POOL_DEAD);
-                        skype.getEventDispatcher().callEvent(event);
-                        skype.shutdown();
-                        return;
+                    if (pendingException.get() != null) {
+                        throw pendingException.get();
                     }
-                }
 
-                final JsonObject message = Utils.parseJsonObject(connection.get().getInputStream());
-                skype.getScheduler().execute(new Runnable() {
-                    public void run() {
+                    if (connection.get().getHeaderField("Set-RegistrationToken") != null) {
+                        skype.setRegistrationToken(connection.get().getHeaderField("Set-RegistrationToken"));
+                    }
+
+                    if (connection.get().getResponseCode() == 403) {
+                        try {
+                            HttpURLConnection conn = Endpoints
+                                    .custom("https://client-s.gateway.messenger.live.com/v1/users/ME/endpoints/" + endpointId,
+                                            skype)
+                                    .dontConnect()
+                                    .header("Authentication", "skypetoken=" + skype.getSkypeToken())
+                                    .put(new JsonObject());
+                            if (conn.getResponseCode() != 200) {
+                                MajorErrorEvent event = new MajorErrorEvent(
+                                        MajorErrorEvent.ErrorSource.REFRESHING_ENDPOINT,
+                                        ExceptionHandler.generateException("While refreshing endpoint", conn));
+                                skype.getEventDispatcher().callEvent(event);
+                                skype.shutdown();
+                                return;
+                            }
+                            String regtoken = conn.getHeaderField("Set-RegistrationToken");
+                            if (regtoken != null) {
+                                skype.setRegistrationToken(regtoken);
+                            }
+                            JsonObject object = Utils.parseJsonObject(conn.getInputStream());
+                            if (object.get("subscriptions") != null) {
+                                pollId = object.get("subscriptions").asArray().get(0).asObject().get("id").asInt();
+                            }
+                            break;
+                        } catch (IOException e) {
+                            MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.REFRESHING_ENDPOINT,
+                                    ExceptionHandler.generateException("While refreshing endpoint", e));
+                            skype.getEventDispatcher().callEvent(event);
+                            skype.shutdown();
+                            return;
+                        }
+                    }
+
+                    if (connection.get().getResponseCode() != 200) {
+                        continue;
+                    }
+
+                    if (skype.getScheduler().isShutdown()) {
+                        if (!skype.isShutdownRequested()) {
+                            MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.THREAD_POOL_DEAD);
+                            skype.getEventDispatcher().callEvent(event);
+                            skype.shutdown();
+                            return;
+                        }
+                    }
+
+                    final JsonObject message = Utils.parseJsonObject(connection.get().getInputStream());
+                    skype.getScheduler().execute(() -> {
                         if (message.get("eventMessages") != null) {
                             for (JsonValue elem : message.get("eventMessages").asArray()) {
                                 JsonObject eventObj = elem.asObject();
@@ -103,27 +140,25 @@ public class PollThread extends Thread {
                                     try {
                                         type.handle(skype, eventObj);
                                     } catch (Throwable t) {
-                                        MinorErrorEvent event = new MinorErrorEvent(MinorErrorEvent.ErrorSource.PARSING_MESSAGE, t, elem.toString());
+                                        MinorErrorEvent event = new MinorErrorEvent(
+                                                MinorErrorEvent.ErrorSource.PARSING_MESSAGE, t, elem.toString());
                                         skype.getEventDispatcher().callEvent(event);
                                     }
                                 } else {
-                                    MinorErrorEvent event = new MinorErrorEvent(MinorErrorEvent.ErrorSource.NO_MESSAGE_TYPE, null, elem.toString());
+                                    MinorErrorEvent event = new MinorErrorEvent(
+                                            MinorErrorEvent.ErrorSource.NO_MESSAGE_TYPE, null, elem.toString());
                                     skype.getEventDispatcher().callEvent(event);
                                 }
                             }
                         }
-                    }
-                });
-            } catch (InterruptedException e) {
-                return;
-            } catch (IOException e) {
-                MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.POLLING_SKYPE, e);
-                skype.getEventDispatcher().callEvent(event);
-                skype.shutdown();
-                return;
-            } finally {
-                if (connection.get() != null) {
-                    connection.get().disconnect();
+                    });
+                } catch (InterruptedException e) {
+                    return;
+                } catch (IOException | ConnectionException e) {
+                    MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.POLLING_SKYPE, e);
+                    skype.getEventDispatcher().callEvent(event);
+                    skype.shutdown();
+                    return;
                 }
             }
         }

@@ -16,19 +16,19 @@
 
 package com.samczsun.skype4j.events.chat.user.action;
 
-import com.samczsun.skype4j.chat.Chat;
-import com.samczsun.skype4j.events.chat.ChatEvent;
 import com.samczsun.skype4j.events.chat.user.UserEvent;
 import com.samczsun.skype4j.user.User;
 
 public class TopicUpdateEvent extends UserEvent {
     private long time;
     private String newTopic;
+    private String oldTopic;
 
-    public TopicUpdateEvent(User initiator, long time, String newTopic) {
+    public TopicUpdateEvent(User initiator, long time, String oldTopic, String newTopic) {
         super(initiator);
         this.time = time;
         this.newTopic = newTopic;
+        this.oldTopic = oldTopic;
     }
 
     public long getEventTime() {
@@ -37,5 +37,9 @@ public class TopicUpdateEvent extends UserEvent {
 
     public String getNewTopic() {
         return this.newTopic;
+    }
+
+    public String getOldTopic() {
+        return this.oldTopic;
     }
 }

@@ -26,8 +26,6 @@ import com.samczsun.skype4j.internal.chat.ChatImpl;
 import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.User;
 
-import java.io.IOException;
-import java.net.HttpURLConnection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -46,7 +44,9 @@ public class UserImpl implements User {
     private final Map<String, ChatMessage> messageMap = new ConcurrentHashMap<>();
 
     public UserImpl(String username, ChatImpl chat, SkypeImpl client) throws ConnectionException {
-        this.contactRep = chat.getClient().getOrLoadContact(username);
+        this.contactRep = chat
+                .getClient()
+                .getOrLoadContact(username);
         this.chat = chat;
         this.client = client;
     }
@@ -68,20 +68,15 @@ public class UserImpl implements User {
 
     @Override
     public void setRole(Role role) throws ConnectionException, NoPermissionException {
-        if (!(getChat() instanceof GroupChat))
-            throw new NoPermissionException();
-        try {
-            HttpURLConnection connection = Endpoints.MODIFY_MEMBER_URL.open(getClient(), getChat().getIdentity(), getUsername()).put(new JsonObject().add("role", role.name().toLowerCase()));
-            if (connection.getResponseCode() == 400) {
-                throw new NoPermissionException();
-            } else if (connection.getResponseCode() != 200) {
-                throw ExceptionHandler.generateException("While updating role", connection);
-            } else {
-                updateRole(role);
-            }
-        } catch (IOException e) {
-            throw ExceptionHandler.generateException("While updating role", e);
-        }
+        if (!(getChat() instanceof GroupChat)) throw new NoPermissionException();
+        Endpoints.MODIFY_MEMBER_URL
+                .open(getClient(), getChat().getIdentity(), getUsername())
+                .on(400, NoPermissionException::new)
+                .expect(200, "While updating role")
+                .put(new JsonObject().add("role", role
+                        .name()
+                        .toLowerCase()));
+        updateRole(role);
     }
 
     @Override
@@ -112,27 +107,6 @@ public class UserImpl implements User {
     public void onMessage(ChatMessage message) {
         this.messages.add(message);
         this.messageMap.put(message.getClientId(), message);
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        UserImpl user = (UserImpl) o;
-
-        if (!contactRep.equals(user.contactRep)) return false;
-        if (!chat.equals(user.chat)) return false;
-        return role == user.role;
-
-    }
-
-    @Override
-    public int hashCode() {
-        int result = contactRep.hashCode();
-        result = 31 * result + chat.hashCode();
-        result = 31 * result + role.hashCode();
-        return result;
     }
 
     public void updateRole(Role role) {

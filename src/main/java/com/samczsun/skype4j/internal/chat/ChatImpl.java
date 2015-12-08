@@ -28,6 +28,7 @@ import com.samczsun.skype4j.formatting.Text;
 import com.samczsun.skype4j.internal.Endpoints;
 import com.samczsun.skype4j.internal.ExceptionHandler;
 import com.samczsun.skype4j.internal.SkypeImpl;
+import com.samczsun.skype4j.internal.StreamUtils;
 import com.samczsun.skype4j.internal.UserImpl;
 import com.samczsun.skype4j.internal.Utils;
 import com.samczsun.skype4j.internal.chat.messages.ChatMessageImpl;
@@ -36,8 +37,10 @@ import com.samczsun.skype4j.user.User;
 import org.jsoup.helper.Validate;
 
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.net.HttpURLConnection;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -50,7 +53,7 @@ public abstract class ChatImpl implements Chat {
     protected final AtomicBoolean isLoading = new AtomicBoolean(false);
     protected final AtomicBoolean hasLoaded = new AtomicBoolean(false);
 
-    protected final Map<String, User> users = new ConcurrentHashMap<>();
+    protected final Map<String, UserImpl> users = new ConcurrentHashMap<>();
     protected final List<ChatMessage> messages = new CopyOnWriteArrayList<>();
 
     private final SkypeImpl client;
@@ -65,24 +68,18 @@ public abstract class ChatImpl implements Chat {
     @Override
     public ChatMessage sendMessage(Message message) throws ConnectionException {
         checkLoaded();
-        try {
-            long ms = System.currentTimeMillis();
+        long ms = System.currentTimeMillis();
 
-            JsonObject obj = new JsonObject();
-            obj.add("content", message.write());
-            obj.add("messagetype", "RichText");
-            obj.add("contenttype", "text");
-            obj.add("clientmessageid", String.valueOf(ms));
+        JsonObject obj = new JsonObject();
+        obj.add("content", message.write());
+        obj.add("messagetype", "RichText");
+        obj.add("contenttype", "text");
+        obj.add("clientmessageid", String.valueOf(ms));
 
-            HttpURLConnection con = Endpoints.SEND_MESSAGE_URL.open(getClient(), getIdentity()).post(obj);
-            if (con.getResponseCode() != 201) {
-                throw ExceptionHandler.generateException("While sending message", con);
-            }
+        Endpoints.SEND_MESSAGE_URL.open(getClient(), getIdentity()).expect(201, "While sending message").post(obj);
 
-            return ChatMessageImpl.createMessage(this, getUser(client.getUsername()), null, String.valueOf(ms), ms, message, getClient());
-        } catch (IOException e) {
-            throw ExceptionHandler.generateException("While sending message", e);
-        }
+        return ChatMessageImpl.createMessage(this, getUser(client.getUsername()), null, String.valueOf(ms), ms, message,
+                getClient());
     }
 
     @Override
@@ -93,42 +90,54 @@ public abstract class ChatImpl implements Chat {
     @Override
     public void sendContact(Contact contact) throws ConnectionException {
         checkLoaded();
-        try {
-            long ms = System.currentTimeMillis();
+        long ms = System.currentTimeMillis();
 
-            JsonObject obj = new JsonObject();
-            obj.add("content", String.format("<contacts><c t=\"s\" s=\"%s\" f=\"%s\"/></contacts>", contact.getUsername(), contact.getDisplayName()));
-            obj.add("messagetype", "RichText/Contacts");
-            obj.add("contenttype", "text");
-            obj.add("clientmessageid", String.valueOf(ms));
+        JsonObject obj = new JsonObject();
+        obj.add("content", String.format("<contacts><c t=\"s\" s=\"%s\" f=\"%s\"/></contacts>", contact.getUsername(),
+                contact.getDisplayName()));
+        obj.add("messagetype", "RichText/Contacts");
+        obj.add("contenttype", "text");
+        obj.add("clientmessageid", String.valueOf(ms));
 
-            HttpURLConnection con = Endpoints.SEND_MESSAGE_URL.open(getClient(), getIdentity()).post(obj);
-            if (con.getResponseCode() != 201) {
-                throw ExceptionHandler.generateException("While sending message", con);
-            }
-        } catch (IOException e) {
-            throw ExceptionHandler.generateException("While sending message", e);
-        }
+        Endpoints.SEND_MESSAGE_URL.open(getClient(), getIdentity()).expect(201, "While sending message").post(obj);
     }
 
     @Override
     public void sendImage(BufferedImage image, String imageType, String imageName) throws ConnectionException {
         checkLoaded();
+        String id = Utils.uploadImage(image, imageType, Utils.ImageType.IMGT1, this);
+        long ms = System.currentTimeMillis();
+        String content = "<URIObject type=\"Picture.1\" uri=\"https://api.asm.skype.com/v1/objects/%s\" url_thumbnail=\"https://api.asm.skype.com/v1/objects/%s/views/imgt1\">MyLegacy pish <a href=\"https://api.asm.skype.com/s/i?%s\">https://api.asm.skype.com/s/i?%s</a><Title/><Description/><OriginalName v=\"%s\"/><meta type=\"photo\" originalName=\"%s\"/></URIObject>";
+        content = String.format(content, id, id, id, id, imageName, imageName);
+        JsonObject obj = new JsonObject();
+        obj.add("content", content);
+        obj.add("messagetype", "RichText/UriObject");
+        obj.add("contenttype", "text");
+        obj.add("clientmessageid", String.valueOf(ms));
+
+        Endpoints.SEND_MESSAGE_URL.open(getClient(), getIdentity()).expect(201, "While sending message").post(obj);
+    }
+
+    @Override
+    public void sendFile(File file) throws ConnectionException {
+        checkLoaded();
         try {
-            String id = Utils.uploadImage(image, imageType, Utils.ImageType.IMGT1, this);
+            FileInputStream in = new FileInputStream(file);
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            StreamUtils.copy(in, out);
+            String id = Utils.upload(out.toByteArray(), Utils.ImageType.FILE,
+                    new JsonObject().add("filename", file.getName()), this);
             long ms = System.currentTimeMillis();
-            String content = "<URIObject type=\"Picture.1\" uri=\"https://api.asm.skype.com/v1/objects/%s\" url_thumbnail=\"https://api.asm.skype.com/v1/objects/%s/views/imgt1\">MyLegacy pish <a href=\"https://api.asm.skype.com/s/i?%s\">https://api.asm.skype.com/s/i?%s</a><Title/><Description/><OriginalName v=\"%s\"/><meta type=\"photo\" originalName=\"%s\"/></URIObject>";
-            content = String.format(content, id, id, id, id, imageName, imageName);
+            String content = "<URIObject type=\"File.1\" uri=\"https://api.asm.skype.com/v1/objects/%s\" url_thumbnail=\"https://api.asm.skype.com/v1/objects/%s/views/thumbnail\"><Title>Title: %s</Title><Description> Description: %s</Description><a href=\"https://login.skype.com/login/sso?go=webclient.xmm&amp;docid=%s\"> https://login.skype.com/login/sso?go=webclient.xmm&amp;docid=%s</a><OriginalName v=\"%s\"/><FileSize v=\"%s\"/></URIObject>";
+            content = String.format(content, id, id, file.getName(), file.getName(), id, id, file.getName(),
+                    out.size());
             JsonObject obj = new JsonObject();
             obj.add("content", content);
-            obj.add("messagetype", "RichText/UriObject");
+            obj.add("messagetype", "RichText/Media_GenericFile");
             obj.add("contenttype", "text");
             obj.add("clientmessageid", String.valueOf(ms));
 
-            HttpURLConnection con = Endpoints.SEND_MESSAGE_URL.open(getClient(), getIdentity()).post(obj);
-            if (con.getResponseCode() != 201) {
-                throw ExceptionHandler.generateException("While sending message", con);
-            }
+            Endpoints.SEND_MESSAGE_URL.open(getClient(), getIdentity()).expect(201, "While sending message").post(obj);
         } catch (IOException e) {
             throw ExceptionHandler.generateException("While sending message", e);
         }
@@ -141,7 +150,7 @@ public abstract class ChatImpl implements Chat {
     }
 
     @Override
-    public User getUser(String username) {
+    public UserImpl getUser(String username) {
         checkLoaded();
         return this.users.get(username.toLowerCase());
     }
@@ -168,7 +177,7 @@ public abstract class ChatImpl implements Chat {
     }
 
     // Begin internal access methods
-    public static Chat createChat(SkypeImpl client, String identity) throws ConnectionException, ChatNotFoundException {
+    public static ChatImpl createChat(SkypeImpl client, String identity) throws ConnectionException, ChatNotFoundException {
         Validate.notNull(client, "Client must not be null");
         Validate.notEmpty(identity, "Identity must not be null/empty");
         if (identity.startsWith("19:")) {
@@ -219,15 +228,11 @@ public abstract class ChatImpl implements Chat {
     }
 
     protected void putOption(String option, JsonValue value, boolean global) throws ConnectionException {
-        try {
-            JsonObject obj = new JsonObject();
-            obj.add(option, value);
-            HttpURLConnection con = (global ? Endpoints.CONVERSATION_PROPERTY_GLOBAL : Endpoints.CONVERSATION_PROPERTY_SELF).open(getClient(), getIdentity(), option).put(obj);
-            if (con.getResponseCode() != 200) {
-                throw ExceptionHandler.generateException("While updating an option", con);
-            }
-        } catch (IOException e) {
-            throw ExceptionHandler.generateException("While updating an option", e);
-        }
+        JsonObject obj = new JsonObject();
+        obj.add(option, value);
+        (global ? Endpoints.CONVERSATION_PROPERTY_GLOBAL : Endpoints.CONVERSATION_PROPERTY_SELF)
+                .open(getClient(), getIdentity(), option)
+                .expect(200, "While updating option")
+                .put(obj);
     }
 }

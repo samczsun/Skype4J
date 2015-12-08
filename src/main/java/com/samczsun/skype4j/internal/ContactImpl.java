@@ -25,13 +25,10 @@ import com.samczsun.skype4j.exceptions.NoSuchContactException;
 import com.samczsun.skype4j.user.Contact;
 import org.jsoup.helper.Validate;
 
-import javax.imageio.ImageIO;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.net.HttpURLConnection;
+import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
 
 public class ContactImpl implements Contact {
@@ -63,39 +60,34 @@ public class ContactImpl implements Contact {
         this.skype = skype;
         this.username = username;
         if (!PHONE_NUMBER.matcher(username).matches()) {
-            try {
-                HttpURLConnection con = Endpoints.CONTACT_INFO.open(skype).post("contacts[]=" + username);
-                if (con.getResponseCode() == 200) {
-                    JsonArray array = Utils.parseJsonArray(con.getInputStream());
-                    JsonObject json = array.get(0).asObject();
-                    this.firstName = Utils.getString(json, "firstname");
-                    this.lastName = Utils.getString(json, "lastnam");
-                    this.displayName = Utils.getString(json, "displayname");
-                    this.avatarURL = Utils.getString(json, "avatarUrl");
-                    this.mood = Utils.getString(json, "mood");
-                    this.richMood = Utils.getString(json, "richMood");
-                    this.country = Utils.getString(json, "country");
-                    this.city = Utils.getString(json, "city");
+            JsonArray array = Endpoints.CONTACT_INFO
+                    .open(skype)
+                    .expect(200, "While getting contact info")
+                    .as(JsonArray.class)
+                    .post("contacts[]=" + username);
+            JsonObject json = array.get(0).asObject();
+            this.firstName = Utils.getString(json, "firstname");
+            this.lastName = Utils.getString(json, "lastnam");
+            this.displayName = Utils.getString(json, "displayname");
+            this.avatarURL = Utils.getString(json, "avatarUrl");
+            this.mood = Utils.getString(json, "mood");
+            this.richMood = Utils.getString(json, "richMood");
+            this.country = Utils.getString(json, "country");
+            this.city = Utils.getString(json, "city");
 
-                    updateContactInfo();
+            updateContactInfo();
 
-                    if (this.displayName == null) {
-                        if (this.firstName != null) {
-                            this.displayName = this.firstName;
-                            if (this.lastName != null) {
-                                this.displayName = this.displayName + " " + this.lastName;
-                            }
-                        } else if (this.lastName != null) {
-                            this.displayName = this.lastName;
-                        } else {
-                            this.displayName = this.username;
-                        }
+            if (this.displayName == null) {
+                if (this.firstName != null) {
+                    this.displayName = this.firstName;
+                    if (this.lastName != null) {
+                        this.displayName = this.displayName + " " + this.lastName;
                     }
+                } else if (this.lastName != null) {
+                    this.displayName = this.lastName;
                 } else {
-                    throw ExceptionHandler.generateException("While getting contact info", con);
+                    this.displayName = this.username;
                 }
-            } catch (IOException e) {
-                throw ExceptionHandler.generateException("While loading", e);
             }
         } else {
             this.isPhone = true;
@@ -108,23 +100,19 @@ public class ContactImpl implements Contact {
     }
 
     private void updateContactInfo() throws ConnectionException {
-        try {
-            HttpURLConnection con1 = Endpoints.GET_CONTACT_BY_ID.open(skype, skype.getUsername(), username).get();
-            if (con1.getResponseCode() != 200) {
-                throw ExceptionHandler.generateException("While getting authorization data", con1);
-            }
-            JsonObject obj = Utils.parseJsonObject(con1.getInputStream());
-            if (obj.get("contacts").asArray().size() > 0) {
-                JsonObject contact = obj.get("contacts").asArray().get(0).asObject();
-                this.isAuthorized = contact.get("authorized").asBoolean();
-                this.isBlocked = contact.get("blocked").asBoolean();
-                this.displayName = contact.get("display_name").asString();
-            } else {
-                this.isAuthorized = false;
-                this.isBlocked = false;
-            }
-        } catch (IOException e) {
-            throw ExceptionHandler.generateException("While getting authorization data", e);
+        JsonObject obj = Endpoints.GET_CONTACT_BY_ID
+                .open(skype, skype.getUsername(), username)
+                .as(JsonObject.class)
+                .expect(200, "While getting authorization data")
+                .get();
+        if (obj.get("contacts").asArray().size() > 0) {
+            JsonObject contact = obj.get("contacts").asArray().get(0).asObject();
+            this.isAuthorized = contact.get("authorized").asBoolean();
+            this.isBlocked = contact.get("blocked").asBoolean();
+            this.displayName = contact.get("display_name").asString();
+        } else {
+            this.isAuthorized = false;
+            this.isBlocked = false;
         }
     }
 
@@ -152,20 +140,12 @@ public class ContactImpl implements Contact {
     public BufferedImage getAvatarPicture() throws ConnectionException {
         if (this.avatarURL != null) {
             if (this.avatar == null) {
-                HttpURLConnection connection = null;
-                try {
-                    connection = Endpoints.custom(this.avatarURL, skype).get();
-                    if (connection.getResponseCode() != 200) {
-                        throw ExceptionHandler.generateException("While fetching avatar", connection);
-                    }
-                    this.avatar = ImageIO.read(connection.getInputStream());
-                } catch (IOException e) {
-                    throw ExceptionHandler.generateException("While fetching avatar", e);
-                } finally {
-                    if (connection != null) {
-                        connection.disconnect();
-                    }
-                }
+                this.avatar = Endpoints
+                        .custom(this.avatarURL, skype)
+                        .expect(200, "While fetching avatar")
+                        .as(BufferedImage.class)
+                        .get();
+
             }
             BufferedImage clone = new BufferedImage(avatar.getWidth(), avatar.getHeight(), avatar.getType());
             Graphics2D g2d = clone.createGraphics();
@@ -208,51 +188,35 @@ public class ContactImpl implements Contact {
 
     @Override
     public void authorize() throws ConnectionException {
-        try {
-            HttpURLConnection connection = Endpoints.AUTHORIZE_CONTACT.open(skype, this.username).put();
-            if (connection.getResponseCode() != 200) {
-                throw ExceptionHandler.generateException("While authorizing contact", connection);
-            }
-            updateContactInfo();
-        } catch (IOException e) {
-            throw ExceptionHandler.generateException("While authorizing contact", e);
-        }
+        Endpoints.AUTHORIZE_CONTACT.open(skype, this.username).expect(200, "While authorizing contact").put();
+        updateContactInfo();
     }
 
     @Override
     public void unauthorize() throws ConnectionException {
-        try {
-            if (isAuthorized) {
-                HttpURLConnection connection = Endpoints.UNAUTHORIZE_CONTACT_SELF.open(skype, this.username).delete();
-                if (connection.getResponseCode() != 200) {
-                    throw ExceptionHandler.generateException("While unauthorizing contact", connection);
-                }
-            } else {
-                HttpURLConnection connection = Endpoints.DECLINE_CONTACT_REQUEST.open(skype, this.username).put();
-                if (connection.getResponseCode() != 201) {
-                    throw ExceptionHandler.generateException("While unauthorizing contact", connection);
-                }
-            }
-            updateContactInfo();
-        } catch (IOException e) {
-            throw ExceptionHandler.generateException("While unauthorizing contact", e);
+        if (isAuthorized) {
+            Endpoints.UNAUTHORIZE_CONTACT_SELF
+                    .open(skype, this.username)
+                    .expect(200, "While unauthorizing contact")
+                    .put();
+        } else {
+            Endpoints.DECLINE_CONTACT_REQUEST
+                    .open(skype, this.username)
+                    .expect(201, "While unauthorizing contact")
+                    .put();
         }
+        updateContactInfo();
     }
 
     @Override
-    public void sendRequest(String message) throws ConnectionException, NoSuchContactException {
-        try {
-            HttpURLConnection connection = Endpoints.AUTHORIZATION_REQUEST.open(skype, this.username).put("greeting=" + URLEncoder.encode(message, "UTF-8"));
-            if (connection.getResponseCode() == 404) {
-                throw new NoSuchContactException();
-            }
-            if (connection.getResponseCode() != 201 && connection.getResponseCode() != 200) {
-                throw ExceptionHandler.generateException("While sending request", connection);
-            }
-            updateContactInfo();
-        } catch (IOException e) {
-            throw ExceptionHandler.generateException("While sending request", e);
-        }
+    public void sendRequest(String message) throws ConnectionException, NoSuchContactException, UnsupportedEncodingException {
+        Endpoints.AUTHORIZATION_REQUEST
+                .open(skype, this.username)
+                .on(404, NoSuchContactException::new)
+                .expect(201, "While sending request")
+                .expect(200, "While sending request")
+                .put("greeting=" + URLEncoder.encode(message, "UTF-8"));
+        updateContactInfo();
     }
 
     @Override
@@ -262,29 +226,17 @@ public class ContactImpl implements Contact {
 
     @Override
     public void block(boolean reportAbuse) throws ConnectionException {
-        try {
-            HttpURLConnection connection = Endpoints.BLOCK_CONTACT.open(skype, this.username).put();
-            connection.getOutputStream().write(("reporterIp=127.0.0.1&uiVersion=908/1.19.0.87//skype.com" + (reportAbuse ? "&reportAbuse=1" : "")).getBytes(StandardCharsets.UTF_8));
-            if (connection.getResponseCode() != 201) {
-                throw ExceptionHandler.generateException("While blocking contact", connection);
-            }
-            updateContactInfo();
-        } catch (IOException e) {
-            throw ExceptionHandler.generateException("While blocking contact", e);
-        }
+        Endpoints.BLOCK_CONTACT
+                .open(skype, this.username)
+                .expect(201, "While unblocking contact")
+                .put("reporterIp=127.0.0.1&uiVersion=908/1.19.0.87//skype.com" + (reportAbuse ? "&reportAbuse=1" : ""));
+        updateContactInfo();
     }
 
     @Override
     public void unblock() throws ConnectionException {
-        try {
-            HttpURLConnection connection = Endpoints.UNBLOCK_CONTACT.open(skype, this.username).put();
-            if (connection.getResponseCode() != 201) {
-                throw ExceptionHandler.generateException("While unblocking contact", connection);
-            }
-            updateContactInfo();
-        } catch (IOException e) {
-            throw ExceptionHandler.generateException("While unblocking contact", e);
-        }
+        Endpoints.UNBLOCK_CONTACT.open(skype, this.username).expect(201, "While unblocking contact").put();
+        updateContactInfo();
     }
 
     @Override

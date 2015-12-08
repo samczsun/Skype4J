@@ -19,6 +19,7 @@ package com.samczsun.skype4j.internal;
 import com.eclipsesource.json.JsonObject;
 import com.samczsun.skype4j.Skype;
 import com.samczsun.skype4j.exceptions.SkypeException;
+import org.jsoup.helper.Validate;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -32,7 +33,14 @@ public enum EventType {
         @Override
         public void handle(SkypeImpl skype, JsonObject eventObj) throws SkypeException, IOException {
             JsonObject resource = eventObj.get("resource").asObject();
-            MessageType.getByName(resource.get("messagetype").asString()).handle(skype, resource);
+            String type = Utils.getString(resource, "messagetype");
+            try {
+                Validate.notNull(type, "Null type");
+                MessageType.getByName(type).handle(skype, resource);
+            } catch (Throwable t) {
+                t.addSuppressed(new SkypeException(resource.toString()));
+                throw t;
+            }
         }
     },
     ENDPOINT_PRESENCE("EndpointPresence") {
@@ -56,7 +64,7 @@ public enum EventType {
     THREAD_UPDATE("ThreadUpdate") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) throws SkypeException {
-
+            // User add and leave here 25898
         }
     };
 

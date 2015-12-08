@@ -20,6 +20,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 
 public class StreamUtils {
     public static String readFully(InputStream in) throws IOException {
@@ -32,9 +33,13 @@ public class StreamUtils {
 
     public static ByteArrayInputStream copy(InputStream in) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
+        copy(in, out);
+        return new ByteArrayInputStream(out.toByteArray());
+    }
+
+    public static void copy(InputStream in, OutputStream out) throws IOException {
         byte[] chunk = new byte[2048];
         int read = 0;
         while ((read = in.read(chunk)) > 0) out.write(chunk, 0, read);
-        return new ByteArrayInputStream(out.toByteArray());
     }
 }

@@ -25,6 +25,7 @@ import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.User;
 
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.util.Collection;
 import java.util.List;
 
@@ -69,6 +70,14 @@ public interface Chat {
      * @throws ConnectionException If an error occurs while connecting to the endpoint
      */
     void sendImage(BufferedImage image, String imageType, String imageName) throws ConnectionException;
+
+    /**
+     * Sends a file to this chat
+     *
+     * @param file The file to send
+     * @throws ConnectionException If an error occurs while connecting to the endpoint
+     */
+    void sendFile(File file) throws ConnectionException;
 
     /**
      * Get the {@link User} object represented by that username. Usernames are case insensitive

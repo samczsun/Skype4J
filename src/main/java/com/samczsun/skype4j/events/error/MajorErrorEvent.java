@@ -45,6 +45,7 @@ public class MajorErrorEvent extends ErrorEvent {
         POLLING_SKYPE,
         SESSION_KEEPALIVE,
         SESSION_ACTIVE,
-        THREAD_POOL_DEAD
+        THREAD_POOL_DEAD,
+        REGISTERING_WEBSOCKET, CLOSING_WEBSOCKET, REFRESHING_ENDPOINT
     }
 }
