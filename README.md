@@ -1,6 +1,6 @@
 # Skype4J
 
-[![Build Status](http://ci.samczsun.com/buildStatus/icon?job=Skype4J)](http://ci.samczsun.com/job/Skype4J/)
+[![Build Status](https://ci.samczsun.com/buildStatus/icon?job=Skype4J)](https://ci.samczsun.com/job/Skype4J/)
 
 This is a Skype API for Java. It does not support P2P chats. You can tell whether you're in a P2P chat or not based on the output of the `/help` command. If it contains commands such as `/kickban`, you're in a P2P chat and should switch to cloud chats immediately (try using `/fork`)
 
@@ -49,7 +49,7 @@ Maven is used for dependency management and deployment. To use this API, simply 
 </dependency>
 ```
 
-You can also download the latest build of this project from [Jenkins](http://ci.samczsun.com/job/Skype4J/) 
+You can also download the latest build of this project from [Jenkins](https://ci.samczsun.com/job/Skype4J/) 
 ## Licensing
 
 This project is licensed under the Apache 2.0 license
