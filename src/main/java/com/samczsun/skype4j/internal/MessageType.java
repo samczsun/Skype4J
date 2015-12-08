@@ -83,10 +83,7 @@ public enum MessageType {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) {
             skype.getEventDispatcher().callEvent(new UnsupportedEvent(name(), resource.toString()));
-            skype
-                    .getLogger()
-                    .log(Level.SEVERE, "Got an unknown tag! Please open a ticket with the following JSON data");
-            skype.getLogger().log(Level.SEVERE, resource.toString());
+            throw new IllegalArgumentException("Unknown type!");
         }
     },
     TEXT_INTERNAL("TextInternalShouldNotBeUsedOutside") {
@@ -355,6 +352,7 @@ public enum MessageType {
             }
             String location = "https://vm.skype.com/users/8:" + skype.getUsername() + "/video_mails/" + sid;
             skype.getEventDispatcher().callEvent(new UnsupportedEvent(name(), resource.toString()));
+            throw new IllegalArgumentException("This event needs implementation");
         }
     },
     THREAD_ACTIVITY_ADD_MEMBER("ThreadActivity/AddMember") {
@@ -569,7 +567,7 @@ public enum MessageType {
 
             boolean finished = content.startsWith("<ended/>") || content.startsWith("<partlist type=\"ended\"");
 
-            ChatImpl c = (ChatImpl) getChat(url, skype);
+            ChatImpl c = getChat(url, skype);
             User u = getUser(from, c);
             CallReceivedEvent event = new CallReceivedEvent(c, u, !finished);
             skype.getEventDispatcher().callEvent(event);
