@@ -30,14 +30,22 @@ import com.samczsun.skype4j.internal.Utils;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
 
 public class PollThread extends Thread {
     private final SkypeImpl skype;
     private final ExecutorService inputFetcher;
     private final String endpointId;
+    private final Object lock = new Object();
+
+    private IOException pendingException;
+    private HttpURLConnection connection;
 
     public PollThread(SkypeImpl skype, String endpointId) {
         super(String.format("Skype4J-Poller-%s", skype.getUsername()));
@@ -53,17 +61,14 @@ public class PollThread extends Thread {
                     .open(skype, pollId)
                     .header("Content-Type", "application/json")
                     .dontConnect();
-            final AtomicReference<IOException> pendingException = new AtomicReference<>();
-            final AtomicReference<HttpURLConnection> connection = new AtomicReference<>();
-            final Object lock = new Object();
             while (skype.isLoggedIn()) {
                 try {
-                    connection.set(epconn.post());
+                    connection = epconn.post();
                     inputFetcher.execute(() -> {
                         try {
-                            connection.get().getResponseCode();
+                            connection.getResponseCode();
                         } catch (IOException e) {
-                            pendingException.set(e);
+                            pendingException = e;
                         } finally {
                             synchronized (lock) {
                                 lock.notify();
@@ -75,15 +80,15 @@ public class PollThread extends Thread {
                         lock.wait();
                     }
 
-                    if (pendingException.get() != null) {
-                        throw pendingException.get();
+                    if (pendingException != null) {
+                        throw pendingException;
                     }
 
-                    if (connection.get().getHeaderField("Set-RegistrationToken") != null) {
-                        skype.setRegistrationToken(connection.get().getHeaderField("Set-RegistrationToken"));
+                    if (connection.getHeaderField("Set-RegistrationToken") != null) {
+                        skype.setRegistrationToken(connection.getHeaderField("Set-RegistrationToken"));
                     }
 
-                    if (connection.get().getResponseCode() == 403) {
+                    if (connection.getResponseCode() == 403) {
                         try {
                             HttpURLConnection conn = Endpoints
                                     .custom("https://client-s.gateway.messenger.live.com/v1/users/ME/endpoints/" + endpointId,
@@ -117,7 +122,7 @@ public class PollThread extends Thread {
                         }
                     }
 
-                    if (connection.get().getResponseCode() != 200) {
+                    if (connection.getResponseCode() != 200) {
                         continue;
                     }
 
@@ -126,11 +131,11 @@ public class PollThread extends Thread {
                             MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.THREAD_POOL_DEAD);
                             skype.getEventDispatcher().callEvent(event);
                             skype.shutdown();
-                            return;
                         }
+                        return;
                     }
 
-                    final JsonObject message = Utils.parseJsonObject(connection.get().getInputStream());
+                    final JsonObject message = Utils.parseJsonObject(connection.getInputStream());
                     skype.getScheduler().execute(() -> {
                         if (message.get("eventMessages") != null) {
                             for (JsonValue elem : message.get("eventMessages").asArray()) {
@@ -166,7 +171,11 @@ public class PollThread extends Thread {
 
     public void shutdown() {
         this.interrupt();
-        this.inputFetcher.shutdown();
-        while (!this.inputFetcher.isTerminated()) ;
+        while (this.getState() != State.TERMINATED) ;
+        if (this.connection != null) {
+            this.connection.disconnect();
+        }
+        this.inputFetcher.shutdownNow();
+        while (!this.inputFetcher.isTerminated());
     }
 }

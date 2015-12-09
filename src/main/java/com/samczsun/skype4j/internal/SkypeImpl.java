@@ -62,6 +62,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.ConsoleHandler;
@@ -257,17 +258,13 @@ public abstract class SkypeImpl implements Skype {
             loggedIn.set(false);
             shutdownRequested.set(true);
             this.shutdownThread.submit((Runnable) () -> {
+                shutdownThread.shutdown();
                 pollThread.shutdown();
                 sessionKeepaliveThread.interrupt();
                 activeThread.interrupt();
                 scheduler.shutdownNow();
                 while (!scheduler.isTerminated()) ;
-                try {
-                    wss.closeBlocking();
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                shutdownThread.shutdown();
+                wss.close();
             });
         }
     }
