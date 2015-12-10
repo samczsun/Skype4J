@@ -22,6 +22,7 @@ import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.NoSuchContactException;
+import com.samczsun.skype4j.internal.client.FullClient;
 import com.samczsun.skype4j.user.Contact;
 import org.jsoup.helper.Validate;
 
@@ -100,19 +101,21 @@ public class ContactImpl implements Contact {
     }
 
     private void updateContactInfo() throws ConnectionException {
-        JsonObject obj = Endpoints.GET_CONTACT_BY_ID
-                .open(skype, skype.getUsername(), username)
-                .as(JsonObject.class)
-                .expect(200, "While getting authorization data")
-                .get();
-        if (obj.get("contacts").asArray().size() > 0) {
-            JsonObject contact = obj.get("contacts").asArray().get(0).asObject();
-            this.isAuthorized = contact.get("authorized").asBoolean();
-            this.isBlocked = contact.get("blocked").asBoolean();
-            this.displayName = contact.get("display_name").asString();
-        } else {
-            this.isAuthorized = false;
-            this.isBlocked = false;
+        if (this.skype instanceof FullClient) {
+            JsonObject obj = Endpoints.GET_CONTACT_BY_ID
+                    .open(skype, skype.getUsername(), username)
+                    .as(JsonObject.class)
+                    .expect(200, "While getting authorization data")
+                    .get();
+            if (obj.get("contacts").asArray().size() > 0) {
+                JsonObject contact = obj.get("contacts").asArray().get(0).asObject();
+                this.isAuthorized = contact.get("authorized").asBoolean();
+                this.isBlocked = contact.get("blocked").asBoolean();
+                this.displayName = contact.get("display_name").asString();
+            } else {
+                this.isAuthorized = false;
+                this.isBlocked = false;
+            }
         }
     }
 

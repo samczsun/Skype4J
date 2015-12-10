@@ -19,11 +19,10 @@ package com.samczsun.skype4j.internal.client;
 import com.eclipsesource.json.JsonObject;
 import com.samczsun.skype4j.chat.GroupChat;
 import com.samczsun.skype4j.exceptions.ConnectionException;
-import com.samczsun.skype4j.exceptions.InvalidCredentialsException;
 import com.samczsun.skype4j.exceptions.NotParticipatingException;
-import com.samczsun.skype4j.exceptions.ParseException;
 import com.samczsun.skype4j.internal.Endpoints;
 import com.samczsun.skype4j.internal.SkypeImpl;
+import com.samczsun.skype4j.internal.threads.AuthenticationChecker;
 import com.samczsun.skype4j.internal.threads.KeepaliveThread;
 import com.samczsun.skype4j.user.Contact;
 import org.jsoup.Connection;
@@ -42,7 +41,7 @@ public class GuestClient extends SkypeImpl {
     }
 
     @Override
-    public void login() throws InvalidCredentialsException, ConnectionException, ParseException, NotParticipatingException {
+    public void login() throws ConnectionException {
         JsonObject response = Endpoints.NEW_GUEST
                 .open(this)
                 .as(JsonObject.class)
@@ -55,7 +54,7 @@ public class GuestClient extends SkypeImpl {
                         .add("threadId", chatId)
                         .add("spaceId", "Skype4J")
                         .add("flowId", "Skype4J"));
-        this.skypeToken = response.get("skypetoken").asString();
+        this.setSkypeToken(response.get("skypetoken").asString());
         Connection.Response asmResponse = getAsmToken();
         this.cookies = new HashMap<>(asmResponse.cookies());
 
@@ -69,15 +68,16 @@ public class GuestClient extends SkypeImpl {
         }
         this.loggedIn.set(true);
         (sessionKeepaliveThread = new KeepaliveThread(this)).start();
+        (reauthThread = new AuthenticationChecker(this)).start();
     }
 
     @Override
     public void logout() throws ConnectionException {
         Endpoints.LEAVE_GUEST
                 .open(this, this.chatId)
-                .expect(302, "While logging out")
+                .expect(200, "While logging out")
                 .cookie("guest_spaceId_" + chatId, "Skype4J")
-                .cookie("guest_token_Skype4J", this.skypeToken)
+                .cookie("guest_token_Skype4J", this.getSkypeToken())
                 .get();
         shutdown();
     }

@@ -33,6 +33,7 @@ import com.samczsun.skype4j.internal.Endpoints;
 import com.samczsun.skype4j.internal.ExceptionHandler;
 import com.samczsun.skype4j.internal.SkypeImpl;
 import com.samczsun.skype4j.internal.StreamUtils;
+import com.samczsun.skype4j.internal.threads.AuthenticationChecker;
 import com.samczsun.skype4j.internal.threads.KeepaliveThread;
 import com.samczsun.skype4j.user.Contact;
 import org.jsoup.Connection.Method;
@@ -171,7 +172,7 @@ public class FullClient extends SkypeImpl {
         }
         Elements inputs = loginResponseDocument.select("input[name=skypetoken]");
         if (inputs.size() > 0) {
-            this.skypeToken = inputs.get(0).attr("value");
+            this.setSkypeToken(inputs.get(0).attr("value"));
             Response asmResponse = getAsmToken();
             this.cookies.putAll(asmResponse.cookies());
 
@@ -186,6 +187,7 @@ public class FullClient extends SkypeImpl {
             }
             loggedIn.set(true);
             (sessionKeepaliveThread = new KeepaliveThread(this)).start();
+            (reauthThread = new AuthenticationChecker(this)).start();
         } else {
             boolean foundError = false;
             Elements captchas = loginResponseDocument.select("#captchaContainer");

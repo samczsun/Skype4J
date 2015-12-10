@@ -34,19 +34,24 @@ public class ActiveThread extends Thread {
     }
 
     public void run() {
-        while (!skype.isLoggedIn()) {
-            try {
-                Endpoints.ACTIVE.open(skype, endpoint)
-                        .expect(201, "While submitting keepalive")
-                        .post(new JsonObject().add("timeout", 12));
-            } catch (ConnectionException e) {
-                MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.SESSION_ACTIVE, e);
-                skype.getEventDispatcher().callEvent(event);
-                skype.shutdown();
-            }
-            try {
-                Thread.sleep(12000);
-            } catch (InterruptedException e) {
+        while (skype.isLoggedIn()) {
+            if (skype.isAuthenticated()) {
+                try {
+                    Endpoints.ACTIVE
+                            .open(skype, endpoint)
+                            .expect(201, "While submitting keepalive")
+                            .post(new JsonObject().add("timeout", 12));
+                } catch (ConnectionException e) {
+                    MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.SESSION_ACTIVE, e);
+                    skype.getEventDispatcher().callEvent(event);
+                    skype.shutdown();
+                }
+                try {
+                    Thread.sleep(12000);
+                } catch (InterruptedException e) {
+                }
+            } else {
+                return;
             }
         }
     }

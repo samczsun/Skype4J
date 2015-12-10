@@ -38,9 +38,15 @@ public interface Skype {
 
     /**
      * Log into Skype. This will perform the following actions:
-     * 1) Log into Skype to get a Skypetoken
+     * 1) Log into Skype to get a SkypeToken
      * 2) Register an endpoint to get a RegistrationToken
-     * 3) Load all contacts
+     *
+     * Note that the SkypeToken technically expires after 24 hours. The vanilla implementation in Skype for Web
+     * is to redirect you to the login screen. As such, roughly half an hour before 24 hours is hit, the API
+     * will attempt to re-login and, if subscribed, resubscribe.
+     *
+     * Note that on the off chance that a CAPTCHA is encountered, you will need to deal with it accordingly
+     * by listening to {@link com.samczsun.skype4j.events.misc.CaptchaEvent CaptchaEvent}.
      *
      * @throws InvalidCredentialsException If you've provided invalid credentials or if you hit a CAPTCHA
      * @throws ConnectionException         If a network error occured while connecting
@@ -50,8 +56,9 @@ public interface Skype {
     void login() throws InvalidCredentialsException, ConnectionException, ParseException, NotParticipatingException;
 
     /**
-     * Subscribe to the HTTP long polling service
-     * This will start reading events from Skype and calling events within this API
+     * Subscribe to the HTTP long polling service.
+     * This will start reading events from Skype and calling events within this API.
+     * Please note this call is not necessary if you do not plan on using the event API.
      *
      * @throws ConnectionException If an connection error occurs during subscription
      */

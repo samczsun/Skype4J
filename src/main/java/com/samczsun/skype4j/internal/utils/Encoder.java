@@ -14,12 +14,22 @@
  *    limitations under the License.
  */
 
-package com.samczsun.skype4j.events.chat.user;
+package com.samczsun.skype4j.internal.utils;
 
-import com.samczsun.skype4j.user.User;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.util.HashMap;
+import java.util.Map;
 
-public class LegacyMemberUpgradedEvent extends UserEvent {
-    public LegacyMemberUpgradedEvent(User user) {
-        super(user);
+public class Encoder {
+    private static final Map<String, String> encoded = new HashMap<>();
+
+    public static String encode(String in) {
+        try {
+            if (!encoded.containsKey(in)) encoded.put(in, URLEncoder.encode(in, "UTF-8"));
+            return encoded.get(in);
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

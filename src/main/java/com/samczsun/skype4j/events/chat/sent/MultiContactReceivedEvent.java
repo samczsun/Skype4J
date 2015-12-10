@@ -17,11 +17,9 @@
 package com.samczsun.skype4j.events.chat.sent;
 
 import com.samczsun.skype4j.chat.Chat;
-import com.samczsun.skype4j.events.chat.ChatEvent;
 import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.User;
 
-import java.util.Iterator;
 import java.util.List;
 
 public class MultiContactReceivedEvent extends ContactReceivedEvent {

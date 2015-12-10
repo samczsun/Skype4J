@@ -189,7 +189,7 @@ public class SkypeWebSocket extends WebSocketClient {
         skype.getLogger().log(Level.SEVERE, "Exception in websocket client", e);
     }
 
-    private class TrustAllManager implements X509TrustManager {
+    private static class TrustAllManager implements X509TrustManager {
 
         public java.security.cert.X509Certificate[] getAcceptedIssuers() {
             return new X509Certificate[0];

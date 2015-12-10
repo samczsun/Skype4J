@@ -16,8 +16,8 @@
 
 package com.samczsun.skype4j;
 
-import com.samczsun.skype4j.internal.client.GuestClient;
 import com.samczsun.skype4j.internal.client.FullClient;
+import com.samczsun.skype4j.internal.client.GuestClient;
 
 import java.util.Arrays;
 import java.util.HashSet;

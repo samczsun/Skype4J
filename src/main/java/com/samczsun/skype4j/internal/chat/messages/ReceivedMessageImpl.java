@@ -16,7 +16,6 @@
 
 package com.samczsun.skype4j.internal.chat.messages;
 
-import com.samczsun.skype4j.Skype;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.messages.ReceivedMessage;
 import com.samczsun.skype4j.formatting.Message;

@@ -20,13 +20,14 @@ import com.eclipsesource.json.JsonArray;
 import com.eclipsesource.json.JsonObject;
 import com.eclipsesource.json.JsonValue;
 import com.samczsun.skype4j.internal.StreamUtils;
+import com.samczsun.skype4j.internal.Utils;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -49,20 +50,19 @@ public class Generator {
         URL config = new URL(configloc + LANG);
         connection = (HttpURLConnection) config.openConnection();
         connection.setRequestProperty("User-Agent", "Skype4J");
-        JsonObject root = JsonObject.readFrom(new InputStreamReader(connection.getInputStream()));
+        JsonObject root = Utils.parseJsonObject(connection.getInputStream());
         JsonArray items = root.get("items").asArray();
 
         {
             Scanner in = new Scanner(
-                    new File("src/main/java/com/samczsun/skype4j/formatting/lang/DefaultEmoticon.java"));
+                    new File("src/main/java/com/samczsun/skype4j/formatting/lang/DefaultEmoticon.java"), "UTF-8");
 
             File f = new File("src/main/java/com/samczsun/skype4j/formatting/lang/" + LANG + "/Emoticon.java");
             if (!f.exists()) {
-                f.getParentFile().mkdirs();
-                f.createNewFile();
+                if (!f.getParentFile().mkdirs()) throw new IllegalArgumentException("Could not create folder");
+                if (!f.createNewFile()) throw new IllegalArgumentException("Could not create file");
             }
-            FileOutputStream out = new FileOutputStream(f);
-            PrintWriter pr = new PrintWriter(out);
+            PrintWriter pr = new PrintWriter(f, "UTF-8");
 
             while (in.hasNextLine()) {
                 String next = in.nextLine();
@@ -123,7 +123,12 @@ public class Generator {
                     for (int i = 0; i < emoticons.size(); i++) {
                         JsonObject obj = emoticons.get(i);
                         int x = 0;
-                        String enumname = obj.get("description").asString().toUpperCase().replace(' ', '_').replaceAll("[^a-zA-Z]", "");
+                        String enumname = obj
+                                .get("description")
+                                .asString()
+                                .toUpperCase()
+                                .replace(' ', '_')
+                                .replaceAll("[^a-zA-Z]", "");
                         String orig = enumname;
                         String id = obj.get("id").asString();
                         String etag = obj.get("etag").asString();
@@ -131,8 +136,9 @@ public class Generator {
                         while (!enumnames.add(enumname)) {
                             enumname = orig + "_" + (++x);
                         }
-                        pr.println(String.format("    %s(\"%s\", \"%s\", \"%s\")" + (i == emoticons.size() - 1 ? ";" : ","),
-                                enumname, id, etag, desc));
+                        pr.println(String.format(
+                                "    %s(\"%s\", \"%s\", \"%s\")" + (i == emoticons.size() - 1 ? ";" : ","), enumname,
+                                id, etag, desc));
                     }
                 } else {
                     pr.println(next);

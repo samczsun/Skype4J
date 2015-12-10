@@ -128,7 +128,6 @@ public enum MessageType {
                 }
             } else if (resource.get("skypeeditedid") != null) {
                 final String clientId = resource.get("skypeeditedid").asString();
-                final String id = resource.get("id").asString();
                 if (content.startsWith("Edited previous message: ")) {
                     content = content.substring("Edited previous message: ".length());
                     ChatMessage m = user.getMessageById(clientId);
@@ -340,17 +339,17 @@ public enum MessageType {
     EVENT_SKYPE_VIDEO_MESSAGE("Event/SkypeVideoMessage") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, IOException, ChatNotFoundException {
-            ChatImpl chat = getChat(resource, skype);
-            UserImpl sender = getSender(resource, chat);
-            String content = Utils.getString(resource, "content");
-            if (content == null) throw new IllegalArgumentException("Null content");
-            Matcher matcher = VIDEOMESSAGE.matcher(content);
-            if (!matcher.find()) throw new IllegalArgumentException("Videomessage conformity");
-            String sid = matcher.group(1);
-            if (sender == null) {
-                throw new IllegalArgumentException("Null user");
-            }
-            String location = "https://vm.skype.com/users/8:" + skype.getUsername() + "/video_mails/" + sid;
+//            ChatImpl chat = getChat(resource, skype);
+//            UserImpl sender = getSender(resource, chat);
+//            String content = Utils.getString(resource, "content");
+//            if (content == null) throw new IllegalArgumentException("Null content");
+//            Matcher matcher = VIDEOMESSAGE.matcher(content);
+//            if (!matcher.find()) throw new IllegalArgumentException("Videomessage conformity");
+//            String sid = matcher.group(1);
+//            if (sender == null) {
+//                throw new IllegalArgumentException("Null user");
+//            }
+//            String location = "https://vm.skype.com/users/8:" + skype.getUsername() + "/video_mails/" + sid;
             skype.getEventDispatcher().callEvent(new UnsupportedEvent(name(), resource.toString()));
             throw new IllegalArgumentException("This event needs implementation");
         }
@@ -395,14 +394,14 @@ public enum MessageType {
             UserImpl initiator = getInitiator(resource, chat);
             List<User> usersRemoved = new ArrayList<>();
             Matcher matcher = SINGLE_TARGET.matcher(resource.get("content").asString());
+            boolean removedSelf = false;
             while (matcher.find()) {
                 String username = getUsername(matcher.group(1));
                 usersRemoved.add(chat.getUser(username));
-                if (username.equalsIgnoreCase(skype.getUsername())) {
-                    ChatQuitEvent event = new ChatQuitEvent(chat, initiator);
-                    skype.getEventDispatcher().callEvent(event);
-                }
                 chat.removeUser(username);
+                if (username.equalsIgnoreCase(skype.getUsername())) {
+                    removedSelf = true;
+                }
             }
 
             if (usersRemoved.size() == 0) {
@@ -412,6 +411,11 @@ public enum MessageType {
                 skype.getEventDispatcher().callEvent(event);
             } else if (usersRemoved.size() > 1) {
                 throw new IllegalArgumentException("More than one user removed?");
+            }
+
+            if (removedSelf) {
+                ChatQuitEvent event = new ChatQuitEvent(chat, initiator);
+                skype.getEventDispatcher().callEvent(event);
             }
         }
     },

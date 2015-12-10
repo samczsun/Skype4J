@@ -210,7 +210,7 @@ public class Endpoints {
             this.endpoint = endpoint;
             this.skype = skype;
             this.args = args;
-            header("User-Agent", "Skype4J/" + SkypeImpl.VERSION);
+            header("User-Agent", "Mozilla/5.0 (Windows NT 10; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.73 Safari/537.36 Skype4J/" + SkypeImpl.VERSION);
         }
 
         public EndpointConnection header(String key, String val) {

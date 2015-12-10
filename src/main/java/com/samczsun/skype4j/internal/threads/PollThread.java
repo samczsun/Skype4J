@@ -30,13 +30,9 @@ import com.samczsun.skype4j.internal.Utils;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Stream;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PollThread extends Thread {
     private final SkypeImpl skype;
@@ -56,13 +52,15 @@ public class PollThread extends Thread {
 
     public void run() {
         int pollId = 0;
-        while (skype.isLoggedIn()) {
+        while (skype.isAuthenticated()) {
             final Endpoints.EndpointConnection epconn = Endpoints.POLL
                     .open(skype, pollId)
                     .header("Content-Type", "application/json")
                     .dontConnect();
-            while (skype.isLoggedIn()) {
+            final AtomicBoolean complete = new AtomicBoolean(false);
+            while (skype.isAuthenticated()) {
                 try {
+                    complete.set(false);
                     connection = epconn.post();
                     inputFetcher.execute(() -> {
                         try {
@@ -70,6 +68,7 @@ public class PollThread extends Thread {
                         } catch (IOException e) {
                             pendingException = e;
                         } finally {
+                            complete.set(true);
                             synchronized (lock) {
                                 lock.notify();
                             }
@@ -77,7 +76,9 @@ public class PollThread extends Thread {
                     });
 
                     synchronized (lock) {
-                        lock.wait();
+                        if (!complete.get()) {
+                            lock.wait();
+                        }
                     }
 
                     if (pendingException != null) {

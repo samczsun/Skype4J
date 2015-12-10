@@ -17,38 +17,34 @@
 package com.samczsun.skype4j.internal.threads;
 
 import com.samczsun.skype4j.events.error.MajorErrorEvent;
-import com.samczsun.skype4j.exceptions.ConnectionException;
-import com.samczsun.skype4j.internal.Endpoints;
 import com.samczsun.skype4j.internal.SkypeImpl;
 
-public class KeepaliveThread extends Thread {
+public class AuthenticationChecker extends Thread {
     private SkypeImpl skype;
 
-    public KeepaliveThread(SkypeImpl skype) {
-        super(String.format("Skype4J-Keepalive-%s", skype.getUsername()));
+    public AuthenticationChecker(SkypeImpl skype) {
+        super("Skype4J-Authenticator-" + skype.getUsername());
         this.skype = skype;
     }
 
     public void run() {
         while (skype.isLoggedIn()) {
-            if (skype.isAuthenticated()) {
+            long diff = (skype.getExpirationTime() - System.currentTimeMillis());
+            if (diff > 1800000) { //30 min
                 try {
-                    Endpoints.PING_URL
-                            .open(skype)
-                            .expect(200, "While maintaining session")
-                            .cookies(skype.getCookies())
-                            .connect("POST", "sessionId=" + skype.getGuid().toString());
-                } catch (ConnectionException e) {
-                    MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.SESSION_KEEPALIVE, e);
-                    skype.getEventDispatcher().callEvent(event);
-                    skype.shutdown();
-                }
-                try {
-                    Thread.sleep(300000);
+                    Thread.sleep(diff / 2);
                 } catch (InterruptedException e) {
                 }
             } else {
-                return;
+                try {
+                    skype.reauthenticate();
+                } catch (Exception e) {
+                    MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.REAUTHENTICATING, e);
+                    skype.getEventDispatcher().callEvent(event);
+                    skype.shutdown();
+                } finally {
+                    return;
+                }
             }
         }
     }

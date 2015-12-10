@@ -16,8 +16,6 @@
 
 package com.samczsun.skype4j.exceptions;
 
-import com.samczsun.skype4j.Skype;
-
 /**
  * Thrown when a captcha is not solved
  */

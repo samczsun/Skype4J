@@ -39,7 +39,7 @@ public class SkypeEventDispatcher implements EventDispatcher {
         this.instance = instance;
     }
 
-    private final Map<Class<?>, List<RegisteredListener>> listeners = Collections.synchronizedMap(new HashMap<Class<?>, List<RegisteredListener>>());
+    private final Map<Class<?>, List<RegisteredListener>> listeners = Collections.synchronizedMap(new HashMap<>());
 
     public void registerListener(Listener l) {
         Class<?> c = l.getClass();

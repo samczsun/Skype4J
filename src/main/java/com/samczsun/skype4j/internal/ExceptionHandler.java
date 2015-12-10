@@ -26,12 +26,10 @@ import java.util.List;
 import java.util.Map;
 
 public class ExceptionHandler {
-    public static boolean DEBUG;
+    private static final boolean DEBUG;
 
     static {
-        DEBUG = AccessController.doPrivileged((PrivilegedAction<Boolean>) () -> {
-            return Boolean.getBoolean("com.samczsun.skype4j.debugExceptions");
-        });
+        DEBUG = AccessController.doPrivileged((PrivilegedAction<Boolean>) () -> Boolean.getBoolean("com.samczsun.skype4j.debugExceptions"));
     }
 
     public static ConnectionException generateException(String reason, HttpURLConnection connection) {
