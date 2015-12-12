@@ -32,7 +32,6 @@ import com.samczsun.skype4j.internal.ContactRequestImpl;
 import com.samczsun.skype4j.internal.Endpoints;
 import com.samczsun.skype4j.internal.ExceptionHandler;
 import com.samczsun.skype4j.internal.SkypeImpl;
-import com.samczsun.skype4j.internal.StreamUtils;
 import com.samczsun.skype4j.internal.threads.AuthenticationChecker;
 import com.samczsun.skype4j.internal.threads.KeepaliveThread;
 import com.samczsun.skype4j.user.Contact;
@@ -173,8 +172,9 @@ public class FullClient extends SkypeImpl {
         Elements inputs = loginResponseDocument.select("input[name=skypetoken]");
         if (inputs.size() > 0) {
             this.setSkypeToken(inputs.get(0).attr("value"));
-            Response asmResponse = getAsmToken();
-            this.cookies.putAll(asmResponse.cookies());
+            HttpURLConnection asmResponse = getAsmToken();
+            String[] setCookie = asmResponse.getHeaderField("Set-Cookie").split(";")[0].split("=");
+            this.cookies.put(setCookie[0], setCookie[1]);
 
             registerEndpoint();
 
@@ -202,37 +202,30 @@ public class FullClient extends SkypeImpl {
                 }
                 if (url != null) {
                     try {
-                        HttpURLConnection connection = Endpoints.custom(url, this).dontConnect().get();
-                        if (connection.getResponseCode() == 200) {
-                            String rawjs = StreamUtils.readFully(connection.getInputStream());
-                            Pattern p = Pattern.compile("imageurl:'([^']*)'");
-                            Matcher m = p.matcher(rawjs);
+                        String rawjs = Endpoints.custom(url, this).as(String.class).get();
+                        Pattern p = Pattern.compile("imageurl:'([^']*)'");
+                        Matcher m = p.matcher(rawjs);
+                        if (m.find()) {
+                            String imgurl = m.group(1);
+                            m = Pattern.compile("hid=([^&]*)").matcher(imgurl);
                             if (m.find()) {
-                                String imgurl = m.group(1);
-                                m = Pattern.compile("hid=([^&]*)").matcher(imgurl);
+                                String hid = m.group(1);
+                                m = Pattern.compile("fid=([^&]*)").matcher(imgurl);
                                 if (m.find()) {
-                                    String hid = m.group(1);
-                                    m = Pattern.compile("fid=([^&]*)").matcher(imgurl);
-                                    if (m.find()) {
-                                        String fid = m.group(1);
-                                        CaptchaEvent event = new CaptchaEvent(imgurl);
-                                        getEventDispatcher().callEvent(event);
-                                        String response = event.getCaptcha();
-                                        if (response != null) {
-                                            login(new String[]{response, hid, fid});
-                                        } else {
-                                            throw new CaptchaException();
-                                        }
-                                        foundError = true;
+                                    String fid = m.group(1);
+                                    CaptchaEvent event = new CaptchaEvent(imgurl);
+                                    getEventDispatcher().callEvent(event);
+                                    String response = event.getCaptcha();
+                                    if (response != null) {
+                                        login(new String[]{response, hid, fid});
+                                    } else {
+                                        throw new CaptchaException();
                                     }
+                                    foundError = true;
                                 }
                             }
-                        } else {
-                            MinorErrorEvent err = new MinorErrorEvent(MinorErrorEvent.ErrorSource.PARSING_CAPTCHA,
-                                    ExceptionHandler.generateException("", connection));
-                            getEventDispatcher().callEvent(err);
                         }
-                    } catch (IOException e) {
+                    } catch (ConnectionException e) {
                         MinorErrorEvent err = new MinorErrorEvent(MinorErrorEvent.ErrorSource.PARSING_CAPTCHA, e);
                         getEventDispatcher().callEvent(err);
                     }

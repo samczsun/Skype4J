@@ -55,11 +55,11 @@ public class GuestClient extends SkypeImpl {
                         .add("spaceId", "Skype4J")
                         .add("flowId", "Skype4J"));
         this.setSkypeToken(response.get("skypetoken").asString());
-        Connection.Response asmResponse = getAsmToken();
-        this.cookies = new HashMap<>(asmResponse.cookies());
+        HttpURLConnection asmResponse = getAsmToken();
+        String[] setCookie = asmResponse.getHeaderField("Set-Cookie").split(";")[0].split("=");
+        this.cookies.put(setCookie[0], setCookie[1]);
 
-        HttpURLConnection registrationToken = registerEndpoint();
-        this.setRegistrationToken(registrationToken.getHeaderField("Set-RegistrationToken"));
+        registerEndpoint();
 
         try {
             this.registerWebSocket();

@@ -32,7 +32,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
 
 public class Endpoints {
     private static Map<Class<?>, Converter<?>> converters = new HashMap<>();
@@ -154,10 +153,6 @@ public class Endpoints {
 
     private String url;
 
-    public static EndpointConnection custom(String url, SkypeImpl skype, String... args) {
-        return new EndpointConnection(new Endpoints(url), skype, args);
-    }
-
     public String url() {
         return this.url;
     }
@@ -166,11 +161,18 @@ public class Endpoints {
         this.url = url;
     }
 
-    public EndpointConnection open(SkypeImpl skype, Object... args) {
+    public static EndpointConnection<HttpURLConnection> custom(String url, SkypeImpl skype, String... args) {
         if (skype.isShutdownRequested()) {
             throw new IllegalStateException("API is shut down");
         }
-        return new EndpointConnection(this, skype, args);
+        return new EndpointConnection(new Endpoints(url), skype, args).as(HttpURLConnection.class);
+    }
+
+    public EndpointConnection<HttpURLConnection> open(SkypeImpl skype, Object... args) {
+        if (skype.isShutdownRequested()) {
+            throw new IllegalStateException("API is shut down");
+        }
+        return new EndpointConnection(this, skype, args).as(HttpURLConnection.class);
     }
 
     private Endpoints cloud() {
@@ -193,99 +195,106 @@ public class Endpoints {
         return this;
     }
 
-    public static class EndpointConnection {
-        private Class<?> clazz = HttpURLConnection.class;
+    public static class EndpointConnection<E_TYPE> {
+        private Class<E_TYPE> clazz = (Class<E_TYPE>) HttpURLConnection.class;
         private Endpoints endpoint;
         private SkypeImpl skype;
         private Object[] args;
         private Map<String, String> headers = new HashMap<>();
         private Map<String, String> cookies = new HashMap<>();
-        private Map<Integer, Supplier<Exception>> errors = new HashMap<>();
+        private Map<Integer, Runnable> errors = new HashMap<>();
         private List<Integer> expected = new ArrayList<>();
         private URL url;
         private String cause;
         private boolean dontConnect;
+        private boolean redirect;
 
         private EndpointConnection(Endpoints endpoint, SkypeImpl skype, Object[] args) {
             this.endpoint = endpoint;
             this.skype = skype;
             this.args = args;
-            header("User-Agent", "Mozilla/5.0 (Windows NT 10; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.73 Safari/537.36 Skype4J/" + SkypeImpl.VERSION);
+            header("User-Agent",
+                    "Mozilla/5.0 (Windows NT 10; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.73 Safari/537.36 Skype4J/" + SkypeImpl.VERSION);
         }
 
-        public EndpointConnection header(String key, String val) {
+        public EndpointConnection<E_TYPE> header(String key, String val) {
             this.headers.put(key, val);
             return this;
         }
 
-        public EndpointConnection cookies(Map<String, String> cookies) {
+        public EndpointConnection<E_TYPE> cookies(Map<String, String> cookies) {
             this.cookies.putAll(cookies);
             return this;
         }
 
-        public EndpointConnection cookie(String key, String val) {
+        public EndpointConnection<E_TYPE> cookie(String key, String val) {
             this.cookies.put(key, val);
             return this;
         }
 
-        public EndpointConnection on(int code, Supplier<Exception> toThrow) {
-            this.errors.put(code, toThrow);
+        public EndpointConnection<E_TYPE> on(int code, Runnable action) {
+            this.errors.put(code, action);
             return this;
         }
 
-        public EndpointConnection expect(int code, String cause) {
+        public EndpointConnection<E_TYPE> expect(int code, String cause) {
             this.expected.add(code);
             this.cause = cause == null ? this.cause : cause;
             return this;
         }
 
-        public EndpointConnection as(Class<?> clazz) {
-            this.clazz = clazz;
+        public EndpointConnection<E_TYPE> noRedirects() {
+            this.redirect = false;
             return this;
         }
 
-        public EndpointConnection dontConnect() {
+        public <NEW_E_TYPE> EndpointConnection<NEW_E_TYPE> as(Class<NEW_E_TYPE> clazz) {
+            this.clazz = (Class<E_TYPE>) clazz;
+            return (EndpointConnection<NEW_E_TYPE>) this;
+        }
+
+        public EndpointConnection<E_TYPE> dontConnect() {
             this.dontConnect = true;
             return this;
         }
 
-        public <T> T get() throws ConnectionException {
-            return (T) connect("GET", new byte[0]);
+        public E_TYPE get() throws ConnectionException {
+            return connect("GET", new byte[0]);
         }
 
-        public <T> T delete() throws ConnectionException {
+        public E_TYPE delete() throws ConnectionException {
             return connect("DELETE", new byte[0]);
         }
 
-        public <T> T post() throws ConnectionException {
+        public E_TYPE post() throws ConnectionException {
             return connect("POST", new byte[0]);
         }
 
-        public <T> T post(String data) throws ConnectionException {
+        public E_TYPE post(String data) throws ConnectionException {
             return connect("POST", data);
         }
 
-        public <T> T post(JsonValue json) throws ConnectionException {
+        public E_TYPE post(JsonValue json) throws ConnectionException {
             return header("Content-Type", "application/json").connect("POST", json.toString());
         }
 
-        public <T> T put() throws ConnectionException {
+        public E_TYPE put() throws ConnectionException {
             return connect("PUT", new byte[0]);
         }
 
-        public <T> T put(String data) throws ConnectionException {
+        public E_TYPE put(String data) throws ConnectionException {
             return connect("PUT", data);
         }
 
-        public <T> T put(JsonValue json) throws ConnectionException {
+        public E_TYPE put(JsonValue json) throws ConnectionException {
             return header("Content-Type", "application/json").connect("PUT", json.toString());
         }
 
-        public <T> T connect(String method, String data) throws ConnectionException {
+        public E_TYPE connect(String method, String data) throws ConnectionException {
             return this.connect(method, data != null ? data.getBytes(StandardCharsets.UTF_8) : new byte[0]);
         }
 
-        public <T> T connect(String method, byte[] rawData) throws ConnectionException {
+        public E_TYPE connect(String method, byte[] rawData) throws ConnectionException {
             if (!cookies.isEmpty()) {
                 header("Cookie", serializeCookies(cookies));
             }
@@ -339,22 +348,27 @@ public class Endpoints {
                     if ((connection.getResponseCode() >= 301 && connection.getResponseCode() <= 303) || connection.getResponseCode() == 307 || connection
                             .getResponseCode() == 308) {
                         skype.updateCloud(connection.getHeaderField("Location"));
-                        this.url = new URL(connection.getHeaderField("Location"));
-                        return this.connect(method, rawData);
-                    } else {
-                        Supplier<Exception> ex = errors.remove(connection.getResponseCode());
-                        if (ex != null) {
-                            sneakyThrow(ex.get());
+                        if (this.redirect) {
+                            this.url = new URL(connection.getHeaderField("Location"));
+                            return this.connect(method, rawData);
                         }
-                        if (this.expected.isEmpty()) throw new IllegalArgumentException("No expected response code");
-                        if (this.cause == null) throw new IllegalArgumentException("No cause");
-                        if (!this.expected.contains(connection.getResponseCode())) {
-                            throw ExceptionHandler.generateException(cause, connection);
-                        }
-                        return convert(clazz, skype, connection);
                     }
+                    Runnable ex = errors.remove(connection.getResponseCode());
+                    if (ex != null) {
+                        try {
+                            ex.run();
+                        } catch (Throwable t) {
+                            sneakyThrow(t);
+                        }
+                    }
+                    if (this.expected.isEmpty()) throw new IllegalArgumentException("No expected response code");
+                    if (this.cause == null) throw new IllegalArgumentException("No cause");
+                    if (!this.expected.contains(connection.getResponseCode())) {
+                        throw ExceptionHandler.generateException(cause, connection);
+                    }
+                    return convert(clazz, skype, connection);
                 } else if (HttpURLConnection.class.isAssignableFrom(clazz)) {
-                    return (T) connection;
+                    return (E_TYPE) connection;
                 } else {
                     throw new IllegalArgumentException(
                             "DontConnect requested but did not request cast to HttpURLConnection");

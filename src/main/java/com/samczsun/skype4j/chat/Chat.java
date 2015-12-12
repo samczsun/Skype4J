@@ -20,13 +20,14 @@ import com.samczsun.skype4j.Skype;
 import com.samczsun.skype4j.chat.messages.ChatMessage;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.NotLoadedException;
-import com.samczsun.skype4j.formatting.IFlik;
+import com.samczsun.skype4j.formatting.IMoji;
 import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.User;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 
@@ -70,7 +71,16 @@ public interface Chat {
      * @param imageName The name of the image
      * @throws ConnectionException If an error occurs while connecting to the endpoint
      */
-    void sendImage(BufferedImage image, String imageType, String imageName) throws ConnectionException;
+    void sendImage(BufferedImage image, String imageType, String imageName) throws ConnectionException, IOException;
+
+    /**
+     * Sends an image to this chat
+     *
+     * @param image The file containing the image
+     * @throws ConnectionException If an error occurs while connecting to the endpoint
+     * @throws IOException If an error occurs while reading the image file
+     */
+    void sendImage(File image) throws ConnectionException, IOException;
 
     /**
      * Sends a file to this chat
@@ -81,12 +91,12 @@ public interface Chat {
     void sendFile(File file) throws ConnectionException;
 
     /**
-     * Sends a FlikMsg to this chat
+     * Sends a Moji to this chat
      *
-     * @param flik The appropriate lang-based Flik message
+     * @param moji The appropriate lang-based Flik message
      * @throws ConnectionException If an error occurs while connecting to the endpoint
      */
-    void sendFlik(IFlik flik) throws ConnectionException;
+    void sendMoji(IMoji moji) throws ConnectionException;
 
     /**
      * Get the {@link User} object represented by that username. Usernames are case insensitive

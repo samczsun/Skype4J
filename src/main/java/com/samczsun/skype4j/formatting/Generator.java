@@ -98,7 +98,7 @@ public class Generator {
 
         {
             Scanner in = new Scanner(new File("src/main/java/com/samczsun/skype4j/formatting/lang/DefaultFlik.java"));
-            File f = new File("src/main/java/com/samczsun/skype4j/formatting/lang/" + LANG + "/Flik.java");
+            File f = new File("src/main/java/com/samczsun/skype4j/formatting/lang/" + LANG + "/Moji.java");
             if (!f.exists()) {
                 f.getParentFile().mkdirs();
                 f.createNewFile();

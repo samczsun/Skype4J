@@ -34,8 +34,13 @@ import com.samczsun.skype4j.internal.chat.messages.ChatMessageImpl;
 import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.User.Role;
 
+import javax.imageio.ImageIO;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -115,6 +120,7 @@ public class ChatGroup extends ChatImpl implements GroupChat {
     }
 
     public List<ChatMessage> loadMoreMessages(int amount) throws ConnectionException {
+        checkLoaded();
         JsonObject data = null;
         if (backwardLink == null) {
             if (syncState == null) {
@@ -223,6 +229,7 @@ public class ChatGroup extends ChatImpl implements GroupChat {
 
     @Override
     public BufferedImage getPicture() throws ConnectionException {
+        checkLoaded();
         if (pictureUrl != null) {
             if (pictureUpdated) {
                 picture = null;
@@ -246,8 +253,20 @@ public class ChatGroup extends ChatImpl implements GroupChat {
     }
 
     @Override
-    public void setImage(BufferedImage image, String imageType) throws ConnectionException {
-        String id = Utils.uploadImage(image, imageType, Utils.ImageType.AVATAR, this);
+    public void setImage(BufferedImage image, String imageType) throws ConnectionException, IOException {
+        checkLoaded();
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ImageIO.write(image, imageType, baos);
+        String id = Utils.uploadImage(baos.toByteArray(), Utils.ImageType.AVATAR, this);
+        putOption("picture", JsonValue.valueOf(
+                String.format("URL@https://api.asm.skype.com/v1/objects/%s/views/avatar_fullsize", id)), true);
+    }
+
+    @Override
+    public void setImage(File image) throws ConnectionException, IOException {
+        checkLoaded();
+        byte[] data = Files.readAllBytes(image.toPath());
+        String id = Utils.uploadImage(data, Utils.ImageType.AVATAR, this);
         putOption("picture", JsonValue.valueOf(
                 String.format("URL@https://api.asm.skype.com/v1/objects/%s/views/avatar_fullsize", id)), true);
     }

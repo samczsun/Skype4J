@@ -23,7 +23,7 @@ import com.samczsun.skype4j.chat.messages.ChatMessage;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.NotLoadedException;
-import com.samczsun.skype4j.formatting.IFlik;
+import com.samczsun.skype4j.formatting.IMoji;
 import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.formatting.Text;
 import com.samczsun.skype4j.internal.Endpoints;
@@ -37,11 +37,13 @@ import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.User;
 import org.jsoup.helper.Validate;
 
+import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -104,9 +106,23 @@ public abstract class ChatImpl implements Chat {
     }
 
     @Override
-    public void sendImage(BufferedImage image, String imageType, String imageName) throws ConnectionException {
+    public void sendImage(BufferedImage image, String imageType, String imageName) throws ConnectionException, IOException {
         checkLoaded();
-        String id = Utils.uploadImage(image, imageType, Utils.ImageType.IMGT1, this);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ImageIO.write(image, imageType, baos);
+        sendImage(baos.toByteArray(), imageName);
+    }
+
+    @Override
+    public void sendImage(File image) throws ConnectionException, IOException {
+        checkLoaded();
+        byte[] data = Files.readAllBytes(image.toPath());
+        String name = image.getName().substring(0, image.getName().lastIndexOf('.'));
+        sendImage(data, name);
+    }
+
+    private void sendImage(byte[] data, String imageName) throws ConnectionException, IOException {
+        String id = Utils.uploadImage(data, Utils.ImageType.IMGT1, this);
         long ms = System.currentTimeMillis();
         String content = "<URIObject type=\"Picture.1\" uri=\"https://api.asm.skype.com/v1/objects/%s\" url_thumbnail=\"https://api.asm.skype.com/v1/objects/%s/views/imgt1\">MyLegacy pish <a href=\"https://api.asm.skype.com/s/i?%s\">https://api.asm.skype.com/s/i?%s</a><Title/><Description/><OriginalName v=\"%s\"/><meta type=\"photo\" originalName=\"%s\"/></URIObject>";
         content = String.format(content, id, id, id, id, imageName, imageName);
@@ -145,7 +161,7 @@ public abstract class ChatImpl implements Chat {
     }
 
     @Override
-    public void sendFlik(IFlik flik) throws ConnectionException {
+    public void sendMoji(IMoji flik) throws ConnectionException {
         checkLoaded();
         long ms = System.currentTimeMillis();
         String content = "<URIObject type=\"Video.1/Flik.1\" uri=\"https://static.asm.skype.com/pes/v1/items/%s\" url_thumbnail=\"https://static.asm.skype.com/pes/v1/items/%s/views/thumbnail\"><a href=\"https://static.asm.skype.com/pes/v1/items/%s/views/default\">https://static.asm.skype.com/pes/v1/items/%s/views/default</a><OriginalName v=\"\"/></URIObject>";

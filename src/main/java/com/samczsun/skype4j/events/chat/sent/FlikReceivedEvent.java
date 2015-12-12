@@ -18,14 +18,14 @@ package com.samczsun.skype4j.events.chat.sent;
 
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.events.chat.ChatEvent;
-import com.samczsun.skype4j.formatting.IFlik;
+import com.samczsun.skype4j.formatting.IMoji;
 import com.samczsun.skype4j.user.User;
 
 public class FlikReceivedEvent extends ChatEvent {
     private User sender;
-    private IFlik sent;
+    private IMoji sent;
 
-    public FlikReceivedEvent(Chat c, User sender, IFlik sent) {
+    public FlikReceivedEvent(Chat c, User sender, IMoji sent) {
         super(c);
         this.sender = sender;
         this.sent = sent;
@@ -35,7 +35,7 @@ public class FlikReceivedEvent extends ChatEvent {
         return this.sender;
     }
 
-    public IFlik getFlik() {
+    public IMoji getFlik() {
         return this.sent;
     }
 }

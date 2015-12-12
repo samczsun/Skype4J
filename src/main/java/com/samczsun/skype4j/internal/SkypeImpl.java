@@ -36,8 +36,6 @@ import com.samczsun.skype4j.internal.threads.PollThread;
 import com.samczsun.skype4j.internal.utils.Encoder;
 import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.ContactRequest;
-import org.jsoup.Connection;
-import org.jsoup.Jsoup;
 import org.jsoup.helper.Validate;
 
 import java.io.IOException;
@@ -148,6 +146,7 @@ public abstract class SkypeImpl implements Skype {
                 if (this.conversationSyncState == null) {
                     InputStream input = Endpoints.LOAD_CHATS
                             .open(this, System.currentTimeMillis(), amount)
+                            .as(InputStream.class)
                             .expect(200, "While loading chats")
                             .get();
                     data = Utils.parseJsonObject(input);
@@ -311,24 +310,13 @@ public abstract class SkypeImpl implements Skype {
         }
     }
 
-    protected HttpURLConnection registerEndpoint() throws ConnectionException {
+    protected void registerEndpoint() throws ConnectionException {
         HttpURLConnection connection = Endpoints.ENDPOINTS_URL
                 .open(this)
                 .as(HttpURLConnection.class)
-                .dontConnect()
+                .expect(201, "While registering endpoint")
                 .header("Authentication", "skypetoken=" + skypeToken)
                 .post(new JsonObject()); // LockAndKey data msmsgs@msnmsgr.com:Q1P7W2E4J9R8U3S5
-        try {
-            setRegistrationToken(connection.getHeaderField("Set-RegistrationToken"));
-            if (connection.getResponseCode() / 100 == 3) {
-                updateCloud(connection.getHeaderField("Location"));
-            } else if (connection.getResponseCode() != 201) {
-                throw ExceptionHandler.generateException("While registering endpoint", connection);
-            }
-            return connection;
-        } catch (IOException e) {
-            throw ExceptionHandler.generateException("While registering endpoint", e);
-        }
     }
 
     public abstract void getContactRequests(boolean fromWebsocket) throws ConnectionException;
@@ -535,17 +523,13 @@ public abstract class SkypeImpl implements Skype {
         return Collections.unmodifiableCollection(this.allContacts.values());
     }
 
-    protected Connection.Response getAsmToken() throws ConnectionException {
-        try {
-            return Jsoup
-                    .connect(Endpoints.TOKEN_AUTH_URL.url())
-                    .cookies(cookies)
-                    .data("skypetoken", skypeToken)
-                    .method(Connection.Method.POST)
-                    .execute();
-        } catch (IOException e) {
-            throw new ConnectionException("While fetching the asmtoken", e);
-        }
+    protected HttpURLConnection getAsmToken() throws ConnectionException {
+        return Endpoints.TOKEN_AUTH_URL
+                .open(this)
+                .as(HttpURLConnection.class)
+                .cookies(cookies)
+                .expect(204, "While fetching asmtoken")
+                .post("skypetoken=" + Encoder.encode(skypeToken));
     }
 
     public boolean isAuthenticated() {

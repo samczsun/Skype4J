@@ -23,6 +23,8 @@ import com.samczsun.skype4j.exceptions.NotLoadedException;
 import com.samczsun.skype4j.user.Contact;
 
 import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -63,8 +65,20 @@ public interface GroupChat extends Chat {
      * @param image     The image to upload
      * @param imageType The type of image (png, jpg, etc)
      * @throws ConnectionException If an error occurs while connecting to the endpoint
+     * @throws IOException If an error occurs while converting the image to bytes
      */
-    void setImage(BufferedImage image, String imageType) throws ConnectionException;
+    void setImage(BufferedImage image, String imageType) throws ConnectionException, IOException;
+
+    /**
+     * Set the image for this chat. This will occur in real time
+     * WARNING: This endpoint is not officially supported by Skype.
+     * As such, it may or may not be functional in the future
+     *
+     * @param file     The image to upload
+     * @throws ConnectionException If an error occurs while connecting to the endpoint
+     * @throws IOException If an error occurs while converting the image to bytes
+     */
+    void setImage(File file) throws ConnectionException, IOException;
 
     /**
      * Get whether an option is enabled.

@@ -16,12 +16,12 @@
 
 package com.samczsun.skype4j.formatting.lang.en;
 
-import com.samczsun.skype4j.formatting.IFlik;
+import com.samczsun.skype4j.formatting.IMoji;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public enum Flik implements IFlik {
+public enum Moji implements IMoji {
 
     DESPICABLEME("7e241717964a403dbab21be9fa860c81", "01fdf549-b6dc-4319-983c-1dd2d42f35e6", "Despicable Me"),
     DESPICABLEME_1("ca62da9e0ae54dca8b36ae300cb63991", "2aae7c79-39c3-4e57-a280-05179c416e2d", "Despicable Me 2"),
@@ -307,7 +307,7 @@ public enum Flik implements IFlik {
     private String etag;
     private String desc;
 
-    Flik(String id, String etag, String desc) {
+    Moji(String id, String etag, String desc) {
         this.id = id;
         this.etag = etag;
         this.desc = desc;
@@ -325,15 +325,15 @@ public enum Flik implements IFlik {
         return this.desc;
     }
 
-    private static final Map<String, IFlik> fliks = new HashMap<>();
+    private static final Map<String, IMoji> fliks = new HashMap<>();
 
     static {
-        for (IFlik flik : values()) {
+        for (IMoji flik : values()) {
             fliks.put(flik.getId(), flik);
         }
     }
 
-    public static IFlik getById(String id) {
+    public static IMoji getById(String id) {
         return fliks.get(id);
     }
 }

@@ -16,7 +16,7 @@
 
 package com.samczsun.skype4j.formatting;
 
-public interface IFlik {
+public interface IMoji {
     String getEtag();
 
     String getDescription();

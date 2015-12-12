@@ -22,9 +22,6 @@ import com.eclipsesource.json.JsonValue;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.internal.chat.ChatImpl;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -55,15 +52,8 @@ public class Utils {
         return jsonValue;
     }
 
-    public static String uploadImage(BufferedImage image, String imageType, ImageType uploadType, ChatImpl chat) throws ConnectionException {
-        try {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ImageIO.write(image, imageType, baos);
-            baos.flush();
-            return upload(baos.toByteArray(), uploadType, null, chat);
-        } catch (IOException e) {
-            throw ExceptionHandler.generateException("While uploading image", e);
-        }
+    public static String uploadImage(byte[] image,ImageType uploadType, ChatImpl chat) throws ConnectionException {
+        return upload(image, uploadType, null, chat);
     }
 
     public static String upload(byte[] data, ImageType type, JsonObject extra, ChatImpl chat) throws ConnectionException {
@@ -86,7 +76,7 @@ public class Utils {
                 .expect(201, "While uploading data")
                 .connect("PUT", data);
 
-        Endpoints.EndpointConnection econn = Endpoints.IMG_STATUS
+        Endpoints.EndpointConnection<JsonObject> econn = Endpoints.IMG_STATUS
                 .open(chat.getClient(), id, type.id)
                 .as(JsonObject.class)
                 .expect(200, "While getting upload status");

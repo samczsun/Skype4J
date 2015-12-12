@@ -50,9 +50,9 @@ import com.samczsun.skype4j.events.chat.user.action.TopicUpdateEvent;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.SkypeException;
-import com.samczsun.skype4j.formatting.IFlik;
+import com.samczsun.skype4j.formatting.IMoji;
 import com.samczsun.skype4j.formatting.Message;
-import com.samczsun.skype4j.formatting.lang.en.Flik;
+import com.samczsun.skype4j.formatting.lang.en.Moji;
 import com.samczsun.skype4j.internal.chat.ChatGroup;
 import com.samczsun.skype4j.internal.chat.ChatImpl;
 import com.samczsun.skype4j.internal.chat.messages.ChatMessageImpl;
@@ -298,7 +298,7 @@ public enum MessageType {
                         .cookies(skype.getCookies())
                         .expect(200, "While getting URI object")
                         .get();
-                Endpoints.EndpointConnection econn = Endpoints
+                Endpoints.EndpointConnection<JsonObject> econn = Endpoints
                         .custom(obj.get("status_location").asString(), skype)
                         .as(JsonObject.class)
                         .expect(200, "While getting URI object")
@@ -331,7 +331,7 @@ public enum MessageType {
             Matcher matcher = URIOBJECT_URI.matcher(content);
             Validate.isTrue(matcher.find(), "Bad match");
             String id = (id = matcher.group(1)).substring(id.lastIndexOf('/') + 1, id.length());
-            IFlik flik = Flik.getById(id);
+            IMoji flik = Moji.getById(id);
             Validate.notNull(flik, "No such flik");
             skype.getEventDispatcher().callEvent(new FlikReceivedEvent(chat, sender, flik));
         }

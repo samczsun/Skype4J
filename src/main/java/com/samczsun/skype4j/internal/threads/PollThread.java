@@ -53,7 +53,7 @@ public class PollThread extends Thread {
     public void run() {
         int pollId = 0;
         while (skype.isAuthenticated()) {
-            final Endpoints.EndpointConnection epconn = Endpoints.POLL
+            final Endpoints.EndpointConnection<HttpURLConnection> epconn = Endpoints.POLL
                     .open(skype, pollId)
                     .header("Content-Type", "application/json")
                     .dontConnect();
