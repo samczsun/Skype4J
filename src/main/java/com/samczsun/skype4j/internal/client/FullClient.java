@@ -71,7 +71,12 @@ public class FullClient extends SkypeImpl {
 
     @Override
     public void logout() throws ConnectionException {
-        Endpoints.LOGOUT_URL.open(this).expect(200, "While logging out").cookies(cookies).get();
+        Endpoints.LOGOUT_URL
+                .open(this)
+                .noRedirects()
+                .expect(code -> (code >= 301 && code <= 303) || code == 307 || code == 308, "While logging out")
+                .cookies(cookies)
+                .get();
         shutdown();
     }
 

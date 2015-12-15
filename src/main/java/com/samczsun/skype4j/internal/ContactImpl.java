@@ -215,7 +215,9 @@ public class ContactImpl implements Contact {
     public void sendRequest(String message) throws ConnectionException, NoSuchContactException, UnsupportedEncodingException {
         Endpoints.AUTHORIZATION_REQUEST
                 .open(skype, this.username)
-                .on(404, NoSuchContactException::new)
+                .on(404, (connection) -> {
+                    throw new NoSuchContactException();
+                })
                 .expect(201, "While sending request")
                 .expect(200, "While sending request")
                 .put("greeting=" + URLEncoder.encode(message, "UTF-8"));

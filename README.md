@@ -64,3 +64,11 @@ This simply gives myself, or whoever is maintaining the project, the right to re
 The CLA can be found in the root directory of the project, in the file called "CLA". Please read it carefully.
 
 You only need to submit your CLA once, so if you've already signed a CLA there's no need to do it again.
+
+## Acknowledgements
+
+![YourKit](https://www.yourkit.com/images/yklogo.png)
+YourKit supports open source projects with its full-featured Java Profiler.
+YourKit, LLC is the creator of [YourKit Java Profiler](https://www.yourkit.com/java/profiler/index.jsp)
+and [YourKit .NET Profiler](https://www.yourkit.com/.net/profiler/index.jsp)
+innovative and intelligent tools for profiling Java and .NET applications.

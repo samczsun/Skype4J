@@ -44,9 +44,7 @@ public class UserImpl implements User {
     private final Map<String, ChatMessage> messageMap = new ConcurrentHashMap<>();
 
     public UserImpl(String username, ChatImpl chat, SkypeImpl client) throws ConnectionException {
-        this.contactRep = chat
-                .getClient()
-                .getOrLoadContact(username);
+        this.contactRep = chat.getClient().getOrLoadContact(username);
         this.chat = chat;
         this.client = client;
     }
@@ -69,13 +67,9 @@ public class UserImpl implements User {
     @Override
     public void setRole(Role role) throws ConnectionException, NoPermissionException {
         if (!(getChat() instanceof GroupChat)) throw new NoPermissionException();
-        Endpoints.MODIFY_MEMBER_URL
-                .open(getClient(), getChat().getIdentity(), getUsername())
-                .on(400, NoPermissionException::new)
-                .expect(200, "While updating role")
-                .put(new JsonObject().add("role", role
-                        .name()
-                        .toLowerCase()));
+        Endpoints.MODIFY_MEMBER_URL.open(getClient(), getChat().getIdentity(), getUsername()).on(400, (connection) -> {
+            throw new NoPermissionException();
+        }).expect(200, "While updating role").put(new JsonObject().add("role", role.name().toLowerCase()));
         updateRole(role);
     }
 

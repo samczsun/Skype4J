@@ -276,12 +276,11 @@ public abstract class SkypeImpl implements Skype {
         Validate.isTrue(id.startsWith("19:") && id.endsWith("@thread.skype"), "Invalid chat id");
         JsonObject obj = new JsonObject();
         obj.add("role", "User");
-        Endpoints.ADD_MEMBER_URL
-                .open(this, id, getUsername())
-                .on(403, NoPermissionException::new)
-                .on(404, ChatNotFoundException::new)
-                .expect(200, "While joining chat")
-                .put(obj);
+        Endpoints.ADD_MEMBER_URL.open(this, id, getUsername()).on(403, (connection) -> {
+            throw new NoPermissionException();
+        }).on(404, (connection) -> {
+            throw new ChatNotFoundException();
+        }).expect(200, "While joining chat").put(obj);
         return (GroupChat) getOrLoadChat(id);
     }
 
@@ -311,19 +310,16 @@ public abstract class SkypeImpl implements Skype {
     }
 
     protected void registerEndpoint() throws ConnectionException {
-        Endpoints.SilentRunnable todo = new Endpoints.SilentRunnable() {
-            public void run0() throws Throwable {
-                Endpoints
-                        .custom(Endpoints.ENDPOINTS_URL.url() + "/" + Encoder.encode(endpointId), SkypeImpl.this)
-                        .expect(200, "While registering endpoint")
-                        .header("Authentication", "skypetoken=" + skypeToken)
-                        .put(new JsonObject());
-            }
-        };
         Endpoints.ENDPOINTS_URL
                 .open(this)
                 .noRedirects()
-                .on(301, todo)
+                .on(301, (connection) -> {
+                    return Endpoints
+                            .custom(Endpoints.ENDPOINTS_URL.url() + "/" + Encoder.encode(endpointId), SkypeImpl.this)
+                            .expect(200, "While registering endpoint")
+                            .header("Authentication", "skypetoken=" + skypeToken)
+                            .put(new JsonObject());
+                })
                 .expect(201, "While registering endpoint")
                 .header("Authentication", "skypetoken=" + skypeToken)
                 .post(new JsonObject()); // LockAndKey data msmsgs@msnmsgr.com:Q1P7W2E4J9R8U3S5

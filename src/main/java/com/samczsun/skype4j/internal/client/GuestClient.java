@@ -25,10 +25,8 @@ import com.samczsun.skype4j.internal.SkypeImpl;
 import com.samczsun.skype4j.internal.threads.AuthenticationChecker;
 import com.samczsun.skype4j.internal.threads.KeepaliveThread;
 import com.samczsun.skype4j.user.Contact;
-import org.jsoup.Connection;
 
 import java.net.HttpURLConnection;
-import java.util.HashMap;
 import java.util.Set;
 import java.util.logging.Logger;
 
@@ -45,7 +43,9 @@ public class GuestClient extends SkypeImpl {
         JsonObject response = Endpoints.NEW_GUEST
                 .open(this)
                 .as(JsonObject.class)
-                .on(303, NotParticipatingException::new)
+                .on(303, (connection) -> {
+                    throw new NotParticipatingException();
+                })
                 .expect(201, "While logging in")
                 .header("csrf_token", "skype4j")
                 .cookie("csrf_token", "skype4j")

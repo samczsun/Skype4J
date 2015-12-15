@@ -28,10 +28,10 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 public class Endpoints {
     private static Map<Class<?>, Converter<?>> converters = new HashMap<>();
@@ -202,8 +202,7 @@ public class Endpoints {
         private Object[] args;
         private Map<String, String> headers = new HashMap<>();
         private Map<String, String> cookies = new HashMap<>();
-        private Map<Integer, Runnable> errors = new HashMap<>();
-        private List<Integer> expected = new ArrayList<>();
+        private Map<Predicate<Integer>, UncheckedFunction<E_TYPE>> errors = new HashMap<>();
         private URL url;
         private String cause;
         private boolean dontConnect;
@@ -222,25 +221,34 @@ public class Endpoints {
             return this;
         }
 
-        public EndpointConnection<E_TYPE> cookies(Map<String, String> cookies) {
-            this.cookies.putAll(cookies);
-            return this;
-        }
-
         public EndpointConnection<E_TYPE> cookie(String key, String val) {
             this.cookies.put(key, val);
             return this;
         }
 
-        public EndpointConnection<E_TYPE> on(int code, Runnable action) {
-            this.errors.put(code, action);
+        public EndpointConnection<E_TYPE> cookies(Map<String, String> cookies) {
+            this.cookies.putAll(cookies);
+            return this;
+        }
+
+        public EndpointConnection<E_TYPE> on(int code, UncheckedFunction<E_TYPE> action) {
+            return on(x -> x == code, action);
+        }
+
+        public EndpointConnection<E_TYPE> on(Predicate<Integer> check, UncheckedFunction<E_TYPE> result) {
+            this.errors.put(check, result);
             return this;
         }
 
         public EndpointConnection<E_TYPE> expect(int code, String cause) {
-            this.expected.add(code);
-            this.cause = cause == null ? this.cause : cause;
-            return this;
+            return expect((x) -> x == code, cause);
+        }
+
+        public EndpointConnection<E_TYPE> expect(Predicate<Integer> check, String cause) {
+            this.cause = cause;
+            return on(check, (connection) -> {
+                return convert(clazz, skype, connection);
+            });
         }
 
         public EndpointConnection<E_TYPE> noRedirects() {
@@ -304,6 +312,13 @@ public class Endpoints {
             if (endpoint.requiresSkypeToken) {
                 header("X-SkypeToken", skype.getSkypeToken());
             }
+            if (this.redirect) {
+                this.on(code -> (code >= 301 && code <= 303) || code == 307 || code == 308, connection -> {
+                    skype.updateCloud(connection.getHeaderField("Location"));
+                    this.url = new URL(connection.getHeaderField("Location"));
+                    return this.connect(method, rawData);
+                });
+            }
             for (Map.Entry<String, Provider<String>> provider : endpoint.providers.entrySet()) {
                 header(provider.getKey(), provider.getValue().provide(skype));
             }
@@ -345,30 +360,16 @@ public class Endpoints {
                     if (connection.getHeaderField("Set-RegistrationToken") != null) {
                         skype.setRegistrationToken(connection.getHeaderField("Set-RegistrationToken"));
                     }
-
-                    if ((connection.getResponseCode() >= 301 && connection.getResponseCode() <= 303) || connection.getResponseCode() == 307 || connection
-                            .getResponseCode() == 308) {
-                        skype.updateCloud(connection.getHeaderField("Location"));
-                        if (this.redirect) {
-                            this.url = new URL(connection.getHeaderField("Location"));
-                            return this.connect(method, rawData);
+                    for (Map.Entry<Predicate<Integer>, UncheckedFunction<E_TYPE>> entry : errors.entrySet()) {
+                        if (entry.getKey().test(connection.getResponseCode())) {
+                            try {
+                                return entry.getValue().apply(connection);
+                            } catch (Throwable t) {
+                                sneakyThrow(t);
+                            }
                         }
                     }
-                    Runnable ex = errors.remove(connection.getResponseCode());
-                    if (ex != null) {
-                        try {
-                            ex.run();
-                        } catch (Throwable t) {
-                            sneakyThrow(t);
-                        }
-                        return null;
-                    }
-                    if (this.expected.isEmpty()) throw new IllegalArgumentException("No expected response code");
-                    if (this.cause == null) throw new IllegalArgumentException("No cause");
-                    if (!this.expected.contains(connection.getResponseCode())) {
-                        throw ExceptionHandler.generateException(cause, connection);
-                    }
-                    return convert(clazz, skype, connection);
+                    throw ExceptionHandler.generateException(cause == null ? this.url.toString() : cause, connection);
                 } else if (HttpURLConnection.class.isAssignableFrom(clazz)) {
                     return (E_TYPE) connection;
                 } else {
@@ -408,15 +409,16 @@ public class Endpoints {
         T convert(HttpURLConnection connection) throws IOException;
     }
 
-    public static abstract class SilentRunnable implements Runnable {
-        public void run() {
+    public static interface UncheckedFunction<R> extends Function<HttpURLConnection, R> {
+        default R apply(HttpURLConnection httpURLConnection) {
             try {
-                run0();
+                return apply0(httpURLConnection);
             } catch (Throwable t) {
                 EndpointConnection.sneakyThrow(t);
             }
+            return null;
         }
 
-        public abstract void run0() throws Throwable;
+        R apply0(HttpURLConnection httpURLConnection) throws Throwable;
     }
 }

@@ -77,7 +77,7 @@ public class ChatGroup extends ChatImpl implements GroupChat {
             JsonObject object = Endpoints.CHAT_INFO_URL
                     .open(getClient(), getIdentity())
                     .as(JsonObject.class)
-                    .on(404, ChatNotFoundException::new)
+                    .on(404, (connection) -> {throw new ChatNotFoundException();})
                     .expect(200, "While loading users")
                     .get();
 
