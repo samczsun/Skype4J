@@ -207,7 +207,7 @@ public class Endpoints {
         private URL url;
         private String cause;
         private boolean dontConnect;
-        private boolean redirect;
+        private boolean redirect = true;
 
         private EndpointConnection(Endpoints endpoint, SkypeImpl skype, Object[] args) {
             this.endpoint = endpoint;
@@ -345,6 +345,7 @@ public class Endpoints {
                     if (connection.getHeaderField("Set-RegistrationToken") != null) {
                         skype.setRegistrationToken(connection.getHeaderField("Set-RegistrationToken"));
                     }
+
                     if ((connection.getResponseCode() >= 301 && connection.getResponseCode() <= 303) || connection.getResponseCode() == 307 || connection
                             .getResponseCode() == 308) {
                         skype.updateCloud(connection.getHeaderField("Location"));
@@ -360,6 +361,7 @@ public class Endpoints {
                         } catch (Throwable t) {
                             sneakyThrow(t);
                         }
+                        return null;
                     }
                     if (this.expected.isEmpty()) throw new IllegalArgumentException("No expected response code");
                     if (this.cause == null) throw new IllegalArgumentException("No cause");
@@ -389,11 +391,11 @@ public class Endpoints {
             return result.toString();
         }
 
-        private void sneakyThrow(Throwable ex) {
-            this.<RuntimeException>sneakyThrowInner(ex);
+        private static void sneakyThrow(Throwable ex) {
+            EndpointConnection.<RuntimeException>sneakyThrowInner(ex);
         }
 
-        private <T extends Throwable> T sneakyThrowInner(Throwable ex) throws T {
+        private static <T extends Throwable> T sneakyThrowInner(Throwable ex) throws T {
             throw (T) ex;
         }
     }
@@ -404,5 +406,17 @@ public class Endpoints {
 
     public interface Converter<T> {
         T convert(HttpURLConnection connection) throws IOException;
+    }
+
+    public static abstract class SilentRunnable implements Runnable {
+        public void run() {
+            try {
+                run0();
+            } catch (Throwable t) {
+                EndpointConnection.sneakyThrow(t);
+            }
+        }
+
+        public abstract void run0() throws Throwable;
     }
 }

@@ -44,7 +44,7 @@ public class ActiveThread extends Thread {
                 } catch (ConnectionException e) {
                     MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.SESSION_ACTIVE, e);
                     skype.getEventDispatcher().callEvent(event);
-                    skype.shutdown();
+//                    skype.shutdown();
                 }
                 try {
                     Thread.sleep(12000);

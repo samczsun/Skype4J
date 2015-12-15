@@ -311,9 +311,19 @@ public abstract class SkypeImpl implements Skype {
     }
 
     protected void registerEndpoint() throws ConnectionException {
-        HttpURLConnection connection = Endpoints.ENDPOINTS_URL
+        Endpoints.SilentRunnable todo = new Endpoints.SilentRunnable() {
+            public void run0() throws Throwable {
+                Endpoints
+                        .custom(Endpoints.ENDPOINTS_URL.url() + "/" + Encoder.encode(endpointId), SkypeImpl.this)
+                        .expect(200, "While registering endpoint")
+                        .header("Authentication", "skypetoken=" + skypeToken)
+                        .put(new JsonObject());
+            }
+        };
+        Endpoints.ENDPOINTS_URL
                 .open(this)
-                .as(HttpURLConnection.class)
+                .noRedirects()
+                .on(301, todo)
                 .expect(201, "While registering endpoint")
                 .header("Authentication", "skypetoken=" + skypeToken)
                 .post(new JsonObject()); // LockAndKey data msmsgs@msnmsgr.com:Q1P7W2E4J9R8U3S5
@@ -348,11 +358,11 @@ public abstract class SkypeImpl implements Skype {
 
         Map<String, String> data = new HashMap<>();
         for (JsonObject.Member value : policyResponse) {
-            data.put(value.getName(), value.getValue().asString());
+            data.put(value.getName(), value.getValue().toString());
         }
-        data.put("r", trouterData.get("instance").asString());
+        data.put("r", trouterData.get("instance").toString());
         data.put("p", String.valueOf(trouterData.get("instancePort").asInt()));
-        data.put("ccid", trouterData.get("ccid").asString());
+        data.put("ccid", trouterData.get("ccid").toString());
         data.put("v", "v2"); //TODO: MAGIC VALUE
         data.put("dom", "web.skype.com"); //TODO: MAGIC VALUE
         data.put("auth", "true"); //TODO: MAGIC VALUE
@@ -372,7 +382,7 @@ public abstract class SkypeImpl implements Skype {
                     .append("&");
         }
 
-        String socketURL = trouterData.get("socketio").asString();
+        String socketURL = trouterData.get("socketio").toString();
         socketURL = socketURL.substring(socketURL.indexOf('/') + 2);
         socketURL = socketURL.substring(0, socketURL.indexOf(':'));
 
@@ -458,11 +468,13 @@ public abstract class SkypeImpl implements Skype {
     public void setRegistrationToken(String registrationToken) {
         String[] splits = registrationToken.split(";");
         String tRegistrationToken = splits[0];
-        String tEndpointId = splits[2].split("=")[1];
 
         this.registrationToken = tRegistrationToken;
         this.registrationTokenExpiryTime = Long.parseLong(splits[1].substring("expires=".length() + 1)) * 1000;
-        this.endpointId = tEndpointId;
+        if (splits.length > 2) {
+            String tEndpointId = splits[2].split("=")[1];
+            this.endpointId = tEndpointId;
+        }
     }
 
     public String getSkypeToken() {
