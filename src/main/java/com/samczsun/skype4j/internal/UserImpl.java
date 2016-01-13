@@ -34,28 +34,31 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 public class UserImpl implements User {
 
-    private final Contact contactRep;
+    private final String username;
     private final ChatImpl chat;
     private final SkypeImpl client;
 
     private Role role = Role.USER;
+    private Contact contactRep; //Lazily loaded
 
     private final List<ChatMessage> messages = new CopyOnWriteArrayList<>();
     private final Map<String, ChatMessage> messageMap = new ConcurrentHashMap<>();
 
     public UserImpl(String username, ChatImpl chat, SkypeImpl client) throws ConnectionException {
-        this.contactRep = chat.getClient().getOrLoadContact(username);
+        this.username = username;
         this.chat = chat;
         this.client = client;
     }
 
     @Override
-    public String getUsername() {
+    public String getUsername() throws ConnectionException {
+        loadContact();
         return contactRep.getUsername();
     }
 
     @Override
-    public String getDisplayName() {
+    public String getDisplayName() throws ConnectionException {
+        loadContact();
         return contactRep.getDisplayName();
     }
 
@@ -80,7 +83,8 @@ public class UserImpl implements User {
 
     @Override
     public Contact getContact() throws ConnectionException {
-        return getClient().getOrLoadContact(getUsername());
+        loadContact();
+        return this.contactRep;
     }
 
     @Override
@@ -109,5 +113,11 @@ public class UserImpl implements User {
 
     public void insertMessage(ChatMessage m, int i) {
         this.messages.add(i, m);
+    }
+
+    private void loadContact() throws ConnectionException {
+        if (this.contactRep == null) {
+            this.contactRep = chat.getClient().getOrLoadContact(username);
+        }
     }
 }

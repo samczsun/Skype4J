@@ -34,14 +34,14 @@ public interface User {
      *
      * @return The username
      */
-    String getUsername();
+    String getUsername() throws ConnectionException;
 
     /**
      * Get the displayname of this user
      *
      * @return The displayname
      */
-    String getDisplayName();
+    String getDisplayName() throws ConnectionException;
 
     /**
      * Get the role of this user

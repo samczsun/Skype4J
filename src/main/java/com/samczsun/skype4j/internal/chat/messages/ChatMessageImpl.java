@@ -18,6 +18,7 @@ package com.samczsun.skype4j.internal.chat.messages;
 
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.messages.ChatMessage;
+import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.internal.SkypeImpl;
 import com.samczsun.skype4j.internal.UserImpl;
@@ -79,7 +80,7 @@ public abstract class ChatMessageImpl implements ChatMessage {
         return this.skype;
     }
 
-    public static ChatMessage createMessage(Chat chat, User user, String id, String clientId, long time, Message message, SkypeImpl skype) {
+    public static ChatMessage createMessage(Chat chat, User user, String id, String clientId, long time, Message message, SkypeImpl skype) throws ConnectionException {
         Validate.notNull(chat, "Chat must not be null");
         Validate.isTrue(chat instanceof ChatImpl, "Chat must be instanceof ChatImpl");
         Validate.notNull(user, "User must not be null");

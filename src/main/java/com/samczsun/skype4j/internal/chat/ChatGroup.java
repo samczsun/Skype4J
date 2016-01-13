@@ -99,7 +99,7 @@ public class ChatGroup extends ChatImpl implements GroupChat {
             for (JsonValue element : members) {
                 String username = element.asObject().get("id").asString().substring(2);
                 String role = element.asObject().get("role").asString();
-                UserImpl user = (UserImpl) users.get(username.toLowerCase());
+                UserImpl user = users.get(username.toLowerCase());
                 if (user == null) {
                     user = new UserImpl(username, this, getClient());
                 }
