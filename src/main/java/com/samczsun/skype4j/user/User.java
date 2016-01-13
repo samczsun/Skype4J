@@ -34,7 +34,7 @@ public interface User {
      *
      * @return The username
      */
-    String getUsername() throws ConnectionException;
+    String getUsername();
 
     /**
      * Get the displayname of this user

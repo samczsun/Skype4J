@@ -51,9 +51,8 @@ public class UserImpl implements User {
     }
 
     @Override
-    public String getUsername() throws ConnectionException {
-        loadContact();
-        return contactRep.getUsername();
+    public String getUsername() {
+        return this.username;
     }
 
     @Override
