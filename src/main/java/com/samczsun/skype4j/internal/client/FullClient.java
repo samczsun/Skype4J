@@ -104,11 +104,11 @@ public class FullClient extends SkypeImpl {
                 .as(JsonArray.class)
                 .expect(200, "While loading authorization requests")
                 .get();
-        for (JsonValue contactRequest : array) { //TODO: Ridiculously slow with large amount of requests
+        for (JsonValue contactRequest : array) {
             JsonObject contactRequestObj = contactRequest.asObject();
             try {
                 ContactRequestImpl request = new ContactRequestImpl(contactRequestObj.get("event_time").asString(),
-                        getOrLoadContact(contactRequestObj.get("sender").asString()),
+                        contactRequestObj.get("sender").asString(),
                         contactRequestObj.get("greeting").asString(), this);
                 if (this.allContactRequests.add(request)) {
                     if (fromWebsocket) {

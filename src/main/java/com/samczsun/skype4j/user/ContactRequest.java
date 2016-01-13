@@ -22,37 +22,43 @@ import java.util.Date;
 
 /**
  * Represents a contact request that is pending.
- *
+ * <p>
  * TODO: Move to a different package?
  */
 public interface ContactRequest {
 
     /**
      * Get the time at which this contact request was sent
+     *
      * @return The time it was sent
      */
     Date getTime();
 
     /**
      * Get the user who sent this contact request
+     *
      * @return The contact
+     * @throws ConnectionException If loading the contact failed
      */
-    Contact getSender();
+    Contact getSender() throws ConnectionException;
 
     /**
      * Get the custom message sent by the sender
+     *
      * @return The message
      */
     String getMessage();
 
     /**
      * Accept the contact request represented by this object
+     *
      * @throws ConnectionException If the accepting of the contact request failed
      */
     void accept() throws ConnectionException;
 
     /**
      * Declines the contact request represented by this object
+     *
      * @throws ConnectionException If the declining of the contact request failed
      */
     void decline() throws ConnectionException;

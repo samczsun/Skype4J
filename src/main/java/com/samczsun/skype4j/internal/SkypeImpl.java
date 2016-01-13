@@ -107,6 +107,7 @@ public abstract class SkypeImpl implements Skype {
     private String cloud = "";
     private String endpointId;
     private JsonObject trouterData;
+    private int socketId = 1;
 
     public SkypeImpl(String username, Set<String> resources, Logger logger) {
         this.username = username;
@@ -378,12 +379,10 @@ public abstract class SkypeImpl implements Skype {
                     .append("&");
         }
 
-        String socketURL = trouterData.get("socketio").toString();
-        socketURL = socketURL.substring(socketURL.indexOf('/') + 2);
-        socketURL = socketURL.substring(0, socketURL.indexOf(':'));
+        String socketURL = trouterData.get("socketio").toString() + "/socket.io/" + socketId++ + "/?" + args.toString();
 
         String websocketData = Endpoints
-                .custom(String.format("%s/socket.io/1/?%s", "https://" + socketURL, args.toString()), this)
+                .custom(socketURL, this)
                 .as(String.class)
                 .expect(200, "While fetching websocket details")
                 .get();

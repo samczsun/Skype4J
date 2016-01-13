@@ -29,12 +29,12 @@ public class ContactRequestImpl implements ContactRequest {
     private final SimpleDateFormat FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSSSS");
 
     private Date time;
-    private Contact sender;
+    private String sender;
     private String message;
 
     private FullClient skype;
 
-    public ContactRequestImpl(String time, Contact sender, String message, FullClient skype) throws ParseException {
+    public ContactRequestImpl(String time, String sender, String message, FullClient skype) throws ParseException {
         this.time = FORMAT.parse(time);
         this.sender = sender;
         this.message = message;
@@ -47,8 +47,8 @@ public class ContactRequestImpl implements ContactRequest {
     }
 
     @Override
-    public Contact getSender() {
-        return this.sender;
+    public Contact getSender() throws ConnectionException {
+        return skype.getOrLoadContact(this.sender);
     }
 
     @Override
@@ -59,7 +59,7 @@ public class ContactRequestImpl implements ContactRequest {
     @Override
     public void accept() throws ConnectionException {
         Endpoints.ACCEPT_CONTACT_REQUEST
-                .open(skype, sender.getUsername())
+                .open(skype, sender)
                 .expect(201, "While accepting contact request")
                 .put();
     }
@@ -67,7 +67,7 @@ public class ContactRequestImpl implements ContactRequest {
     @Override
     public void decline() throws ConnectionException {
         Endpoints.DECLINE_CONTACT_REQUEST
-                .open(skype, sender.getUsername())
+                .open(skype, sender)
                 .expect(201, "While declining contact request")
                 .put();
     }
