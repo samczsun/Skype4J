@@ -187,7 +187,8 @@ public class FullClient extends SkypeImpl {
             try {
                 this.registerWebSocket();
             } catch (Exception e) {
-                throw new RuntimeException(e);
+                e.printStackTrace(); //For now
+//                throw new RuntimeException(e);
             }
             loggedIn.set(true);
             (sessionKeepaliveThread = new KeepaliveThread(this)).start();

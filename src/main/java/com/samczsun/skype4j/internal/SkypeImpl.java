@@ -363,9 +363,9 @@ public abstract class SkypeImpl implements Skype {
         data.put("dom", "web.skype.com"); //TODO: MAGIC VALUE
         data.put("auth", "true"); //TODO: MAGIC VALUE
         data.put("tc", new JsonObject()
-                .add("cv", "2015.8.18")
+                .add("cv", "2015.11.05")
                 .add("hr", "")
-                .add("v", "1.15.133")
+                .add("v", "1.22.117")
                 .toString()); //TODO: MAGIC VALUE
         data.put("timeout", "55");
         data.put("t", String.valueOf(System.currentTimeMillis()));
@@ -397,7 +397,7 @@ public abstract class SkypeImpl implements Skype {
                                     .add("aesKey", "")
                                     .add("languageId", "en-US")
                                     .add("platform", "Chrome")
-                                    .add("platformUIVersion", "908/1.16.0.82//skype.com")
+                                    .add("platformUIVersion", "908/1.22.0.117//skype.com")
                                     .add("templateKey", "SkypeWeb_1.1"))
                             .add("registrationId", UUID.randomUUID().toString())
                             .add("nodeId", "")
