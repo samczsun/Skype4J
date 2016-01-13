@@ -107,12 +107,22 @@ public class RichText extends Text {
                 });
                 put("font", (text, elem) -> {
                     boolean equal = true;
-                    if (elem.hasAttr("size") == (text.size >= 0)) {
-                        equal = equal && text.size == (Integer.parseInt(elem.attr("size")));
+                    if (elem.hasAttr("size") && text.size >= 0) {
+                        equal = equal && text.size == Integer.parseInt(elem.attr("size"));
+                    } else if (!elem.hasAttr("size") && text.size == -1) {
+                        equal = equal && true;
+                    } else {
+                        equal = false;
                     }
-                    if (elem.hasAttr("color") == (text.color != null)) {
-                        String color = elem.attr("color");
-                        equal = equal && Objects.equals(text.color, color.substring(color.indexOf('#') + 1));
+                    if (equal) {
+                        if (elem.hasAttr("color") && text.color != null) {
+                            String color = elem.attr("color");
+                            equal = equal && text.color.equals(color.substring(color.indexOf('#') + 1));
+                        } else if (!elem.hasAttr("color") && text.color == null) {
+                            equal = equal && true;
+                        } else {
+                            equal = false;
+                        }
                     }
                     return equal;
                 });
