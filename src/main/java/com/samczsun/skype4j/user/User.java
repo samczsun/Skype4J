@@ -37,11 +37,21 @@ public interface User {
     String getUsername();
 
     /**
-     * Get the displayname of this user
+     * Get the displayname of this user.
+     * This call will load contact data if it is not already loaded
      *
      * @return The displayname
      */
     String getDisplayName() throws ConnectionException;
+
+    /**
+     * Get the contact representation of this user
+     * This call will load contact data if it is not already loaded
+     *
+     * @return The contact
+     * @throws ConnectionException If an error occurs while connecting to the endpoint
+     */
+    Contact getContact() throws ConnectionException;
 
     /**
      * Get the role of this user
@@ -72,15 +82,6 @@ public interface User {
      * @return The Skype instance
      */
     Skype getClient();
-
-    /**
-     * Get the contact representation of this user
-     *
-     * @return The contact
-     * @throws ConnectionException If an error occurs while connecting to the endpoint
-     */
-    Contact getContact() throws ConnectionException;
-
     /**
      * Get all the messages sent by this user, in sequential order.
      * Messages sent when this API was not loaded will not be returned

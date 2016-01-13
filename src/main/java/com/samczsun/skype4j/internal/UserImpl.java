@@ -62,6 +62,12 @@ public class UserImpl implements User {
     }
 
     @Override
+    public Contact getContact() throws ConnectionException {
+        loadContact();
+        return this.contactRep;
+    }
+
+    @Override
     public Role getRole() {
         return this.role;
     }
@@ -80,11 +86,6 @@ public class UserImpl implements User {
         return this.client;
     }
 
-    @Override
-    public Contact getContact() throws ConnectionException {
-        loadContact();
-        return this.contactRep;
-    }
 
     @Override
     public Chat getChat() {
