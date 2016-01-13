@@ -89,7 +89,7 @@ public abstract class SkypeImpl implements Skype {
     protected final ExecutorService shutdownThread;
     protected final Map<String, ChatImpl> allChats = new ConcurrentHashMap<>();
     protected final Map<String, Contact> allContacts = new ConcurrentHashMap<>();
-    protected final List<ContactRequest> allContactRequests = new ArrayList<>();
+    protected final Set<ContactRequest> allContactRequests = new HashSet<>();
     protected EventDispatcher eventDispatcher = new SkypeEventDispatcher(this);
     protected Map<String, String> cookies = new HashMap<>();
     protected Thread sessionKeepaliveThread;

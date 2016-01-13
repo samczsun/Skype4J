@@ -291,7 +291,11 @@ public enum MessageType {
             Element meta = doc.getElementsByTag("meta").get(0);
             if (meta.attr("type").equalsIgnoreCase("photo")) {
                 String blob = doc.getElementsByTag("a").get(0).attr("href");
-                blob = blob.substring(blob.indexOf('?') + 1);
+                Matcher matcher = BLOBID.matcher(blob);
+                if (!matcher.find()) {
+                    throw new IllegalArgumentException("Blob ID has changed?");
+                }
+                blob = matcher.group(1);
                 JsonObject obj = Endpoints.IMG_STATUS
                         .open(skype, blob, "imgpsh_fullsize")
                         .as(JsonObject.class)
@@ -646,6 +650,7 @@ public enum MessageType {
             Pattern.CASE_INSENSITIVE);
     private static final Pattern ROLE_UPDATE_PATTERN = Pattern.compile(
             "<target><id>(\\d+:.+)</id><role>(.+)</role></target>", Pattern.CASE_INSENSITIVE);
+    private static final Pattern BLOBID = Pattern.compile("(0-cus-d[0-9]-[a-z0-9]{32})");
 
     private final String value;
 

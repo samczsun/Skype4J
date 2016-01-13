@@ -104,18 +104,17 @@ public class FullClient extends SkypeImpl {
                 .as(JsonArray.class)
                 .expect(200, "While loading authorization requests")
                 .get();
-        for (JsonValue contactRequest : array) {
+        for (JsonValue contactRequest : array) { //TODO: Ridiculously slow with large amount of requests
             JsonObject contactRequestObj = contactRequest.asObject();
             try {
                 ContactRequestImpl request = new ContactRequestImpl(contactRequestObj.get("event_time").asString(),
                         getOrLoadContact(contactRequestObj.get("sender").asString()),
                         contactRequestObj.get("greeting").asString(), this);
-                if (!this.allContactRequests.contains(request)) {
+                if (this.allContactRequests.add(request)) {
                     if (fromWebsocket) {
                         ContactRequestEvent event = new ContactRequestEvent(request);
                         getEventDispatcher().callEvent(event);
                     }
-                    this.allContactRequests.add(request);
                 }
             } catch (java.text.ParseException e) {
                 getLogger().log(Level.WARNING, "Could not parse date for contact request", e);
