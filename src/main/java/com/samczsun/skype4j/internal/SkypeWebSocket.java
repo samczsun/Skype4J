@@ -111,7 +111,7 @@ public class SkypeWebSocket extends WebSocketClient {
                 try {
                     skype.updateContactList();
                 } catch (ConnectionException e) {
-                    e.printStackTrace();
+                    skype.handleError(ErrorSource.UPDATING_CONTACT_LIST, e, false);
                 }
             } else if (event == 14) {
                 try {
