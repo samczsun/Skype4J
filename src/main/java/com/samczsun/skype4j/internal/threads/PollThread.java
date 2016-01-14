@@ -18,9 +18,8 @@ package com.samczsun.skype4j.internal.threads;
 
 import com.eclipsesource.json.JsonObject;
 import com.eclipsesource.json.JsonValue;
-import com.samczsun.skype4j.events.error.MajorErrorEvent;
-import com.samczsun.skype4j.events.error.MinorErrorEvent;
 import com.samczsun.skype4j.exceptions.ConnectionException;
+import com.samczsun.skype4j.exceptions.handler.ErrorSource;
 import com.samczsun.skype4j.internal.Endpoints;
 import com.samczsun.skype4j.internal.EventType;
 import com.samczsun.skype4j.internal.ExceptionHandler;
@@ -82,13 +81,8 @@ public class PollThread extends Thread {
                     }
 
                     if (pendingException != null) {
-                        if (pendingException.getMessage().equals("Connection reset")) {
-                            MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.POLLING_SKYPE, pendingException);
-                            skype.getEventDispatcher().callEvent(event);
-                            continue;
-                        } else {
-                            throw pendingException;
-                        }
+                        skype.handleError(ErrorSource.POLLING_SKYPE, pendingException, false);
+                        continue;
                     }
 
                     if (connection.getHeaderField("Set-RegistrationToken") != null) {
@@ -104,11 +98,8 @@ public class PollThread extends Thread {
                                     .header("Authentication", "skypetoken=" + skype.getSkypeToken())
                                     .put(new JsonObject());
                             if (conn.getResponseCode() != 200) {
-                                MajorErrorEvent event = new MajorErrorEvent(
-                                        MajorErrorEvent.ErrorSource.REFRESHING_ENDPOINT,
-                                        ExceptionHandler.generateException("While refreshing endpoint", conn));
-                                skype.getEventDispatcher().callEvent(event);
-                                skype.shutdown();
+                                skype.handleError(ErrorSource.REFRESHING_ENDPOINT,
+                                        ExceptionHandler.generateException("While refreshing endpoint", conn), true);
                                 return;
                             }
                             String regtoken = conn.getHeaderField("Set-RegistrationToken");
@@ -121,10 +112,7 @@ public class PollThread extends Thread {
                             }
                             break;
                         } catch (IOException e) {
-                            MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.REFRESHING_ENDPOINT,
-                                    ExceptionHandler.generateException("While refreshing endpoint", e));
-                            skype.getEventDispatcher().callEvent(event);
-                            skype.shutdown();
+                            skype.handleError(ErrorSource.REFRESHING_ENDPOINT, e, true);
                             return;
                         }
                     }
@@ -135,9 +123,7 @@ public class PollThread extends Thread {
 
                     if (skype.getScheduler().isShutdown()) {
                         if (!skype.isShutdownRequested()) {
-                            MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.THREAD_POOL_DEAD);
-                            skype.getEventDispatcher().callEvent(event);
-                            skype.shutdown();
+                            skype.handleError(ErrorSource.THREAD_POOL_DEAD, null, true);
                         }
                         return;
                     }
@@ -152,14 +138,10 @@ public class PollThread extends Thread {
                                     try {
                                         type.handle(skype, eventObj);
                                     } catch (Throwable t) {
-                                        MinorErrorEvent event = new MinorErrorEvent(
-                                                MinorErrorEvent.ErrorSource.PARSING_MESSAGE, t, elem.toString());
-                                        skype.getEventDispatcher().callEvent(event);
+                                        skype.handleError(ErrorSource.PARSING_MESSAGE, t, false);
                                     }
                                 } else {
-                                    MinorErrorEvent event = new MinorErrorEvent(
-                                            MinorErrorEvent.ErrorSource.NO_MESSAGE_TYPE, null, elem.toString());
-                                    skype.getEventDispatcher().callEvent(event);
+                                    skype.handleError(ErrorSource.NO_MESSAGE_TYPE, null, false);
                                 }
                             }
                         }
@@ -167,9 +149,7 @@ public class PollThread extends Thread {
                 } catch (InterruptedException e) {
                     return;
                 } catch (IOException | ConnectionException e) {
-                    MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.POLLING_SKYPE, e);
-                    skype.getEventDispatcher().callEvent(event);
-                    skype.shutdown();
+                    skype.handleError(ErrorSource.POLLING_SKYPE, e, true);
                     return;
                 } finally {
                     connection.disconnect();
@@ -185,6 +165,6 @@ public class PollThread extends Thread {
             this.connection.disconnect();
         }
         this.inputFetcher.shutdownNow();
-        while (!this.inputFetcher.isTerminated());
+        while (!this.inputFetcher.isTerminated()) ;
     }
 }

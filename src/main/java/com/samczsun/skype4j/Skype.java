@@ -25,6 +25,7 @@ import com.samczsun.skype4j.exceptions.InvalidCredentialsException;
 import com.samczsun.skype4j.exceptions.NoPermissionException;
 import com.samczsun.skype4j.exceptions.NotParticipatingException;
 import com.samczsun.skype4j.exceptions.ParseException;
+import com.samczsun.skype4j.exceptions.handler.ErrorSource;
 import com.samczsun.skype4j.user.Contact;
 
 import java.util.Collection;
@@ -205,4 +206,6 @@ public interface Skype {
      * @throws ConnectionException If an error occurs while connecting to the endpoint
      */
     void setVisibility(Visibility visibility) throws ConnectionException;
+
+    void handleError(ErrorSource errorSource, Throwable throwable, boolean shutdown);
 }

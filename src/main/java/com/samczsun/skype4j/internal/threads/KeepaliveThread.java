@@ -16,8 +16,8 @@
 
 package com.samczsun.skype4j.internal.threads;
 
-import com.samczsun.skype4j.events.error.MajorErrorEvent;
 import com.samczsun.skype4j.exceptions.ConnectionException;
+import com.samczsun.skype4j.exceptions.handler.ErrorSource;
 import com.samczsun.skype4j.internal.Endpoints;
 import com.samczsun.skype4j.internal.SkypeImpl;
 
@@ -39,9 +39,8 @@ public class KeepaliveThread extends Thread {
                             .cookies(skype.getCookies())
                             .connect("POST", "sessionId=" + skype.getGuid().toString());
                 } catch (ConnectionException e) {
-                    MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.SESSION_KEEPALIVE, e);
-                    skype.getEventDispatcher().callEvent(event);
-                    skype.shutdown();
+                    skype.handleError(ErrorSource.SESSION_KEEPALIVE, e, true);
+                    return;
                 }
                 try {
                     Thread.sleep(300000);

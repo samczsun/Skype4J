@@ -20,6 +20,7 @@ import com.eclipsesource.json.JsonObject;
 import com.samczsun.skype4j.chat.GroupChat;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.NotParticipatingException;
+import com.samczsun.skype4j.exceptions.handler.ErrorHandler;
 import com.samczsun.skype4j.internal.Endpoints;
 import com.samczsun.skype4j.internal.SkypeImpl;
 import com.samczsun.skype4j.internal.threads.AuthenticationChecker;
@@ -27,14 +28,15 @@ import com.samczsun.skype4j.internal.threads.KeepaliveThread;
 import com.samczsun.skype4j.user.Contact;
 
 import java.net.HttpURLConnection;
+import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
 
 public class GuestClient extends SkypeImpl {
     private final String chatId;
 
-    public GuestClient(String username, String chatId, Set<String> resources, Logger logger) {
-        super(username, resources, logger);
+    public GuestClient(String username, String chatId, Set<String> resources, Logger logger, List<ErrorHandler> errorHandlers) {
+        super(username, resources, logger, errorHandlers);
         this.chatId = chatId;
     }
 

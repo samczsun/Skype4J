@@ -17,8 +17,8 @@
 package com.samczsun.skype4j.internal.threads;
 
 import com.eclipsesource.json.JsonObject;
-import com.samczsun.skype4j.events.error.MajorErrorEvent;
 import com.samczsun.skype4j.exceptions.ConnectionException;
+import com.samczsun.skype4j.exceptions.handler.ErrorSource;
 import com.samczsun.skype4j.internal.Endpoints;
 import com.samczsun.skype4j.internal.SkypeImpl;
 
@@ -39,12 +39,10 @@ public class ActiveThread extends Thread {
                 try {
                     Endpoints.ACTIVE
                             .open(skype, endpoint)
-                            .expect(201, "While submitting keepalive")
+                            .expect(201, "While submitting active")
                             .post(new JsonObject().add("timeout", 12));
                 } catch (ConnectionException e) {
-                    MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.SESSION_ACTIVE, e);
-                    skype.getEventDispatcher().callEvent(event);
-//                    skype.shutdown();
+                    skype.handleError(ErrorSource.SESSION_ACTIVE, e, false);
                 }
                 try {
                     Thread.sleep(12000);

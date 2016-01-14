@@ -17,8 +17,8 @@
 package com.samczsun.skype4j.internal;
 
 import com.eclipsesource.json.JsonObject;
-import com.samczsun.skype4j.events.error.MajorErrorEvent;
 import com.samczsun.skype4j.exceptions.ConnectionException;
+import com.samczsun.skype4j.exceptions.handler.ErrorSource;
 import com.samczsun.skype4j.internal.client.FullClient;
 import org.java_websocket.SSLSocketChannel2;
 import org.java_websocket.client.DefaultSSLWebSocketClientFactory;
@@ -147,16 +147,14 @@ public class SkypeWebSocket extends WebSocketClient {
                 try {
                     skype.registerWebSocket();
                 } catch (Exception e) {
-                    MajorErrorEvent error = new MajorErrorEvent(MajorErrorEvent.ErrorSource.REGISTERING_WEBSOCKET, e);
-                    skype.getEventDispatcher().callEvent(error);
+                    skype.handleError(ErrorSource.REGISTERING_WEBSOCKET, e, false);
                 }
             }
         } else if (s.equals("0::")) {
             try {
                 this.closeBlocking();
             } catch (InterruptedException e) {
-                MajorErrorEvent error = new MajorErrorEvent(MajorErrorEvent.ErrorSource.CLOSING_WEBSOCKET, e);
-                skype.getEventDispatcher().callEvent(error);
+                skype.handleError(ErrorSource.CLOSING_WEBSOCKET, e, false);
             } finally {
                 if (this.pingThread.isAlive()) {
                     this.pingThread.interrupt();
@@ -178,8 +176,7 @@ public class SkypeWebSocket extends WebSocketClient {
             try {
                 skype.registerWebSocket();
             } catch (Exception e) {
-                MajorErrorEvent error = new MajorErrorEvent(MajorErrorEvent.ErrorSource.REGISTERING_WEBSOCKET, e);
-                skype.getEventDispatcher().callEvent(error);
+                skype.handleError(ErrorSource.REGISTERING_WEBSOCKET, e, false);
             }
         }
     }
