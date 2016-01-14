@@ -82,7 +82,13 @@ public class PollThread extends Thread {
                     }
 
                     if (pendingException != null) {
-                        throw pendingException;
+                        if (pendingException.getMessage().equals("Connection reset")) {
+                            MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.POLLING_SKYPE, pendingException);
+                            skype.getEventDispatcher().callEvent(event);
+                            continue;
+                        } else {
+                            throw pendingException;
+                        }
                     }
 
                     if (connection.getHeaderField("Set-RegistrationToken") != null) {
@@ -165,6 +171,8 @@ public class PollThread extends Thread {
                     skype.getEventDispatcher().callEvent(event);
                     skype.shutdown();
                     return;
+                } finally {
+                    connection.disconnect();
                 }
             }
         }

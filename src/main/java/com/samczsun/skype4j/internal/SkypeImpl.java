@@ -303,11 +303,12 @@ public abstract class SkypeImpl implements Skype {
 
     @Override
     public Contact getOrLoadContact(String username) throws ConnectionException {
-        if (allContacts.containsKey(username)) {
-            return allContacts.get(username);
-        } else {
-            return loadContact(username);
+        Contact contact = allContacts.get(username);
+        if (contact == null) {
+            contact = loadContact(username);
+            allContacts.put(username, contact);
         }
+        return contact;
     }
 
     protected void registerEndpoint() throws ConnectionException {
