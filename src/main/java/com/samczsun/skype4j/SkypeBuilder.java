@@ -16,12 +16,12 @@
 
 package com.samczsun.skype4j;
 
+import com.samczsun.skype4j.exceptions.handler.ErrorHandler;
+import com.samczsun.skype4j.internal.ExceptionHandler;
 import com.samczsun.skype4j.internal.client.FullClient;
 import com.samczsun.skype4j.internal.client.GuestClient;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 import java.util.logging.Logger;
 
 /**
@@ -33,6 +33,7 @@ public class SkypeBuilder {
     private final String password;
 
     private Set<String> resources = new HashSet<>();
+    private List<ErrorHandler> errorHandlers = new ArrayList<>();
     private Logger customLogger;
     private String chatId;
 
@@ -90,6 +91,17 @@ public class SkypeBuilder {
     }
 
     /**
+     * Add an exception handler to handle exceptions
+     *
+     * @param errorHandler The exception handler
+     * @return The same SkypeBuilder
+     */
+    public SkypeBuilder withExceptionHandler(ErrorHandler errorHandler) {
+        this.errorHandlers.add(errorHandler);
+        return this;
+    }
+
+    /**
      * Join a particular chat as a guest. Will have no effect if a password is specified
      *
      * @param id The chat id
@@ -97,6 +109,7 @@ public class SkypeBuilder {
      */
     public SkypeBuilder withChat(String id) {
         if (!id.startsWith("19:")) throw new IllegalArgumentException("Invalid chat id");
+        if (password != null) throw new IllegalArgumentException("Not guest account");
         this.chatId = id;
         return this;
     }
@@ -111,9 +124,9 @@ public class SkypeBuilder {
             throw new IllegalArgumentException("No resources selected");
         }
         if (password != null) {
-            return new FullClient(username, password, resources, customLogger);
+            return new FullClient(username, password, resources, customLogger, errorHandlers);
         } else if (chatId != null) {
-            return new GuestClient(username, chatId, resources, customLogger);
+            return new GuestClient(username, chatId, resources, customLogger, errorHandlers);
         } else {
             throw new IllegalArgumentException("No chat specified");
         }

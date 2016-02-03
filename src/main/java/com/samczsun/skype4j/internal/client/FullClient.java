@@ -21,12 +21,13 @@ import com.eclipsesource.json.JsonObject;
 import com.eclipsesource.json.JsonValue;
 import com.samczsun.skype4j.chat.GroupChat;
 import com.samczsun.skype4j.events.contact.ContactRequestEvent;
-import com.samczsun.skype4j.events.error.MinorErrorEvent;
 import com.samczsun.skype4j.events.misc.CaptchaEvent;
 import com.samczsun.skype4j.exceptions.CaptchaException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.InvalidCredentialsException;
 import com.samczsun.skype4j.exceptions.ParseException;
+import com.samczsun.skype4j.exceptions.handler.ErrorHandler;
+import com.samczsun.skype4j.exceptions.handler.ErrorSource;
 import com.samczsun.skype4j.internal.ContactImpl;
 import com.samczsun.skype4j.internal.ContactRequestImpl;
 import com.samczsun.skype4j.internal.Endpoints;
@@ -45,10 +46,7 @@ import org.jsoup.select.Elements;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -59,8 +57,8 @@ public class FullClient extends SkypeImpl {
 
     private final String password;
 
-    public FullClient(String username, String password, Set<String> resources, Logger customLogger) {
-        super(username, resources, customLogger);
+    public FullClient(String username, String password, Set<String> resources, Logger customLogger, List<ErrorHandler> errorHandlers) {
+        super(username, resources, customLogger, errorHandlers);
         this.password = password;
     }
 
@@ -187,8 +185,7 @@ public class FullClient extends SkypeImpl {
             try {
                 this.registerWebSocket();
             } catch (Exception e) {
-                e.printStackTrace(); //For now
-//                throw new RuntimeException(e);
+                handleError(ErrorSource.REGISTERING_WEBSOCKET, e, false);
             }
             loggedIn.set(true);
             (sessionKeepaliveThread = new KeepaliveThread(this)).start();
@@ -231,8 +228,7 @@ public class FullClient extends SkypeImpl {
                             }
                         }
                     } catch (ConnectionException e) {
-                        MinorErrorEvent err = new MinorErrorEvent(MinorErrorEvent.ErrorSource.PARSING_CAPTCHA, e);
-                        getEventDispatcher().callEvent(err);
+                        handleError(ErrorSource.PARSING_CAPTCHA, e, true);
                     }
                 }
             }

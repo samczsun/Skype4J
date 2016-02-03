@@ -16,7 +16,7 @@
 
 package com.samczsun.skype4j.internal.threads;
 
-import com.samczsun.skype4j.events.error.MajorErrorEvent;
+import com.samczsun.skype4j.exceptions.handler.ErrorSource;
 import com.samczsun.skype4j.internal.SkypeImpl;
 
 public class AuthenticationChecker extends Thread {
@@ -39,9 +39,7 @@ public class AuthenticationChecker extends Thread {
                 try {
                     skype.reauthenticate();
                 } catch (Exception e) {
-                    MajorErrorEvent event = new MajorErrorEvent(MajorErrorEvent.ErrorSource.REAUTHENTICATING, e);
-                    skype.getEventDispatcher().callEvent(event);
-                    skype.shutdown();
+                    skype.handleError(ErrorSource.REAUTHENTICATING, e, true);
                 } finally {
                     return;
                 }

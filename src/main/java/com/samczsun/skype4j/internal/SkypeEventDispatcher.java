@@ -21,7 +21,7 @@ import com.samczsun.skype4j.events.Event;
 import com.samczsun.skype4j.events.EventDispatcher;
 import com.samczsun.skype4j.events.EventHandler;
 import com.samczsun.skype4j.events.Listener;
-import com.samczsun.skype4j.events.error.MinorErrorEvent;
+import com.samczsun.skype4j.exceptions.handler.ErrorSource;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -57,11 +57,7 @@ public class SkypeEventDispatcher implements EventDispatcher {
         }
     }
 
-    public void callEvent(Event e) {
-        callEvent(e, true);
-    }
-
-    private void callEvent(Event e, boolean tryNotify) { //todo bake
+    public void callEvent(Event e) { //todo bake
         List<RegisteredListener> methods = new ArrayList<>();
         Class<?> eventType = e.getClass();
         while (true) {
@@ -74,20 +70,12 @@ public class SkypeEventDispatcher implements EventDispatcher {
             }
             eventType = eventType.getSuperclass();
         }
-        if (methods != null) {
-            for (RegisteredListener method : methods) {
-                try {
-                    method.handleEvent(e);
-                } catch (InvocationTargetException ex) {
-                    instance.getLogger().log(Level.SEVERE, "Could not handle " + e.getClass(), ex.getTargetException());
-                } catch (Throwable t) {
-                    t.printStackTrace();
-                    if (tryNotify) {
-                        MinorErrorEvent event = new MinorErrorEvent(MinorErrorEvent.ErrorSource.DISPATCHING_EVENT, t);
-                        callEvent(event, false);
-                    }
-                    instance.getLogger().log(Level.SEVERE, "Error while handling event", t);
-                }
+        for (RegisteredListener method : methods) {
+            try {
+                method.handleEvent(e);
+            } catch (Throwable t) {
+                instance.getLogger().log(Level.SEVERE, "Error while handling event", t);
+                instance.handleError(ErrorSource.DISPATCHING_EVENT, t, false);
             }
         }
     }

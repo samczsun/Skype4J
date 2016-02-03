@@ -30,6 +30,8 @@ import com.samczsun.skype4j.exceptions.InvalidCredentialsException;
 import com.samczsun.skype4j.exceptions.NoPermissionException;
 import com.samczsun.skype4j.exceptions.NotParticipatingException;
 import com.samczsun.skype4j.exceptions.ParseException;
+import com.samczsun.skype4j.exceptions.handler.ErrorHandler;
+import com.samczsun.skype4j.exceptions.handler.ErrorSource;
 import com.samczsun.skype4j.internal.chat.ChatImpl;
 import com.samczsun.skype4j.internal.threads.ActiveThread;
 import com.samczsun.skype4j.internal.threads.PollThread;
@@ -84,6 +86,7 @@ public abstract class SkypeImpl implements Skype {
 
     protected final UUID guid = UUID.randomUUID();
     protected final Set<String> resources;
+    protected final List<ErrorHandler> errorHandlers;
     protected final String username;
     protected final ExecutorService scheduler = Executors.newFixedThreadPool(4, new SkypeThreadFactory(this, "Poller"));
     protected final ExecutorService shutdownThread;
@@ -109,9 +112,10 @@ public abstract class SkypeImpl implements Skype {
     private JsonObject trouterData;
     private int socketId = 1;
 
-    public SkypeImpl(String username, Set<String> resources, Logger logger) {
+    public SkypeImpl(String username, Set<String> resources, Logger logger, List<ErrorHandler> errorHandlers) {
         this.username = username;
         this.resources = Collections.unmodifiableSet(new HashSet<>(resources));
+        this.errorHandlers = Collections.unmodifiableList(new ArrayList<>(errorHandlers));
         if (logger != null) {
             this.logger = logger;
         } else {
@@ -303,11 +307,12 @@ public abstract class SkypeImpl implements Skype {
 
     @Override
     public Contact getOrLoadContact(String username) throws ConnectionException {
-        if (allContacts.containsKey(username)) {
-            return allContacts.get(username);
-        } else {
-            return loadContact(username);
+        Contact contact = allContacts.get(username);
+        if (contact == null) {
+            contact = loadContact(username);
+            allContacts.put(username, contact);
         }
+        return contact;
     }
 
     protected void registerEndpoint() throws ConnectionException {
@@ -528,6 +533,17 @@ public abstract class SkypeImpl implements Skype {
     @Override
     public Collection<Contact> getAllContacts() {
         return Collections.unmodifiableCollection(this.allContacts.values());
+    }
+
+    public void handleError(ErrorSource errorSource, Throwable throwable, boolean shutdown) {
+        for (ErrorHandler handler : errorHandlers) {
+            try {
+                handler.handle(errorSource, throwable, shutdown);
+            } catch (Throwable t) {}
+        }
+        if (shutdown) {
+            shutdown();
+        }
     }
 
     protected HttpURLConnection getAsmToken() throws ConnectionException {
