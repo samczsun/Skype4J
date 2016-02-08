@@ -51,10 +51,9 @@ public interface Skype {
      *
      * @throws InvalidCredentialsException If you've provided invalid credentials or if you hit a CAPTCHA
      * @throws ConnectionException         If a network error occured while connecting
-     * @throws ParseException              If invalid HTML/XML was returned, causing Jsoup to raise an exception
      * @throws NotParticipatingException   If the guest account cannot log in due to the chat not being open
      */
-    void login() throws InvalidCredentialsException, ConnectionException, ParseException, NotParticipatingException;
+    void login() throws InvalidCredentialsException, ConnectionException, NotParticipatingException;
 
     /**
      * Subscribe to the HTTP long polling service.

@@ -21,32 +21,24 @@ import com.eclipsesource.json.JsonObject;
 import com.eclipsesource.json.JsonValue;
 import com.samczsun.skype4j.chat.GroupChat;
 import com.samczsun.skype4j.events.contact.ContactRequestEvent;
-import com.samczsun.skype4j.events.misc.CaptchaEvent;
-import com.samczsun.skype4j.exceptions.CaptchaException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.InvalidCredentialsException;
-import com.samczsun.skype4j.exceptions.ParseException;
 import com.samczsun.skype4j.exceptions.handler.ErrorHandler;
 import com.samczsun.skype4j.exceptions.handler.ErrorSource;
-import com.samczsun.skype4j.internal.ContactImpl;
-import com.samczsun.skype4j.internal.ContactRequestImpl;
-import com.samczsun.skype4j.internal.Endpoints;
-import com.samczsun.skype4j.internal.ExceptionHandler;
-import com.samczsun.skype4j.internal.SkypeImpl;
+import com.samczsun.skype4j.internal.*;
 import com.samczsun.skype4j.internal.threads.AuthenticationChecker;
 import com.samczsun.skype4j.internal.threads.KeepaliveThread;
+import com.samczsun.skype4j.internal.utils.Encoder;
 import com.samczsun.skype4j.user.Contact;
-import org.jsoup.Connection.Method;
-import org.jsoup.Connection.Response;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
 
-import java.io.IOException;
+import javax.xml.bind.DatatypeConverter;
 import java.net.HttpURLConnection;
-import java.text.SimpleDateFormat;
-import java.util.*;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -63,8 +55,33 @@ public class FullClient extends SkypeImpl {
     }
 
     @Override
-    public void login() throws InvalidCredentialsException, ConnectionException, ParseException {
-        login(new String[0]);
+    public void login() throws InvalidCredentialsException, ConnectionException {
+        Map<String, String> data = new HashMap<>();
+        data.put("scopes", "client");
+        data.put("clientVersion", "0/7.4.85.102/259/");
+        data.put("username", username);
+        data.put("passwordHash", hash());
+        JsonObject loginData = Endpoints.LOGIN_URL.open(this)
+                .as(JsonObject.class)
+                .expect(200, "While logging in")
+                .post(Encoder.encode(data));
+        this.setSkypeToken(loginData.get("skypetoken").asString());
+        HttpURLConnection asmResponse = getAsmToken();
+        String[] setCookie = asmResponse.getHeaderField("Set-Cookie").split(";")[0].split("=");
+        this.cookies.put(setCookie[0], setCookie[1]);
+
+        registerEndpoint();
+
+        this.loadAllContacts();
+        this.getContactRequests(false);
+        try {
+            this.registerWebSocket();
+        } catch (Exception e) {
+            handleError(ErrorSource.REGISTERING_WEBSOCKET, e, false);
+        }
+        loggedIn.set(true);
+        (sessionKeepaliveThread = new KeepaliveThread(this)).start();
+        (reauthThread = new AuthenticationChecker(this)).start();
     }
 
     @Override
@@ -162,121 +179,13 @@ public class FullClient extends SkypeImpl {
         }
     }
 
-    private void login(String[] captchaData) throws InvalidCredentialsException, ConnectionException, ParseException {
-        final Response loginResponse = postToLogin(username, password, captchaData);
-        this.cookies = new HashMap<>(loginResponse.cookies());
-        Document loginResponseDocument;
+    private String hash() {
         try {
-            loginResponseDocument = loginResponse.parse();
-        } catch (IOException e) {
-            throw new ParseException("While parsing the login response", e);
-        }
-        Elements inputs = loginResponseDocument.select("input[name=skypetoken]");
-        if (inputs.size() > 0) {
-            this.setSkypeToken(inputs.get(0).attr("value"));
-            HttpURLConnection asmResponse = getAsmToken();
-            String[] setCookie = asmResponse.getHeaderField("Set-Cookie").split(";")[0].split("=");
-            this.cookies.put(setCookie[0], setCookie[1]);
-
-            registerEndpoint();
-
-            this.loadAllContacts();
-            this.getContactRequests(false);
-            try {
-                this.registerWebSocket();
-            } catch (Exception e) {
-                handleError(ErrorSource.REGISTERING_WEBSOCKET, e, false);
-            }
-            loggedIn.set(true);
-            (sessionKeepaliveThread = new KeepaliveThread(this)).start();
-            (reauthThread = new AuthenticationChecker(this)).start();
-        } else {
-            boolean foundError = false;
-            Elements captchas = loginResponseDocument.select("#captchaContainer");
-            if (captchas.size() > 0) {
-                Element captcha = captchas.get(0);
-                String url = null;
-                for (Element scriptTag : captcha.getElementsByTag("script")) {
-                    String text = scriptTag.html();
-                    if (text.contains("skypeHipUrl")) {
-                        url = text.substring(text.indexOf('"') + 1, text.lastIndexOf('"'));
-                    }
-                }
-                if (url != null) {
-                    try {
-                        String rawjs = Endpoints.custom(url, this).as(String.class).get();
-                        Pattern p = Pattern.compile("imageurl:'([^']*)'");
-                        Matcher m = p.matcher(rawjs);
-                        if (m.find()) {
-                            String imgurl = m.group(1);
-                            m = Pattern.compile("hid=([^&]*)").matcher(imgurl);
-                            if (m.find()) {
-                                String hid = m.group(1);
-                                m = Pattern.compile("fid=([^&]*)").matcher(imgurl);
-                                if (m.find()) {
-                                    String fid = m.group(1);
-                                    CaptchaEvent event = new CaptchaEvent(imgurl);
-                                    getEventDispatcher().callEvent(event);
-                                    String response = event.getCaptcha();
-                                    if (response != null) {
-                                        login(new String[]{response, hid, fid});
-                                    } else {
-                                        throw new CaptchaException();
-                                    }
-                                    foundError = true;
-                                }
-                            }
-                        }
-                    } catch (ConnectionException e) {
-                        handleError(ErrorSource.PARSING_CAPTCHA, e, true);
-                    }
-                }
-            }
-            if (!foundError) {
-                Elements elements = loginResponseDocument.select(".message_error");
-                if (elements.size() > 0) {
-                    Element div = elements.get(0);
-                    if (div.children().size() > 1) {
-                        Element span = div.child(1);
-                        throw new InvalidCredentialsException(span.text());
-                    }
-                } else {
-                    throw new InvalidCredentialsException(
-                            "Could not find error message. Dumping entire page. \n" + loginResponseDocument.html());
-                }
-            }
-        }
-    }
-
-    private Response postToLogin(String username, String password, String[] captchaData) throws ConnectionException {
-        try {
-            Map<String, String> data = new HashMap<>();
-            Document loginDocument = Jsoup.connect(Endpoints.LOGIN_URL.url()).get();
-            Element loginForm = loginDocument.getElementById("loginForm");
-            for (Element input : loginForm.getElementsByTag("input")) {
-                data.put(input.attr("name"), input.attr("value"));
-            }
-            Date now = new Date();
-            data.put("timezone_field", new SimpleDateFormat("XXX").format(now).replace(':', '|'));
-            data.put("username", username);
-            data.put("password", password);
-            data.put("js_time", String.valueOf(now.getTime() / 1000));
-            if (captchaData.length > 0) {
-                data.put("hip_solution", captchaData[0]);
-                data.put("hip_token", captchaData[1]);
-                data.put("fid", captchaData[2]);
-                data.put("hip_type", "visual");
-                data.put("captcha_provider", "Hip");
-            } else {
-                data.remove("hip_solution");
-                data.remove("hip_token");
-                data.remove("fid");
-                data.remove("hip_type");
-                data.remove("captcha_provider");
-            }
-            return Jsoup.connect(Endpoints.LOGIN_URL.url()).data(data).method(Method.POST).execute();
-        } catch (IOException e) {
-            throw ExceptionHandler.generateException("While submitting credentials", e);
+            MessageDigest messageDigest = MessageDigest.getInstance("MD5");
+            byte[] encodedMD = messageDigest.digest(String.format("%s\nskyper\n%s", username, password).getBytes());
+            return DatatypeConverter.printBase64Binary(encodedMD);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
         }
     }
 }

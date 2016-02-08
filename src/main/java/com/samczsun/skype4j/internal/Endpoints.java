@@ -68,8 +68,7 @@ public class Endpoints {
             "https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/properties?name=%s").cloud().regtoken();
     public static final Endpoints ADD_MEMBER_URL = new Endpoints(
             "https://client-s.gateway.messenger.live.com/v1/threads/%s/members/8:%s").regtoken();
-    public static final Endpoints LOGIN_URL = new Endpoints(
-            "https://login.skype.com/login?client_id=578134&redirect_uri=https%3A%2F%2Fweb.skype.com");
+    public static final Endpoints LOGIN_URL = new Endpoints("https://api.skype.com/login/skypetoken");
     public static final Endpoints PING_URL = new Endpoints("https://web.skype.com/api/v1/session-ping").skypetoken();
     public static final Endpoints TOKEN_AUTH_URL = new Endpoints("https://api.asm.skype.com/v1/skypetokenauth");
     public static final Endpoints LOGOUT_URL = new Endpoints(

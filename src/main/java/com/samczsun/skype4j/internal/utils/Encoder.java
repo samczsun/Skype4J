@@ -32,4 +32,12 @@ public class Encoder {
             throw new RuntimeException(e);
         }
     }
+
+    public static String encode(Map<String, String> data) {
+        StringBuilder result = new StringBuilder();
+        for (Map.Entry<String, String> entry : data.entrySet()) {
+            result.append(entry.getKey()).append("=").append(encode(entry.getValue())).append("&");
+        }
+        return result.toString();
+    }
 }
