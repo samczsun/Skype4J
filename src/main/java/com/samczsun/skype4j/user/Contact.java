@@ -128,7 +128,7 @@ public interface Contact {
      * @throws ConnectionException If an error occurs while sending the request
      * @throws NoSuchContactException If the user does not exist
      */
-    void sendRequest(String message) throws ConnectionException, NoSuchContactException, UnsupportedEncodingException;
+    void sendRequest(String message) throws ConnectionException, NoSuchContactException;
 
     /**
      * Get whether this contact is blocked

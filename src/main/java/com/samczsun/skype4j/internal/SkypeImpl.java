@@ -539,7 +539,8 @@ public abstract class SkypeImpl implements Skype {
         for (ErrorHandler handler : errorHandlers) {
             try {
                 handler.handle(errorSource, throwable, shutdown);
-            } catch (Throwable t) {}
+            } catch (Throwable t) {
+            }
         }
         if (shutdown) {
             shutdown();

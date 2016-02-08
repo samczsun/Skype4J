@@ -70,6 +70,7 @@ public interface Chat {
      * @param imageType The type of image (jpg, png, etc)
      * @param imageName The name of the image
      * @throws ConnectionException If an error occurs while connecting to the endpoint
+     * @throws IOException If an error occurs while reading the image file
      */
     void sendImage(BufferedImage image, String imageType, String imageName) throws ConnectionException, IOException;
 

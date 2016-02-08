@@ -40,6 +40,7 @@ public interface User {
      * Get the displayname of this user.
      * This call will load contact data if it is not already loaded
      *
+     * @throws ConnectionException If an error occurs while connecting to the endpoint
      * @return The displayname
      */
     String getDisplayName() throws ConnectionException;

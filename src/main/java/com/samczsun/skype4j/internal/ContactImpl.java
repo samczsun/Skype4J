@@ -23,6 +23,7 @@ import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.NoSuchContactException;
 import com.samczsun.skype4j.internal.client.FullClient;
+import com.samczsun.skype4j.internal.utils.Encoder;
 import com.samczsun.skype4j.user.Contact;
 import org.jsoup.helper.Validate;
 
@@ -212,7 +213,7 @@ public class ContactImpl implements Contact {
     }
 
     @Override
-    public void sendRequest(String message) throws ConnectionException, NoSuchContactException, UnsupportedEncodingException {
+    public void sendRequest(String message) throws ConnectionException, NoSuchContactException {
         Endpoints.AUTHORIZATION_REQUEST
                 .open(skype, this.username)
                 .on(404, (connection) -> {
@@ -220,7 +221,7 @@ public class ContactImpl implements Contact {
                 })
                 .expect(201, "While sending request")
                 .expect(200, "While sending request")
-                .put("greeting=" + URLEncoder.encode(message, "UTF-8"));
+                .put("greeting=" + Encoder.encode(message));
         updateContactInfo();
     }
 

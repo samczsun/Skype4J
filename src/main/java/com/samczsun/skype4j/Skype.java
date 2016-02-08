@@ -46,9 +46,6 @@ public interface Skype {
      * is to redirect you to the login screen. As such, roughly half an hour before 24 hours is hit, the API
      * will attempt to re-login and, if subscribed, resubscribe.
      *
-     * Note that on the off chance that a CAPTCHA is encountered, you will need to deal with it accordingly
-     * by listening to {@link com.samczsun.skype4j.events.misc.CaptchaEvent CaptchaEvent}.
-     *
      * @throws InvalidCredentialsException If you've provided invalid credentials or if you hit a CAPTCHA
      * @throws ConnectionException         If a network error occured while connecting
      * @throws NotParticipatingException   If the guest account cannot log in due to the chat not being open
