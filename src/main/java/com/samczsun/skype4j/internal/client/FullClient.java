@@ -33,6 +33,7 @@ import com.samczsun.skype4j.user.Contact;
 
 import javax.xml.bind.DatatypeConverter;
 import java.net.HttpURLConnection;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
@@ -182,7 +183,7 @@ public class FullClient extends SkypeImpl {
     private String hash() {
         try {
             MessageDigest messageDigest = MessageDigest.getInstance("MD5");
-            byte[] encodedMD = messageDigest.digest(String.format("%s\nskyper\n%s", username, password).getBytes());
+            byte[] encodedMD = messageDigest.digest(String.format("%s\nskyper\n%s", username, password).getBytes(StandardCharsets.UTF_8));
             return DatatypeConverter.printBase64Binary(encodedMD);
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
