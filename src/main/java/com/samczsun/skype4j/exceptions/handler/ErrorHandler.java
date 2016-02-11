@@ -3,7 +3,7 @@ package com.samczsun.skype4j.exceptions.handler;
 /**
  * Represents a handler which will handle errors produced by the API
  */
-public abstract class ErrorHandler {
+public interface ErrorHandler {
     /**
      * Handle the exception. Any exceptions thrown by this ErrorHandler will be silently swallowed and ignored
      * @param errorSource The cause of the error
