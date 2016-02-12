@@ -194,7 +194,10 @@ public abstract class Text {
     public static String parseEmojis(String in) {
         Map<String, Emoticon> mapping = new HashMap<>();
         for (Emoticon emoticon : Emoticon.values()) {
-            emoticon.getShortcuts().forEach(str -> mapping.put(str, emoticon));
+            emoticon.getShortcuts().forEach(str -> {
+                mapping.put(str, emoticon);
+                mapping.put(str.replace("<", "&lt;").replace(">", "&gt;"), emoticon);
+            });
         }
         StringBuilder result = new StringBuilder(in);
         for (int i = 0; i < result.length(); i++) {
