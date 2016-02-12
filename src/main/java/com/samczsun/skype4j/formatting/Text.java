@@ -195,14 +195,16 @@ public abstract class Text {
         Map<String, Emoticon> mapping = Emoticon.getDictionary();
         StringBuilder result = new StringBuilder(in);
         for (int i = 0; i < result.length(); i++) {
-            int end = Math.min(result.length(), result.charAt(i) == '(' ? result.indexOf(")", i) + 1 : i + 5);
+            int end = Math.min(result.length(), result.charAt(i) == '(' ? result.indexOf(")", i) + 1 : i + Emoticon.getLongestEmoji() + 1);
             for (int j = i + 1; j <= end; j++) {
                 String str = result.substring(i, j);
                 if (mapping.containsKey(str)) {
-                    String replacement = "<ss type=\"" + mapping.get(str).getId() + "\">" + str + "</ss>";
-                    result.replace(i, j, replacement);
-                    i += replacement.length() - 1;
-                    break;
+                    if (j == result.length() || result.charAt(j) == ' ') {
+                        String replacement = "<ss type=\"" + mapping.get(str).getId() + "\">" + str + "</ss>";
+                        result.replace(i, j, replacement);
+                        i += replacement.length() - 1;
+                        break;
+                    }
                 }
             }
         }

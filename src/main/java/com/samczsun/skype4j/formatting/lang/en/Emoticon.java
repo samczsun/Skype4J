@@ -266,12 +266,26 @@ public enum Emoticon implements IEmoticon {
     }
 
     private static Map<String, Emoticon> dictionary;
+    private static int longestEmoji = -1;
 
     public static Map<String, Emoticon> getDictionary() {
         if (dictionary == null) { // This is for performance, trust me
             initDictionary();
         }
         return dictionary;
+    }
+
+    public static int getLongestEmoji() {
+        if (longestEmoji == -1) {
+            for (String s : getDictionary().keySet()) {
+                if (s.charAt(0) != '(') {
+                    if (s.length() > longestEmoji) {
+                        longestEmoji = s.length();
+                    }
+                }
+            }
+        }
+        return longestEmoji;
     }
 
     private static void initDictionary() {
