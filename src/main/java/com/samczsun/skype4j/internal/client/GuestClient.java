@@ -54,7 +54,7 @@ public class GuestClient extends SkypeImpl {
                 .post(new JsonObject()
                         .add("name", username)
                         .add("threadId", chatId)
-                        .add("spaceId", "Skype4J")
+                        .add("shortId", "Skype4J")
                         .add("flowId", "Skype4J"));
         this.setSkypeToken(response.get("skypetoken").asString());
         HttpURLConnection asmResponse = getAsmToken();

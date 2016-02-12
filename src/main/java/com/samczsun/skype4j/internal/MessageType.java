@@ -720,7 +720,7 @@ public enum MessageType {
         String content = Utils.getString(resource, "content");
         if (content == null) throw new IllegalArgumentException("Null content");
         Matcher matcher = INITIATOR.matcher(content);
-        if (matcher.find()) {
+        if (matcher.find()) { //TODO Joining an open chat breaks this
             UserImpl user = chat.getUser(getUsername(matcher.group(1)));
             if (user != null) {
                 return user;
