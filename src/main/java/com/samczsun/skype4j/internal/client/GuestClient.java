@@ -78,24 +78,25 @@ public class GuestClient extends SkypeImpl {
         Endpoints.LEAVE_GUEST
                 .open(this, this.chatId)
                 .expect(200, "While logging out")
-                .cookie("guest_spaceId_" + chatId, "Skype4J")
-                .cookie("guest_token_Skype4J", this.getSkypeToken())
+                .cookie("guest_token_" + this.chatId, "skype4j::" + this.getSkypeToken())
+                .cookie("csrf_token", "skype4j")
+                .cookie("launcher_session_id", "Skype4J")
                 .get();
         shutdown();
     }
 
     @Override
-    public GroupChat createGroupChat(Contact... contacts) throws ConnectionException {
+    public GroupChat createGroupChat(Contact... contacts) {
         throw new UnsupportedOperationException("Not supported with a guest account");
     }
 
     @Override
-    public void loadAllContacts() throws ConnectionException {
+    public void loadAllContacts() {
         throw new UnsupportedOperationException("Not supported with a guest account");
     }
 
     @Override
-    public void getContactRequests(boolean fromWebsocket) throws ConnectionException {
+    public void getContactRequests(boolean fromWebsocket) {
         throw new UnsupportedOperationException("Not supported with a guest account");
     }
 

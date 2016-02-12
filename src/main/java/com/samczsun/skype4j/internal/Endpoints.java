@@ -20,6 +20,7 @@ import com.eclipsesource.json.JsonArray;
 import com.eclipsesource.json.JsonObject;
 import com.eclipsesource.json.JsonValue;
 import com.samczsun.skype4j.exceptions.ConnectionException;
+import com.samczsun.skype4j.internal.utils.Encoder;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -386,7 +387,7 @@ public class Endpoints {
         private String serializeCookies(Map<String, String> cookies) {
             StringBuilder result = new StringBuilder();
             for (Map.Entry<String, String> cookie : cookies.entrySet()) {
-                result.append(cookie.getKey()).append("=").append(cookie.getValue()).append(";");
+                result.append(Encoder.encode(cookie.getKey())).append("=").append(Encoder.encode(cookie.getValue())).append(";");
             }
             return result.toString();
         }
