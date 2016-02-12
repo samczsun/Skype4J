@@ -306,7 +306,7 @@ public abstract class SkypeImpl implements Skype {
                 })
                 .expect(201, "While registering endpoint")
                 .header("Authentication", "skypetoken=" + skypeToken)
-                .post(new JsonObject()); // LockAndKey data msmsgs@msnmsgr.com:Q1P7W2E4J9R8U3S5
+                .post(new JsonObject());
     }
 
     public abstract void getContactRequests(boolean fromWebsocket) throws ConnectionException;

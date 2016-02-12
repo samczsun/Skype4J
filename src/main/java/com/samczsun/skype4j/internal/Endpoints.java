@@ -365,7 +365,7 @@ public class Endpoints {
                             try {
                                 return entry.getValue().apply(connection);
                             } catch (Throwable t) {
-                                sneakyThrow(t);
+                                Utils.sneakyThrow(t);
                             }
                         }
                     }
@@ -391,14 +391,6 @@ public class Endpoints {
             }
             return result.toString();
         }
-
-        private static void sneakyThrow(Throwable ex) {
-            EndpointConnection.<RuntimeException>sneakyThrowInner(ex);
-        }
-
-        private static <T extends Throwable> T sneakyThrowInner(Throwable ex) throws T {
-            throw (T) ex;
-        }
     }
 
     public interface Provider<T> {
@@ -414,7 +406,7 @@ public class Endpoints {
             try {
                 return apply0(httpURLConnection);
             } catch (Throwable t) {
-                EndpointConnection.sneakyThrow(t);
+                Utils.sneakyThrow(t);
             }
             return null;
         }

@@ -29,6 +29,7 @@ import com.samczsun.skype4j.internal.*;
 import com.samczsun.skype4j.internal.threads.AuthenticationChecker;
 import com.samczsun.skype4j.internal.threads.KeepaliveThread;
 import com.samczsun.skype4j.internal.utils.Encoder;
+import com.samczsun.skype4j.internal.utils.UncheckedRunnable;
 import com.samczsun.skype4j.user.Contact;
 
 import javax.xml.bind.DatatypeConverter;
@@ -36,10 +37,10 @@ import java.net.HttpURLConnection;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -67,19 +68,33 @@ public class FullClient extends SkypeImpl {
                 .expect(200, "While logging in")
                 .post(Encoder.encode(data));
         this.setSkypeToken(loginData.get("skypetoken").asString());
-        HttpURLConnection asmResponse = getAsmToken();
-        String[] setCookie = asmResponse.getHeaderField("Set-Cookie").split(";")[0].split("=");
-        this.cookies.put(setCookie[0], setCookie[1]);
 
-        registerEndpoint();
+        List<UncheckedRunnable> tasks = new ArrayList<>();
+        tasks.add(this::registerEndpoint);
+        tasks.add(() -> {
+            HttpURLConnection asmResponse = getAsmToken();
+            String[] setCookie = asmResponse.getHeaderField("Set-Cookie").split(";")[0].split("=");
+            this.cookies.put(setCookie[0], setCookie[1]);
+        });
+        tasks.add(this::loadAllContacts);
+        tasks.add(() -> this.getContactRequests(false));
+        tasks.add(() -> {
+            try {
+                this.registerWebSocket();
+            } catch (Exception e) {
+                handleError(ErrorSource.REGISTERING_WEBSOCKET, e, false);
+            }
+        });
 
-        this.loadAllContacts();
-        this.getContactRequests(false);
         try {
-            this.registerWebSocket();
-        } catch (Exception e) {
-            handleError(ErrorSource.REGISTERING_WEBSOCKET, e, false);
+            ExecutorService executorService = Executors.newFixedThreadPool(5);
+            tasks.forEach(executorService::submit);
+            executorService.shutdown();
+            executorService.awaitTermination(1, TimeUnit.DAYS);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
+
         loggedIn.set(true);
         (sessionKeepaliveThread = new KeepaliveThread(this)).start();
         (reauthThread = new AuthenticationChecker(this)).start();

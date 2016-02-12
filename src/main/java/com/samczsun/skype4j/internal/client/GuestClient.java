@@ -21,15 +21,21 @@ import com.samczsun.skype4j.chat.GroupChat;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.NotParticipatingException;
 import com.samczsun.skype4j.exceptions.handler.ErrorHandler;
+import com.samczsun.skype4j.exceptions.handler.ErrorSource;
 import com.samczsun.skype4j.internal.Endpoints;
 import com.samczsun.skype4j.internal.SkypeImpl;
 import com.samczsun.skype4j.internal.threads.AuthenticationChecker;
 import com.samczsun.skype4j.internal.threads.KeepaliveThread;
+import com.samczsun.skype4j.internal.utils.UncheckedRunnable;
 import com.samczsun.skype4j.user.Contact;
 
 import java.net.HttpURLConnection;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 public class GuestClient extends SkypeImpl {
@@ -45,7 +51,7 @@ public class GuestClient extends SkypeImpl {
         JsonObject response = Endpoints.NEW_GUEST
                 .open(this)
                 .as(JsonObject.class)
-                .on(303, (connection) -> {
+                .on(303, connection -> {
                     throw new NotParticipatingException();
                 })
                 .expect(201, "While logging in")
@@ -57,17 +63,31 @@ public class GuestClient extends SkypeImpl {
                         .add("shortId", "Skype4J")
                         .add("flowId", "Skype4J"));
         this.setSkypeToken(response.get("skypetoken").asString());
-        HttpURLConnection asmResponse = getAsmToken();
-        String[] setCookie = asmResponse.getHeaderField("Set-Cookie").split(";")[0].split("=");
-        this.cookies.put(setCookie[0], setCookie[1]);
 
-        registerEndpoint();
+        List<UncheckedRunnable> tasks = new ArrayList<>();
+        tasks.add(this::registerEndpoint);
+        tasks.add(() -> {
+            HttpURLConnection asmResponse = getAsmToken();
+            String[] setCookie = asmResponse.getHeaderField("Set-Cookie").split(";")[0].split("=");
+            this.cookies.put(setCookie[0], setCookie[1]);
+        });
+        tasks.add(() -> {
+            try {
+                this.registerWebSocket();
+            } catch (Exception e) {
+                handleError(ErrorSource.REGISTERING_WEBSOCKET, e, false);
+            }
+        });
 
         try {
-            this.registerWebSocket();
-        } catch (Exception e) {
+            ExecutorService executorService = Executors.newFixedThreadPool(2);
+            tasks.forEach(executorService::submit);
+            executorService.shutdown();
+            executorService.awaitTermination(1, TimeUnit.DAYS);
+        } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
+
         this.loggedIn.set(true);
         (sessionKeepaliveThread = new KeepaliveThread(this)).start();
         (reauthThread = new AuthenticationChecker(this)).start();

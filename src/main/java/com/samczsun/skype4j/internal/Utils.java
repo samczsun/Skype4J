@@ -122,11 +122,11 @@ public class Utils {
         return StreamSupport.stream(iterable.spliterator(), parallel);
     }
 
-    public static String encodeSilently(String original) {
-        try {
-            return URLEncoder.encode(original, "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
-        }
+    public static void sneakyThrow(Throwable ex) {
+        Utils.<RuntimeException>sneakyThrowInner(ex);
+    }
+
+    private static <T extends Throwable> T sneakyThrowInner(Throwable ex) throws T {
+        throw (T) ex;
     }
 }
