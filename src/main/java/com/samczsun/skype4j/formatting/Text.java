@@ -22,6 +22,7 @@ import org.unbescape.html.HtmlEscape;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * Represents a text component in a message
@@ -190,27 +191,24 @@ public abstract class Text {
         return new PlainText(raw);
     }
 
-    static String parseEmojis(String in) {
+    public static String parseEmojis(String in) {
         Map<String, Emoticon> mapping = new HashMap<>();
         for (Emoticon emoticon : Emoticon.values()) {
             emoticon.getShortcuts().forEach(str -> mapping.put(str, emoticon));
         }
-        boolean modified;
-        do {
-            modified = false;
-            inner: for (int i = 0; i < in.length(); i++) {
-                int end = in.charAt(i) == '(' ? in.length() : Math.min(in.length(), i + 5);
-                for (int j = i; j < end; j++) {
-                    String str = in.substring(i, j);
-                    if (mapping.containsKey(str)) {
-                        in = in.replaceFirst(str, "<ss type=\"" + mapping.get(str).getId() + "\">str</ss>");
-                        modified = true;
-                        break inner;
-                    }
+        StringBuilder result = new StringBuilder(in);
+        for (int i = 0; i < result.length(); i++) {
+            int end = result.charAt(i) == '(' ? result.length() : Math.min(result.length(), i + 5);
+            for (int j = i + 1; j <= end; j++) {
+                String str = result.substring(i, j);
+                if (mapping.containsKey(str)) {
+                    String replacement = "<ss type=\"" + mapping.get(str).getId() + "\">" + str + "</ss>";
+                    result.replace(i, j, replacement);
+                    i += replacement.length() - 1;
+                    break;
                 }
-                break inner;
             }
-        } while (modified);
-        return in;
+        }
+        return result.toString();
     }
 }
