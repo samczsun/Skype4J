@@ -27,6 +27,10 @@ public class PlainText extends Text {
         this.value = value;
     }
 
+    public RichText asRichText() {
+        return new RichText(value);
+    }
+
     @Override
     public String write() {
         return this.value;
