@@ -16,8 +16,12 @@
 
 package com.samczsun.skype4j.formatting;
 
+import com.samczsun.skype4j.formatting.lang.en.Emoticon;
 import org.jsoup.helper.Validate;
 import org.unbescape.html.HtmlEscape;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Represents a text component in a message
@@ -55,7 +59,7 @@ public abstract class Text {
      * @return A new RichText object
      */
     public static RichText rich(String text) {
-        return new RichText(text);
+        return new RichText(parseEmojis(HtmlEscape.escapeHtml5Xml(text)));
     }
 
     /**
@@ -92,7 +96,7 @@ public abstract class Text {
      */
     public static PlainText plain(String text) {
         Validate.notNull(text, "The message cannot be null");
-        return new PlainText(HtmlEscape.escapeHtml5Xml(text));
+        return new PlainText(parseEmojis(HtmlEscape.escapeHtml5Xml(text)));
     }
 
     /**
@@ -177,12 +181,36 @@ public abstract class Text {
     }
 
     /**
-     * Creates a new PlainText component using the given HTML
+     * Creates a new PlainText component using the given raw text
      *
-     * @param html The HTML to use
-     * @return The PlainText object representing the HTML
+     * @param raw The raw text to use (no HTML/emoji parsing)
+     * @return The PlainText object representing the raw text
      */
-    public static PlainText html(String html) {
-        return new PlainText(html);
+    public static PlainText raw(String raw) {
+        return new PlainText(raw);
+    }
+
+    static String parseEmojis(String in) {
+        Map<String, Emoticon> mapping = new HashMap<>();
+        for (Emoticon emoticon : Emoticon.values()) {
+            emoticon.getShortcuts().forEach(str -> mapping.put(str, emoticon));
+        }
+        boolean modified;
+        do {
+            modified = false;
+            inner: for (int i = 0; i < in.length(); i++) {
+                int end = in.charAt(i) == '(' ? in.length() : Math.min(in.length(), i + 5);
+                for (int j = i; j < end; j++) {
+                    String str = in.substring(i, j);
+                    if (mapping.containsKey(str)) {
+                        in = in.replaceFirst(str, "<ss type=\"" + mapping.get(str).getId() + "\">str</ss>");
+                        modified = true;
+                        break inner;
+                    }
+                }
+                break inner;
+            }
+        } while (modified);
+        return in;
     }
 }

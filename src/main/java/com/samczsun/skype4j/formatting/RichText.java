@@ -40,7 +40,7 @@ import java.util.function.Consumer;
  */
 public class RichText extends Text {
 
-    public enum Format{
+    public enum Format {
         BOLD("b", RichText::withBold),
         ITALIC("i", RichText::withItalic),
         UNDERLINE("u", RichText::withUnderline),
@@ -76,28 +76,26 @@ public class RichText extends Text {
 
     private static final Map<String, BiConsumer<RichText, Element>> TAG_APPLIER = Collections.unmodifiableMap(
             new HashMap<String, BiConsumer<RichText, Element>>() {{
-                    Arrays.stream(Format.values()).forEach(format -> {
-                        put(format.getTagName(), (text, elem) -> {
-                            format.getApplicator().accept(text);
-                        });
+                Arrays.stream(Format.values()).forEach(format -> {
+                    put(format.getTagName(), (text, elem) -> {
+                        format.getApplicator().accept(text);
                     });
-                    put("font", (text, elem) -> {
-                        if (elem.hasAttr("size"))
-                        {
-                            text.withSize(Integer.parseInt(elem.attr("size")));
-                        }
-                        if (elem.hasAttr("color"))
-                        {
-                            text.withColor(Color.decode(elem.attr("color")));
-                        }
-                    });
-                    put("a", (text, elem) -> {
-                        text.withLink(elem.attr("href"));
-                    });
-                    put("#text", (text, elem) -> {
-                        // How do we handle this?
-                    });
-                }}
+                });
+                put("font", (text, elem) -> {
+                    if (elem.hasAttr("size")) {
+                        text.withSize(Integer.parseInt(elem.attr("size")));
+                    }
+                    if (elem.hasAttr("color")) {
+                        text.withColor(Color.decode(elem.attr("color")));
+                    }
+                });
+                put("a", (text, elem) -> {
+                    text.withLink(elem.attr("href"));
+                });
+                put("#text", (text, elem) -> {
+                    // How do we handle this?
+                });
+            }}
     );
 
     private static final Map<String, BiPredicate<RichText, Element>> TAG_TEST = Collections.unmodifiableMap(
@@ -161,12 +159,12 @@ public class RichText extends Text {
         return this.text;
     }
 
-    RichText setText(String text) {
+    private RichText setText(String text) {
         this.text = text;
         return this;
     }
 
-    void appendText(String text) {
+    private void appendText(String text) {
         this.text += text;
     }
 
@@ -274,7 +272,7 @@ public class RichText extends Text {
     }
 
     public RichText append(String text, boolean clearFormat) {
-        this.next = new RichText(this, text);
+        this.next = new RichText(this, Text.parseEmojis(text));
         if (!clearFormat) {
             this.next.copyFormat(this);
         }
@@ -383,10 +381,10 @@ public class RichText extends Text {
     public int hashCode0() {
         int result = (this.formats.contains(Format.BOLD) ? 1 : 0);
         result = 31 * result + (this.formats.contains(Format.ITALIC) ? 1 : 0);
-        result = 31 * result + (this.formats.contains(Format.UNDERLINE)  ? 1 : 0);
-        result = 31 * result + (this.formats.contains(Format.STRIKE_THROUGH)  ? 1 : 0);
-        result = 31 * result + (this.formats.contains(Format.CODE)  ? 1 : 0);
-        result = 31 * result + (this.formats.contains(Format.BLINK)  ? 1 : 0);
+        result = 31 * result + (this.formats.contains(Format.UNDERLINE) ? 1 : 0);
+        result = 31 * result + (this.formats.contains(Format.STRIKE_THROUGH) ? 1 : 0);
+        result = 31 * result + (this.formats.contains(Format.CODE) ? 1 : 0);
+        result = 31 * result + (this.formats.contains(Format.BLINK) ? 1 : 0);
         result = 31 * result + (this.link != null ? this.link.hashCode() : 0);
         result = 31 * result + (this.color != null ? this.color.hashCode() : 0);
         result = 31 * result + this.size;
@@ -394,7 +392,7 @@ public class RichText extends Text {
         return result;
     }
 
-    public static RichText fromHtml(String html){
+    public static RichText fromHtml(String html) {
         Document doc = Jsoup.parse(html);
         doc.outputSettings().prettyPrint(false);
         RichText root = new RichText("");
@@ -402,7 +400,7 @@ public class RichText extends Text {
         return root;
     }
 
-    private  static RichText parse(RichText root, Node node) {
+    private static RichText parse(RichText root, Node node) {
         RichText current = root;
         if (node instanceof Element) {
             Element elem = (Element) node;
@@ -446,7 +444,8 @@ public class RichText extends Text {
     }
 
     private static void applyTag(RichText text, Element tag) {
-        RichText.TAG_APPLIER.getOrDefault(tag.tagName(), (t, elem) -> {}).accept(text, tag);
+        RichText.TAG_APPLIER.getOrDefault(tag.tagName(), (t, elem) -> {
+        }).accept(text, tag);
     }
 
     private static boolean hasTag(RichText text, Element tag) {
