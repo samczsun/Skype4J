@@ -53,6 +53,10 @@ Maven is used for dependency management and deployment. To use this API, simply 
 You can also download the latest build of this project from [Jenkins](https://ci.samczsun.com/job/Skype4J/)  
 If you want to use Maven with the latest build and don't want to manually install, [JitPack](https://jitpack.io/#samczsun/skype4j) may do the trick.
 
+## JavaDocs
+
+JavaDocs can be found [here](https://samczsun.github.io/Skype4J/)
+
 ## Licensing
 
 This project is licensed under the Apache 2.0 license
