@@ -36,7 +36,8 @@ skype.subscribe();
 skype.logout();
 ```
 
-Notice how both examples are extremely similar. You can switch between guest accounts and regular accounts with ease thanks to abstractation.
+For more examples, please consult the [wiki](https://github.com/samczsun/Skype4J/wiki)
+
 ## Maven
 
 Maven is used for dependency management and deployment. To use this API, simply add the following to your pom.xml
@@ -45,11 +46,13 @@ Maven is used for dependency management and deployment. To use this API, simply 
 <dependency>
   <groupId>com.samczsun</groupId>
   <artifactId>skype4j</artifactId>
-  <version>0.1.4</version>
+  <version>0.1.5</version>
 </dependency>
 ```
 
 You can also download the latest build of this project from [Jenkins](https://ci.samczsun.com/job/Skype4J/) 
+If you want to use Maven with the latest build and don't want to manually install, [JitPack](https://jitpack.io/#samczsun/skype4j) may do the trick.
+
 ## Licensing
 
 This project is licensed under the Apache 2.0 license
