@@ -21,6 +21,7 @@ import com.eclipsesource.json.JsonObject;
 import com.eclipsesource.json.JsonValue;
 import com.samczsun.skype4j.chat.GroupChat;
 import com.samczsun.skype4j.events.contact.ContactRequestEvent;
+import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.InvalidCredentialsException;
 import com.samczsun.skype4j.exceptions.handler.ErrorHandler;
@@ -188,8 +189,11 @@ public class FullClient extends SkypeImpl {
         Matcher chatMatcher = URL_PATTERN.matcher(url);
         if (chatMatcher.find()) {
             String id = chatMatcher.group(1);
-            while (this.getChat(id) == null) ;
-            return (GroupChat) this.getChat(id);
+            try {
+                return (GroupChat) this.getOrLoadChat(id);
+            } catch (ChatNotFoundException e) {
+                throw new RuntimeException(e);
+            }
         } else {
             throw ExceptionHandler.generateException("No chat location", con);
         }
