@@ -2,6 +2,7 @@
 /target/
 /scripts/
 /src/other
+/src/debug
 /docs
 .settings/
 .idea/

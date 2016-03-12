@@ -10,5 +10,5 @@ public interface ErrorHandler {
      * @param error The error, may be null
      * @param shutdown Whether the API will shut down because this error is unrecoverable
      */
-    public abstract void handle(ErrorSource errorSource, Throwable error, boolean shutdown);
+    void handle(ErrorSource errorSource, Throwable error, boolean shutdown);
 }
