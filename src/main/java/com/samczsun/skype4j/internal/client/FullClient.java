@@ -28,7 +28,7 @@ import com.samczsun.skype4j.exceptions.handler.ErrorHandler;
 import com.samczsun.skype4j.exceptions.handler.ErrorSource;
 import com.samczsun.skype4j.internal.*;
 import com.samczsun.skype4j.internal.threads.AuthenticationChecker;
-import com.samczsun.skype4j.internal.threads.KeepaliveThread;
+import com.samczsun.skype4j.internal.threads.ServerPingThread;
 import com.samczsun.skype4j.internal.utils.Encoder;
 import com.samczsun.skype4j.internal.utils.UncheckedRunnable;
 import com.samczsun.skype4j.user.Contact;
@@ -97,7 +97,7 @@ public class FullClient extends SkypeImpl {
         }
 
         loggedIn.set(true);
-        (sessionKeepaliveThread = new KeepaliveThread(this)).start();
+        (sessionKeepaliveThread = new ServerPingThread(this)).start();
         (reauthThread = new AuthenticationChecker(this)).start();
     }
 

@@ -21,11 +21,11 @@ import com.samczsun.skype4j.exceptions.handler.ErrorSource;
 import com.samczsun.skype4j.internal.Endpoints;
 import com.samczsun.skype4j.internal.SkypeImpl;
 
-public class KeepaliveThread extends Thread {
+public class ServerPingThread extends Thread {
     private SkypeImpl skype;
 
-    public KeepaliveThread(SkypeImpl skype) {
-        super(String.format("Skype4J-Keepalive-%s", skype.getUsername()));
+    public ServerPingThread(SkypeImpl skype) {
+        super(String.format("Skype4J-ServerPing-%s", skype.getUsername()));
         this.skype = skype;
     }
 
@@ -40,7 +40,7 @@ public class KeepaliveThread extends Thread {
                             .cookies(skype.getCookies())
                             .connect("POST", "sessionId=" + skype.getGuid().toString());
                 } catch (ConnectionException e) {
-                    skype.handleError(ErrorSource.SESSION_KEEPALIVE, e, false); // After reviewing source this appears correct
+                    skype.handleError(ErrorSource.SERVER_PING, e, false); // After reviewing source this appears correct
                 }
                 try {
                     Thread.sleep(300000);
