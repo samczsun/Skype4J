@@ -26,12 +26,7 @@ import com.samczsun.skype4j.exceptions.NotLoadedException;
 import com.samczsun.skype4j.formatting.IMoji;
 import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.formatting.Text;
-import com.samczsun.skype4j.internal.Endpoints;
-import com.samczsun.skype4j.internal.ExceptionHandler;
-import com.samczsun.skype4j.internal.SkypeImpl;
-import com.samczsun.skype4j.internal.StreamUtils;
-import com.samczsun.skype4j.internal.UserImpl;
-import com.samczsun.skype4j.internal.Utils;
+import com.samczsun.skype4j.internal.*;
 import com.samczsun.skype4j.internal.chat.messages.ChatMessageImpl;
 import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.User;
@@ -44,13 +39,13 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Matcher;
 
 public abstract class ChatImpl implements Chat {
     protected final AtomicBoolean isLoading = new AtomicBoolean(false);
@@ -61,6 +56,10 @@ public abstract class ChatImpl implements Chat {
 
     private final SkypeImpl client;
     private final String identity;
+
+    private SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSX");
+    private String backwardLink;
+    private String syncState;
 
     ChatImpl(SkypeImpl client, String identity) throws ConnectionException, ChatNotFoundException {
         this.client = client;
@@ -173,6 +172,61 @@ public abstract class ChatImpl implements Chat {
         obj.add("clientmessageid", String.valueOf(ms));
 
         Endpoints.SEND_MESSAGE_URL.open(getClient(), getIdentity()).expect(201, "While sending message").post(obj);
+    }
+
+    @Override
+    public List<ChatMessage> loadMoreMessages(int amount) throws ConnectionException {
+        checkLoaded();
+        JsonObject data = null;
+        if (backwardLink == null) {
+            if (syncState == null) {
+                data = Endpoints.LOAD_MESSAGES
+                        .open(getClient(), getIdentity(), amount)
+                        .as(JsonObject.class)
+                        .expect(200, "While loading messages")
+                        .get();
+            } else {
+                return Collections.emptyList();
+            }
+        } else {
+            Matcher matcher = SkypeImpl.PAGE_SIZE_PATTERN.matcher(this.backwardLink);
+            matcher.find();
+            String url = matcher.replaceAll("pageSize=" + amount);
+            data = Endpoints
+                    .custom(url, getClient())
+                    .header("RegistrationToken", getClient().getRegistrationToken())
+                    .as(JsonObject.class)
+                    .expect(200, "While loading messages")
+                    .get();
+        }
+        List<ChatMessage> messages = new ArrayList<>();
+
+        for (JsonValue value : data.get("messages").asArray()) {
+            try {
+                JsonObject msg = value.asObject();
+                if (msg.get("messagetype").asString().equals("RichText")) {
+                    UserImpl u = (UserImpl) MessageType.getUser(msg.get("from").asString(), this);
+                    ChatMessage m = ChatMessageImpl.createMessage(this, u, msg.get("id").asString(),
+                            msg.get("id").asString(),
+                            formatter.parse(msg.get("originalarrivaltime").asString()).getTime(),
+                            Message.fromHtml(MessageType.stripMetadata(msg.get("content").asString())), getClient());
+                    this.messages.add(0, m);
+                    u.insertMessage(m, 0);
+                    messages.add(m);
+                }
+            } catch (ParseException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        JsonObject metadata = data.get("_metadata").asObject();
+        if (metadata.get("backwardLink") != null) {
+            this.backwardLink = metadata.get("backwardLink").asString();
+        } else {
+            this.backwardLink = null;
+        }
+        this.syncState = metadata.get("syncState").asString();
+        return messages;
     }
 
     @Override

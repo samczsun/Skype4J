@@ -53,13 +53,10 @@ import java.util.Set;
 import java.util.regex.Matcher;
 
 public class ChatGroup extends ChatImpl implements GroupChat {
-    private SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSX");
     private String topic;
     private String pictureUrl;
     private boolean pictureUpdated;
     private BufferedImage picture;
-    private String backwardLink;
-    private String syncState;
     private Set<OptionUpdateEvent.Option> enabledOptions;
 
     protected ChatGroup(SkypeImpl skype, String identity) throws ConnectionException, ChatNotFoundException {
@@ -117,60 +114,6 @@ public class ChatGroup extends ChatImpl implements GroupChat {
         } finally {
             isLoading.set(false);
         }
-    }
-
-    public List<ChatMessage> loadMoreMessages(int amount) throws ConnectionException {
-        checkLoaded();
-        JsonObject data = null;
-        if (backwardLink == null) {
-            if (syncState == null) {
-                data = Endpoints.LOAD_MESSAGES
-                        .open(getClient(), getIdentity(), amount)
-                        .as(JsonObject.class)
-                        .expect(200, "While loading messages")
-                        .get();
-            } else {
-                return Collections.emptyList();
-            }
-        } else {
-            Matcher matcher = SkypeImpl.PAGE_SIZE_PATTERN.matcher(this.backwardLink);
-            matcher.find();
-            String url = matcher.replaceAll("pageSize=" + amount);
-            data = Endpoints
-                    .custom(url, getClient())
-                    .header("RegistrationToken", getClient().getRegistrationToken())
-                    .as(JsonObject.class)
-                    .expect(200, "While loading messages")
-                    .get();
-        }
-        List<ChatMessage> messages = new ArrayList<>();
-
-        for (JsonValue value : data.get("messages").asArray()) {
-            try {
-                JsonObject msg = value.asObject();
-                if (msg.get("messagetype").asString().equals("RichText")) {
-                    UserImpl u = (UserImpl) MessageType.getUser(msg.get("from").asString(), this);
-                    ChatMessage m = ChatMessageImpl.createMessage(this, u, msg.get("id").asString(),
-                            msg.get("id").asString(),
-                            formatter.parse(msg.get("originalarrivaltime").asString()).getTime(),
-                            Message.fromHtml(MessageType.stripMetadata(msg.get("content").asString())), getClient());
-                    this.messages.add(0, m);
-                    u.insertMessage(m, 0);
-                    messages.add(m);
-                }
-            } catch (ParseException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        JsonObject metadata = data.get("_metadata").asObject();
-        if (metadata.get("backwardLink") != null) {
-            this.backwardLink = metadata.get("backwardLink").asString();
-        } else {
-            this.backwardLink = null;
-        }
-        this.syncState = metadata.get("syncState").asString();
-        return messages;
     }
 
     public void addUser(String username) throws ConnectionException {

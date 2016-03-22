@@ -135,13 +135,4 @@ public interface GroupChat extends Chat {
      * @throws IllegalStateException If joining is not enabled
      */
     String getJoinUrl() throws ConnectionException;
-
-    /**
-     * Load more chatmessages from the past
-     *
-     * @param amount The amount of messages to load
-     * @return The loaded messages
-     * @throws ConnectionException If an error occurs while connecting to the endpoint
-     */
-    List<ChatMessage> loadMoreMessages(int amount) throws ConnectionException;
 }
