@@ -191,7 +191,7 @@ public abstract class SkypeImpl implements Skype {
         publicInfo.add("type", 1);
         publicInfo.add("skypeNameVersion", "skype.com");
         publicInfo.add("nodeInfo", "xx");
-        publicInfo.add("version", "908/1.16.0.82//skype.com");
+        publicInfo.add("version", Skype.VERSION);
         JsonObject privateInfo = new JsonObject();
         privateInfo.add("epname", "Skype4J");
         registrationObject.add("publicInfo", publicInfo);
@@ -297,16 +297,14 @@ public abstract class SkypeImpl implements Skype {
         Endpoints.ENDPOINTS_URL
                 .open(this)
                 .noRedirects()
-                .on(301, (connection) -> {
-                    return Endpoints
-                            .custom(Endpoints.ENDPOINTS_URL.url() + "/" + Encoder.encode(endpointId), SkypeImpl.this)
-                            .expect(200, "While registering endpoint")
-                            .header("Authentication", "skypetoken=" + skypeToken)
-                            .put(new JsonObject());
-                })
+                .on(301, (connection) -> Endpoints
+                        .custom(Endpoints.ENDPOINTS_URL.url() + "/" + Encoder.encode(endpointId), SkypeImpl.this)
+                        .expect(200, "While registering endpoint")
+                        .header("Authentication", "skypetoken=" + skypeToken)
+                        .put(new JsonObject().add("endpointFeatures", "Agent")))
                 .expect(201, "While registering endpoint")
                 .header("Authentication", "skypetoken=" + skypeToken)
-                .post(new JsonObject());
+                .post(new JsonObject().add("endpointFeatures", "Agent"));
     }
 
     public abstract void getContactRequests(boolean fromWebsocket) throws ConnectionException;
@@ -379,7 +377,7 @@ public abstract class SkypeImpl implements Skype {
                                     .add("aesKey", "")
                                     .add("languageId", "en-US")
                                     .add("platform", "Chrome")
-                                    .add("platformUIVersion", "908/1.22.0.117//skype.com")
+                                    .add("platformUIVersion", Skype.VERSION)
                                     .add("templateKey", "SkypeWeb_1.1"))
                             .add("registrationId", UUID.randomUUID().toString())
                             .add("nodeId", "")
@@ -408,7 +406,7 @@ public abstract class SkypeImpl implements Skype {
                                 .encode(endpointId), this)
                         .header("RegistrationToken", getRegistrationToken())
                         .expect(200, "Err")
-                        .put(new JsonObject());
+                        .put(new JsonObject().add("endpointFeatures", "Agent"));
                 connection = Endpoints.SUBSCRIPTIONS_URL.open(this).dontConnect().post(buildSubscriptionObject());
             }
             if (connection.getResponseCode() != 201) {

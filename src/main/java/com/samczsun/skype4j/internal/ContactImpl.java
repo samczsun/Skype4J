@@ -18,6 +18,7 @@ package com.samczsun.skype4j.internal;
 
 import com.eclipsesource.json.JsonArray;
 import com.eclipsesource.json.JsonObject;
+import com.samczsun.skype4j.Skype;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
@@ -235,7 +236,7 @@ public class ContactImpl implements Contact {
         Endpoints.BLOCK_CONTACT
                 .open(skype, this.username)
                 .expect(201, "While unblocking contact")
-                .put("reporterIp=127.0.0.1&uiVersion=908/1.19.0.87//skype.com" + (reportAbuse ? "&reportAbuse=1" : ""));
+                .put("reporterIp=127.0.0.1&uiVersion=" + Skype.VERSION + (reportAbuse ? "&reportAbuse=1" : ""));
         updateContactInfo();
     }
 

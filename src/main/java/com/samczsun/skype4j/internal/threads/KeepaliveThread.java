@@ -36,11 +36,11 @@ public class KeepaliveThread extends Thread {
                     Endpoints.PING_URL
                             .open(skype)
                             .expect(200, "While maintaining session")
+                            .header("Content-Type", "application/x-www-form-urlencoded")
                             .cookies(skype.getCookies())
                             .connect("POST", "sessionId=" + skype.getGuid().toString());
                 } catch (ConnectionException e) {
-                    skype.handleError(ErrorSource.SESSION_KEEPALIVE, e, true);
-                    return;
+                    skype.handleError(ErrorSource.SESSION_KEEPALIVE, e, false); // After reviewing source this appears correct
                 }
                 try {
                     Thread.sleep(300000);
