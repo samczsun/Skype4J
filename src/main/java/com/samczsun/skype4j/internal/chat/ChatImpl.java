@@ -23,11 +23,13 @@ import com.samczsun.skype4j.chat.messages.ChatMessage;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.NotLoadedException;
+import com.samczsun.skype4j.exceptions.handler.ErrorHandler;
 import com.samczsun.skype4j.formatting.IMoji;
 import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.formatting.Text;
 import com.samczsun.skype4j.internal.*;
 import com.samczsun.skype4j.internal.chat.messages.ChatMessageImpl;
+import com.samczsun.skype4j.internal.threads.TypingThread;
 import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.User;
 import org.jsoup.helper.Validate;
@@ -60,6 +62,8 @@ public abstract class ChatImpl implements Chat {
     private SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSX");
     private String backwardLink;
     private String syncState;
+
+    private TypingThread typingThread;
 
     ChatImpl(SkypeImpl client, String identity) throws ConnectionException, ChatNotFoundException {
         this.client = client;
@@ -260,6 +264,22 @@ public abstract class ChatImpl implements Chat {
     @Override
     public SkypeImpl getClient() {
         return this.client;
+    }
+
+    @Override
+    public void startTyping(ErrorHandler handler) {
+        if (this.typingThread == null) {
+            this.typingThread = new TypingThread(this, handler);
+            this.typingThread.start();
+        }
+    }
+
+    @Override
+    public void stopTyping() {
+        if (this.typingThread != null) {
+            this.typingThread.end();
+            this.typingThread = null;
+        }
     }
 
     // Begin internal access methods

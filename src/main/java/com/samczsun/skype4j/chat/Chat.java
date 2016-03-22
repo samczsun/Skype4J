@@ -20,6 +20,7 @@ import com.samczsun.skype4j.Skype;
 import com.samczsun.skype4j.chat.messages.ChatMessage;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.NotLoadedException;
+import com.samczsun.skype4j.exceptions.handler.ErrorHandler;
 import com.samczsun.skype4j.formatting.IMoji;
 import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.user.Contact;
@@ -182,4 +183,25 @@ public interface Chat {
      * @throws ConnectionException If an error occurs while connecting to the endpoint
      */
     List<ChatMessage> loadMoreMessages(int amount) throws ConnectionException;
+
+    /*
+     * Send the typing notification. Note that this will spawn a new thread so supplying an ErrorHandler is recommended
+     * If typing is already being sent no action will be taken.
+     *
+     * If an error occurs the default handler will be notified
+     */
+    default void startTyping() {
+        startTyping(null);
+    }
+
+    /*
+     * Send the typing notification. If an connection exception occurs the specified handler as well
+     * as the default handler will be notified
+     */
+    void startTyping(ErrorHandler handler);
+
+    /*
+     * Stop sending the typing notification
+     */
+    void stopTyping();
 }
