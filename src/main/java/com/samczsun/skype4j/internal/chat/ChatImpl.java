@@ -208,15 +208,23 @@ public abstract class ChatImpl implements Chat {
         for (JsonValue value : data.get("messages").asArray()) {
             try {
                 JsonObject msg = value.asObject();
-                if (msg.get("messagetype").asString().equals("RichText")) {
+                if (msg.get("messagetype").asString().equals("RichText") || msg.get("messagetype").asString().equals("Text")) {
                     UserImpl u = (UserImpl) MessageType.getUser(msg.get("from").asString(), this);
-                    ChatMessage m = ChatMessageImpl.createMessage(this, u, msg.get("id").asString(),
-                            msg.get("id").asString(),
-                            formatter.parse(msg.get("originalarrivaltime").asString()).getTime(),
-                            Message.fromHtml(MessageType.stripMetadata(msg.get("content").asString())), getClient());
-                    this.messages.add(0, m);
-                    u.insertMessage(m, 0);
-                    messages.add(m);
+                    Message message = Message.fromHtml(MessageType.stripMetadata(msg.get("content").asString()));
+                    if (msg.get("clientmessageid") != null) {
+                        ChatMessage m = ChatMessageImpl.createMessage(this, u, msg.get("id").asString(),
+                                msg.get("clientmessageid").asString(),
+                                formatter.parse(msg.get("originalarrivaltime").asString()).getTime(), message
+                                ,getClient());
+                        this.messages.add(0, m);
+                        u.insertMessage(m, 0);
+                        messages.add(m);
+                    } else {
+                        ChatMessageImpl chatMessage = (ChatMessageImpl) u.getMessageById(msg.get("skypeeditedid").asString());
+                        if (chatMessage != null) {
+                            chatMessage.edit0(message);
+                        }
+                    }
                 }
             } catch (ParseException e) {
                 throw new RuntimeException(e);

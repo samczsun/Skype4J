@@ -113,6 +113,7 @@ public class UserImpl implements User {
 
     public void insertMessage(ChatMessage m, int i) {
         this.messages.add(i, m);
+        this.messageMap.put(m.getClientId(), m);
     }
 
     private void loadContact() throws ConnectionException {

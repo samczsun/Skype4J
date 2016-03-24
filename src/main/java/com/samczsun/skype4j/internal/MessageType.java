@@ -128,14 +128,11 @@ public enum MessageType {
                 }
             } else if (resource.get("skypeeditedid") != null) {
                 final String clientId = resource.get("skypeeditedid").asString();
-                if (content.startsWith("Edited previous message: ")) {
-                    content = content.substring("Edited previous message: ".length());
-                    ChatMessage m = user.getMessageById(clientId);
-                    if (m != null) {
-                        MessageEditedEvent evnt = new MessageEditedEvent(m, content);
-                        skype.getEventDispatcher().callEvent(evnt);
-                        ((ChatMessageImpl) m).edit0(Message.fromHtml(content));
-                    }
+                ChatMessage m = user.getMessageById(clientId);
+                if (m != null) {
+                    MessageEditedEvent evnt = new MessageEditedEvent(m, content);
+                    skype.getEventDispatcher().callEvent(evnt);
+                    ((ChatMessageImpl) m).edit0(Message.fromHtml(content));
                 }
             } else {
                 throw new IllegalArgumentException("Message had no id - hacking by user or skype changed their api");
