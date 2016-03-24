@@ -22,10 +22,14 @@ import com.samczsun.skype4j.exceptions.handler.ErrorSource;
 import com.samczsun.skype4j.internal.Endpoints;
 import com.samczsun.skype4j.internal.SkypeImpl;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 public class ActiveThread extends Thread {
 
     private SkypeImpl skype;
     private String endpoint;
+
+    private AtomicBoolean stop = new AtomicBoolean(false);
 
     public ActiveThread(SkypeImpl skype, String endpoint) {
         super(String.format("Skype4J-Active-%s", skype.getUsername()));
@@ -34,8 +38,8 @@ public class ActiveThread extends Thread {
     }
 
     public void run() {
-        while (skype.isLoggedIn()) {
-            if (skype.isAuthenticated()) {
+        while (skype.isLoggedIn() && !stop.get()) {
+            if (skype.isAuthenticated() && !stop.get()) {
                 try {
                     Endpoints.ACTIVE
                             .open(skype, endpoint)
@@ -43,6 +47,9 @@ public class ActiveThread extends Thread {
                             .post(new JsonObject().add("timeout", 12));
                 } catch (ConnectionException e) {
                     skype.handleError(ErrorSource.SESSION_ACTIVE, e, false);
+                }
+                if (stop.get()) {
+                    return;
                 }
                 try {
                     Thread.sleep(12000);
@@ -52,5 +59,9 @@ public class ActiveThread extends Thread {
                 return;
             }
         }
+    }
+
+    public void kill() {
+        stop.set(true);
     }
 }

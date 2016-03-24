@@ -56,7 +56,7 @@ import java.util.regex.Pattern;
 public abstract class SkypeImpl implements Skype {
     public static final String LINE_SEPARATOR = System.getProperty("line.separator");
     public static final Pattern PAGE_SIZE_PATTERN = Pattern.compile("pageSize=([0-9]+)");
-    public static final String VERSION = "0.1.5-SNAPSHOT";
+    public static final String VERSION = "0.1.6-SNAPSHOT";
 
     protected final AtomicBoolean loggedIn = new AtomicBoolean(false);
     protected final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
@@ -74,7 +74,7 @@ public abstract class SkypeImpl implements Skype {
     protected EventDispatcher eventDispatcher = new SkypeEventDispatcher(this);
     protected Map<String, String> cookies = new HashMap<>();
     protected Thread sessionKeepaliveThread;
-    protected Thread activeThread;
+    protected ActiveThread activeThread;
     protected Thread reauthThread;
     protected PollThread pollThread;
     protected SkypeWebSocket wss;
@@ -417,7 +417,6 @@ public abstract class SkypeImpl implements Skype {
                     .expect(200, "While submitting messagingservice")
                     .put(buildRegistrationObject());
             (pollThread = new PollThread(this, Encoder.encode(endpointId))).start();
-            (activeThread = new ActiveThread(this, Encoder.encode(endpointId))).start();
             subscribed.set(true);
         } catch (IOException io) {
             throw ExceptionHandler.generateException("While subscribing", io);
@@ -450,6 +449,10 @@ public abstract class SkypeImpl implements Skype {
         if (splits.length > 2) {
             String tEndpointId = splits[2].split("=")[1];
             this.endpointId = tEndpointId;
+            if (this.activeThread != null) {
+                this.activeThread.kill();
+            }
+            (activeThread = new ActiveThread(this, Encoder.encode(endpointId))).start();
         }
     }
 

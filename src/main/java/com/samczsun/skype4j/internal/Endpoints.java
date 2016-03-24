@@ -100,7 +100,7 @@ public class Endpoints {
     public static final Endpoints NEW_GUEST = new Endpoints("https://join.skype.com/api/v1/users/guests");
     public static final Endpoints LEAVE_GUEST = new Endpoints("https://join.skype.com/guests/leave?threadId=%s");
     public static final Endpoints ACTIVE = new Endpoints(
-            "https://client-s.gateway.messenger.live.com/v1/users/ME/endpoints/%s/active").regtoken();
+            "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/%s/active").cloud().regtoken();
     public static final Endpoints LOAD_CHATS = new Endpoints(
             "https://client-s.gateway.messenger.live.com/v1/users/ME/conversations?startTime=%s&pageSize=%s&view=msnp24Equivalent&targetType=Passport|Skype|Lync|Thread")
             .regtoken();
