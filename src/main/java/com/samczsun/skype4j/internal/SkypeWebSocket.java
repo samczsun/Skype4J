@@ -169,7 +169,9 @@ public class SkypeWebSocket extends WebSocketClient {
 
     @Override
     public void onClose(int i, String s, boolean b) {
-        pingThread.interrupt();
+        if (pingThread != null) {
+            pingThread.interrupt();
+        }
         singleThreaded.shutdown();
         while (!singleThreaded.isTerminated()) ;
         if (skype.getWebSocket() == this) {

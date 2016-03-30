@@ -29,7 +29,9 @@ import com.samczsun.skype4j.exceptions.handler.ErrorHandler;
 import com.samczsun.skype4j.exceptions.handler.ErrorSource;
 import com.samczsun.skype4j.internal.chat.ChatImpl;
 import com.samczsun.skype4j.internal.threads.ActiveThread;
+import com.samczsun.skype4j.internal.threads.AuthenticationChecker;
 import com.samczsun.skype4j.internal.threads.PollThread;
+import com.samczsun.skype4j.internal.threads.ServerPingThread;
 import com.samczsun.skype4j.internal.utils.Encoder;
 import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.ContactRequest;
@@ -73,9 +75,9 @@ public abstract class SkypeImpl implements Skype {
     protected final Set<ContactRequest> allContactRequests = new HashSet<>();
     protected EventDispatcher eventDispatcher = new SkypeEventDispatcher(this);
     protected Map<String, String> cookies = new HashMap<>();
-    protected Thread sessionKeepaliveThread;
+    protected ServerPingThread serverPingThread;
     protected ActiveThread activeThread;
-    protected Thread reauthThread;
+    protected AuthenticationChecker reauthThread;
     protected PollThread pollThread;
     protected SkypeWebSocket wss;
     protected String conversationBackwardLink;
@@ -205,7 +207,7 @@ public abstract class SkypeImpl implements Skype {
             shutdownRequested.set(true);
             this.shutdownThread.submit((Runnable) () -> {
                 shutdownThread.shutdown();
-                reauthThread.interrupt();
+                reauthThread.kill();
                 scheduler.shutdownNow();
                 while (!scheduler.isTerminated()) ;
                 doShutdown();
@@ -214,10 +216,26 @@ public abstract class SkypeImpl implements Skype {
     }
 
     public void doShutdown() {
-        if (this.pollThread != null) pollThread.shutdown();
-        if (this.sessionKeepaliveThread != null) sessionKeepaliveThread.interrupt();
-        if (this.activeThread != null) activeThread.interrupt();
-        if (wss != null) wss.close();
+        if (this.pollThread != null) {
+            this.pollThread.shutdown();
+            this.pollThread = null;
+        }
+        if (this.serverPingThread != null) {
+            this.serverPingThread.kill();
+            this.serverPingThread = null;
+        }
+        if (this.activeThread != null) {
+            this.activeThread.kill();
+            this.activeThread = null;
+        }
+        if (this.reauthThread != null) {
+            this.reauthThread.kill();
+            this.reauthThread = null;
+        }
+        if (this.wss != null) {
+            this.wss.close();
+            this.wss = null;
+        }
 
     }
 
@@ -312,14 +330,13 @@ public abstract class SkypeImpl implements Skype {
     public abstract void updateContactList() throws ConnectionException;
 
     public void registerWebSocket() throws ConnectionException, InterruptedException, URISyntaxException, KeyManagementException, NoSuchAlgorithmException, UnsupportedEncodingException {
-        if (this.isShutdownRequested() || !this.isLoggedIn()) return;
         boolean needsToRegister = false;
         if (trouterData == null) {
             trouterData = Endpoints.TROUTER_URL
                     .open(this)
                     .as(JsonObject.class)
                     .expect(200, "While fetching trouter data")
-                    .get();
+                    .post();
             needsToRegister = true;
         } else {
             Endpoints.RECONNECT_WEBSOCKET
@@ -336,21 +353,22 @@ public abstract class SkypeImpl implements Skype {
 
         Map<String, String> data = new HashMap<>();
         for (JsonObject.Member value : policyResponse) {
-            data.put(value.getName(), value.getValue().toString());
+            data.put(value.getName(), Utils.coerceToString(value.getValue()));
         }
-        data.put("r", trouterData.get("instance").toString());
+        data.put("r", Utils.coerceToString(trouterData.get("instance")));
         data.put("p", String.valueOf(trouterData.get("instancePort").asInt()));
-        data.put("ccid", trouterData.get("ccid").toString());
+        data.put("ccid", Utils.coerceToString(trouterData.get("ccid")));
         data.put("v", "v2"); //TODO: MAGIC VALUE
         data.put("dom", "web.skype.com"); //TODO: MAGIC VALUE
         data.put("auth", "true"); //TODO: MAGIC VALUE
         data.put("tc", new JsonObject()
                 .add("cv", "2015.11.05")
                 .add("hr", "")
-                .add("v", "1.22.117")
+                .add("v", "1.34.99")
                 .toString()); //TODO: MAGIC VALUE
         data.put("timeout", "55");
         data.put("t", String.valueOf(System.currentTimeMillis()));
+
         StringBuilder args = new StringBuilder();
         for (Map.Entry<String, String> entry : data.entrySet()) {
             args
@@ -360,7 +378,12 @@ public abstract class SkypeImpl implements Skype {
                     .append("&");
         }
 
-        String socketURL = trouterData.get("socketio").toString() + "/socket.io/" + socketId++ + "/?" + args.toString();
+        String socketio = Utils.coerceToString(trouterData.get("socketio"));
+        if (socketio.endsWith("/")) {
+            socketio = socketio.substring(0, socketio.length() - 1);
+        }
+
+        String socketURL = socketio + "/socket.io/" + socketId + "/?" + args.toString();
 
         String websocketData = Endpoints
                 .custom(socketURL, this)
@@ -388,9 +411,10 @@ public abstract class SkypeImpl implements Skype {
         }
 
         this.wss = new SkypeWebSocket(this,
-                new URI(String.format("%s/socket.io/1/websocket/%s?%s", "wss://" + socketURL,
+                new URI(String.format("%s/socket.io/" + socketId + "/websocket/%s?%s", "wss://" + socketio.replaceAll("https?://", "").replace(":443", ""),
                         websocketData.split(":")[0], args.toString())));
         this.wss.connectBlocking();
+        socketId++;
     }
 
     public void subscribe() throws ConnectionException {
@@ -416,6 +440,10 @@ public abstract class SkypeImpl implements Skype {
                     .open(this, Encoder.encode(endpointId))
                     .expect(200, "While submitting messagingservice")
                     .put(buildRegistrationObject());
+            if (this.pollThread != null) {
+                this.pollThread.shutdown();
+                this.pollThread = null;
+            }
             (pollThread = new PollThread(this, Encoder.encode(endpointId))).start();
             subscribed.set(true);
         } catch (IOException io) {
@@ -428,6 +456,7 @@ public abstract class SkypeImpl implements Skype {
     }
 
     public void reauthenticate() throws ConnectionException, InvalidCredentialsException, NotParticipatingException {
+        //todo: keep subscribed until reauth is finished so events aren't lost
         doShutdown();
         this.trouterData = null;
         login();
@@ -451,6 +480,7 @@ public abstract class SkypeImpl implements Skype {
             this.endpointId = tEndpointId;
             if (this.activeThread != null) {
                 this.activeThread.kill();
+                this.activeThread = null;
             }
             (activeThread = new ActiveThread(this, Encoder.encode(endpointId))).start();
         }

@@ -19,23 +19,37 @@ package com.samczsun.skype4j.internal.threads;
 import com.samczsun.skype4j.exceptions.handler.ErrorSource;
 import com.samczsun.skype4j.internal.SkypeImpl;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+
 public class AuthenticationChecker extends Thread {
+    private static final Map<String, AtomicInteger> ID = new ConcurrentHashMap<>();
+
     private SkypeImpl skype;
+    private AtomicBoolean stop = new AtomicBoolean(false);
 
     public AuthenticationChecker(SkypeImpl skype) {
-        super("Skype4J-Authenticator-" + skype.getUsername());
+        super(String.format("Skype4J-AuthenticationChecker-%s-%s", skype.getUsername(), ID.computeIfAbsent(skype.getUsername(), str -> new AtomicInteger()).getAndIncrement()));
         this.skype = skype;
     }
 
     public void run() {
-        while (skype.isLoggedIn()) {
+        while (skype.isLoggedIn() && !stop.get()) {
             long diff = (skype.getExpirationTime() - System.currentTimeMillis());
             if (diff > 1800000) { //30 min
+                if (stop.get()) {
+                    return;
+                }
                 try {
                     Thread.sleep(diff / 2);
                 } catch (InterruptedException e) {
                 }
             } else {
+                if (stop.get()) {
+                    return;
+                }
                 try {
                     skype.reauthenticate();
                 } catch (Exception e) {
@@ -45,5 +59,9 @@ public class AuthenticationChecker extends Thread {
                 }
             }
         }
+    }
+
+    public void kill() {
+        this.stop.set(true);
     }
 }

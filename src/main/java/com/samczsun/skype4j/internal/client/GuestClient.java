@@ -89,7 +89,15 @@ public class GuestClient extends SkypeImpl {
         }
 
         this.loggedIn.set(true);
-        (sessionKeepaliveThread = new ServerPingThread(this)).start();
+        if (this.serverPingThread != null) {
+            this.serverPingThread.kill();
+            this.serverPingThread = null;
+        }
+        if (this.reauthThread != null) {
+            this.reauthThread.kill();
+            this.reauthThread = null;
+        }
+        (serverPingThread = new ServerPingThread(this)).start();
         (reauthThread = new AuthenticationChecker(this)).start();
     }
 

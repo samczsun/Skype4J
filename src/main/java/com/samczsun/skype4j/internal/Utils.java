@@ -93,6 +93,10 @@ public class Utils {
         return object.get(key) == null ? null : object.get(key).isNull() ? null : object.get(key).asString();
     }
 
+    public static String coerceToString(JsonValue value) {
+        return value.isString() ? value.asString() : value.toString();
+    }
+
     public enum ImageType {
         IMGT1("pish/image", "imgpsh", "imgt1"),
         AVATAR("avatar/group", "avatar", "avatar_fullsize"), //Also has "avatar"

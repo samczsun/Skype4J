@@ -22,9 +22,13 @@ import com.samczsun.skype4j.exceptions.handler.ErrorSource;
 import com.samczsun.skype4j.internal.Endpoints;
 import com.samczsun.skype4j.internal.SkypeImpl;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ActiveThread extends Thread {
+    private static final Map<String, AtomicInteger> ID = new ConcurrentHashMap<>();
 
     private SkypeImpl skype;
     private String endpoint;
@@ -32,7 +36,7 @@ public class ActiveThread extends Thread {
     private AtomicBoolean stop = new AtomicBoolean(false);
 
     public ActiveThread(SkypeImpl skype, String endpoint) {
-        super(String.format("Skype4J-Active-%s", skype.getUsername()));
+        super(String.format("Skype4J-Active-%s-%s", skype.getUsername(), ID.computeIfAbsent(skype.getUsername(), str -> new AtomicInteger()).getAndIncrement()));
         this.skype = skype;
         this.endpoint = endpoint;
     }
@@ -43,7 +47,7 @@ public class ActiveThread extends Thread {
                 try {
                     Endpoints.ACTIVE
                             .open(skype, endpoint)
-                            .expect(201, "While submitting active")
+                            .expect(201, "While submitting active in " + this.getName())
                             .post(new JsonObject().add("timeout", 12));
                 } catch (ConnectionException e) {
                     skype.handleError(ErrorSource.SESSION_ACTIVE, e, false);
@@ -53,7 +57,7 @@ public class ActiveThread extends Thread {
                 }
                 try {
                     Thread.sleep(12000);
-                } catch (InterruptedException e) {
+                } catch (InterruptedException ignored) {
                 }
             } else {
                 return;
@@ -63,5 +67,6 @@ public class ActiveThread extends Thread {
 
     public void kill() {
         stop.set(true);
+        this.interrupt();
     }
 }

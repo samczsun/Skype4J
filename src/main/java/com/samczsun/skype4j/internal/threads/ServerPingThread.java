@@ -21,17 +21,26 @@ import com.samczsun.skype4j.exceptions.handler.ErrorSource;
 import com.samczsun.skype4j.internal.Endpoints;
 import com.samczsun.skype4j.internal.SkypeImpl;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+
 public class ServerPingThread extends Thread {
+    private static final Map<String, AtomicInteger> ID = new ConcurrentHashMap<>();
+
+
     private SkypeImpl skype;
+    private AtomicBoolean stop = new AtomicBoolean(false);
 
     public ServerPingThread(SkypeImpl skype) {
-        super(String.format("Skype4J-ServerPing-%s", skype.getUsername()));
+        super(String.format("Skype4J-ServerPing-%s-%s", skype.getUsername(), ID.computeIfAbsent(skype.getUsername(), str -> new AtomicInteger()).getAndIncrement()));
         this.skype = skype;
     }
 
     public void run() {
-        while (skype.isLoggedIn()) {
-            if (skype.isAuthenticated()) {
+        while (skype.isLoggedIn() && !stop.get()) {
+            if (skype.isAuthenticated() && !stop.get()) {
                 try {
                     Endpoints.PING_URL
                             .open(skype)
@@ -42,13 +51,21 @@ public class ServerPingThread extends Thread {
                 } catch (ConnectionException e) {
                     skype.handleError(ErrorSource.SERVER_PING, e, false); // After reviewing source this appears correct
                 }
+                if (stop.get()) {
+                    return;
+                }
                 try {
                     Thread.sleep(300000);
-                } catch (InterruptedException e) {
+                } catch (InterruptedException ignored) {
                 }
             } else {
                 return;
             }
         }
+    }
+
+    public void kill() {
+        this.stop.set(true);
+        this.interrupt();
     }
 }

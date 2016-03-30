@@ -647,7 +647,7 @@ public enum MessageType {
             Pattern.CASE_INSENSITIVE);
     private static final Pattern ROLE_UPDATE_PATTERN = Pattern.compile(
             "<target><id>(\\d+:.+)</id><role>(.+)</role></target>", Pattern.CASE_INSENSITIVE);
-    private static final Pattern BLOBID = Pattern.compile("(0-cus-d[0-9]-[a-z0-9]{32})");
+    private static final Pattern BLOBID = Pattern.compile("(0-[a-z]+-d[0-9]-[a-z0-9]{32})");
 
     private final String value;
 
