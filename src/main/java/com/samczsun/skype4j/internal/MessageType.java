@@ -49,6 +49,7 @@ import com.samczsun.skype4j.events.chat.user.action.RoleUpdateEvent;
 import com.samczsun.skype4j.events.chat.user.action.TopicUpdateEvent;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
+import com.samczsun.skype4j.exceptions.NoSuchUserException;
 import com.samczsun.skype4j.exceptions.SkypeException;
 import com.samczsun.skype4j.formatting.IMoji;
 import com.samczsun.skype4j.formatting.Message;
@@ -359,7 +360,11 @@ public enum MessageType {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
             ChatImpl chat = getChat(resource, skype);
-            UserImpl initiator = getInitiator(resource, chat);
+            UserImpl initiator = null;
+            try {
+                initiator = getInitiator(resource, chat);
+            } catch (NoSuchUserException ignored) {
+            }
             List<User> usersAdded = new ArrayList<>();
             boolean addedSelf = false;
             Matcher matcher = SINGLE_TARGET.matcher(resource.get("content").asString());
@@ -370,6 +375,10 @@ public enum MessageType {
                 if (username.equalsIgnoreCase(skype.getUsername())) {
                     addedSelf = true;
                 }
+            }
+
+            if (initiator == null) {
+                initiator = getInitiator(resource, chat);
             }
 
             UserAddEvent event = null;
@@ -722,7 +731,7 @@ public enum MessageType {
             if (user != null) {
                 return user;
             }
-            throw new IllegalArgumentException("Unknown user");
+            throw new NoSuchUserException();
         }
         throw new IllegalArgumentException("Malformatted content");
     }
