@@ -458,7 +458,6 @@ public abstract class SkypeImpl implements Skype {
     public void reauthenticate() throws ConnectionException, InvalidCredentialsException, NotParticipatingException {
         //todo: keep subscribed until reauth is finished so events aren't lost
         doShutdown();
-        this.trouterData = null;
         login();
         if (subscribed.get()) {
             subscribe();
