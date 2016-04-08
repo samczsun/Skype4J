@@ -139,7 +139,7 @@ public class FullClient extends SkypeImpl {
 
     @Override
     public void getContactRequests(boolean fromWebsocket) throws ConnectionException {
-        JsonArray array = Endpoints.AUTH_REQUESTS_URL
+        JsonArray array =  Endpoints.AUTH_REQUESTS_URL
                 .open(this)
                 .as(JsonArray.class)
                 .expect(200, "While loading authorization requests")

@@ -24,8 +24,8 @@ import com.samczsun.skype4j.user.User;
 import java.util.List;
 
 public class FileReceivedEvent extends ChatEvent {
-    private User sender;
-    private List<ReceivedFile> files;
+    private final User sender;
+    private final List<ReceivedFile> files;
 
     public FileReceivedEvent(Chat chat, User sender, List<ReceivedFile> files) {
         super(chat);

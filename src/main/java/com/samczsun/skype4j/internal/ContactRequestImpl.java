@@ -26,15 +26,14 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 public class ContactRequestImpl implements ContactRequest {
-    private final SimpleDateFormat FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSSSS");
 
-    private Date time;
-    private String sender;
-    private String message;
-
-    private FullClient skype;
+    private final Date time;
+    private final String sender;
+    private final String message;
+    private final FullClient skype;
 
     public ContactRequestImpl(String time, String sender, String message, FullClient skype) throws ParseException {
+        SimpleDateFormat FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSSSS");
         this.time = FORMAT.parse(time);
         this.sender = sender;
         this.message = message;

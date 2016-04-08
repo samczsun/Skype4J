@@ -22,8 +22,8 @@ import com.samczsun.skype4j.formatting.IMoji;
 import com.samczsun.skype4j.user.User;
 
 public class FlikReceivedEvent extends ChatEvent {
-    private User sender;
-    private IMoji sent;
+    private final User sender;
+    private final IMoji sent;
 
     public FlikReceivedEvent(Chat c, User sender, IMoji sent) {
         super(c);

@@ -126,7 +126,7 @@ public abstract class SkypeImpl implements Skype {
 
     public List<Chat> loadMoreChats(int amount) throws ConnectionException {
         try {
-            JsonObject data = null;
+            JsonObject data;
             if (this.conversationBackwardLink == null) {
                 if (this.conversationSyncState == null) {
                     InputStream input = Endpoints.LOAD_CHATS
@@ -470,13 +470,10 @@ public abstract class SkypeImpl implements Skype {
 
     public void setRegistrationToken(String registrationToken) {
         String[] splits = registrationToken.split(";");
-        String tRegistrationToken = splits[0];
-
-        this.registrationToken = tRegistrationToken;
+        this.registrationToken = splits[0];
         this.registrationTokenExpiryTime = Long.parseLong(splits[1].substring("expires=".length() + 1)) * 1000;
         if (splits.length > 2) {
-            String tEndpointId = splits[2].split("=")[1];
-            this.endpointId = tEndpointId;
+            this.endpointId = splits[2].split("=")[1];
             if (this.activeThread != null) {
                 this.activeThread.kill();
                 this.activeThread = null;
@@ -547,7 +544,7 @@ public abstract class SkypeImpl implements Skype {
         for (ErrorHandler handler : errorHandlers) {
             try {
                 handler.handle(errorSource, throwable, shutdown);
-            } catch (Throwable t) {
+            } catch (Throwable ignored) {
             }
         }
         if (shutdown) {

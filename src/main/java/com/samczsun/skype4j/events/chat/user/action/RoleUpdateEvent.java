@@ -20,9 +20,9 @@ import com.samczsun.skype4j.events.chat.user.UserEvent;
 import com.samczsun.skype4j.user.User;
 
 public class RoleUpdateEvent extends UserEvent {
-    private long time;
-    private User target;
-    private User.Role newRole;
+    private final long time;
+    private final User target;
+    private final User.Role newRole;
 
     public RoleUpdateEvent(User initiator, long time, User target, User.Role newRole) {
         super(initiator);

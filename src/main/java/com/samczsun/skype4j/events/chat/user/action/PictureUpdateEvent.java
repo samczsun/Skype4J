@@ -23,8 +23,8 @@ import com.samczsun.skype4j.user.User;
  * Called when the picture of a group chat is updated
  */
 public class PictureUpdateEvent extends UserEvent {
-    private long time;
-    private String url;
+    private final long time;
+    private final String url;
 
     public PictureUpdateEvent(User initiator, long time, String url) {
         super(initiator);

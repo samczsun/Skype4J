@@ -21,8 +21,8 @@ import com.samczsun.skype4j.events.chat.ChatEvent;
 import com.samczsun.skype4j.user.User;
 
 public class CallReceivedEvent extends ChatEvent {
-    private User sender;
-    private boolean callStarted;
+    private final User sender;
+    private final boolean callStarted;
 
     public CallReceivedEvent(Chat chat, User sender, boolean callStarted) {
         super(chat);

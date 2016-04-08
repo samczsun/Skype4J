@@ -401,7 +401,7 @@ public class Endpoints {
         T convert(HttpURLConnection connection) throws IOException;
     }
 
-    public static interface UncheckedFunction<R> extends Function<HttpURLConnection, R> {
+    public interface UncheckedFunction<R> extends Function<HttpURLConnection, R> {
         default R apply(HttpURLConnection httpURLConnection) {
             try {
                 return apply0(httpURLConnection);

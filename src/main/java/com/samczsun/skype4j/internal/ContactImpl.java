@@ -28,17 +28,15 @@ import com.samczsun.skype4j.internal.utils.Encoder;
 import com.samczsun.skype4j.user.Contact;
 import org.jsoup.helper.Validate;
 
-import java.awt.Graphics2D;
+import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.util.regex.Pattern;
 
 public class ContactImpl implements Contact {
     private static final Pattern PHONE_NUMBER = Pattern.compile("\\+[0-9]+");
     private static final String PROFILES_URL = "https://api.skype.com/users/self/contacts/profiles"; //contacts[] = username
 
-    public static final Contact createContact(SkypeImpl skype, String username) throws ConnectionException {
+    public static Contact createContact(SkypeImpl skype, String username) throws ConnectionException {
         Validate.notEmpty(username, "Username must not be empty");
         return new ContactImpl(skype, username);
     }
@@ -145,6 +143,7 @@ public class ContactImpl implements Contact {
     public BufferedImage getAvatarPicture() throws ConnectionException {
         if (this.avatarURL != null) {
             if (this.avatar == null) {
+                //Casting might not be safe.
                 this.avatar = Endpoints
                         .custom(this.avatarURL, skype)
                         .expect(200, "While fetching avatar")

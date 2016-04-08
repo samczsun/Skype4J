@@ -3,7 +3,6 @@ package com.samczsun.skype4j;
 import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.formatting.Text;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.awt.*;

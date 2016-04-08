@@ -20,9 +20,8 @@ import com.samczsun.skype4j.events.chat.user.UserEvent;
 import com.samczsun.skype4j.user.User;
 
 public class TopicUpdateEvent extends UserEvent {
-    private long time;
-    private String newTopic;
-    private String oldTopic;
+    private final String newTopic, oldTopic;
+    private final long time;
 
     public TopicUpdateEvent(User initiator, long time, String oldTopic, String newTopic) {
         super(initiator);

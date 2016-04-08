@@ -237,10 +237,10 @@ public enum Emoticon implements IEmoticon {
     HEADPHONES("headphones", "3a62dadc-1e79-42f1-9dc5-96c8c159dad2", "Listening to headphones", "(headphones)", "(Headphones)"),
     SHIVERING("shivering", "176ee7a9-094d-43d4-87a2-2193796691ac", "Cold shivering", "(shivering)", "(Shivering)", "(cold)", "(Cold)", "(freezing)", "(Freezing)");
 
-    private String id;
-    private String etag;
-    private String desc;
-    private List<String> shortcuts;
+    private final String id;
+    private final String etag;
+    private final String desc;
+    private final List<String> shortcuts;
 
     Emoticon(String id, String etag, String desc, String... shortcuts) {
         this.id = id;

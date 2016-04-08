@@ -26,8 +26,8 @@ public enum DefaultEmoticon implements IEmoticon {
 
     ;
 
-    private String id;
-    private String etag;
+    private final String id;
+    private final String etag;
     private String desc;
     private List<String> shortcuts;
 

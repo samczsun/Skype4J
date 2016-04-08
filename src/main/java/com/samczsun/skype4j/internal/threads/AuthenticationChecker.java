@@ -44,7 +44,7 @@ public class AuthenticationChecker extends Thread {
                 }
                 try {
                     Thread.sleep(diff / 2);
-                } catch (InterruptedException e) {
+                } catch (InterruptedException ignored) {
                 }
             } else {
                 if (stop.get()) {
@@ -54,6 +54,7 @@ public class AuthenticationChecker extends Thread {
                     skype.reauthenticate();
                 } catch (Exception e) {
                     skype.handleError(ErrorSource.REAUTHENTICATING, e, true);
+                    //Don't see why you need to return in a finally block.
                 } finally {
                     return;
                 }

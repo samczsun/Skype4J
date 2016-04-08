@@ -303,9 +303,9 @@ public enum Moji implements IMoji {
     VICKYDONOR_1("14271874627f4a2d893db568eeff9954", "3c026c7d-aa37-4fe1-8bfb-133460aed512", "Vicky Donor"),
     MOHABBATEIN("b3cffea2fd5044d08db7458e4c373cdf", "5b000c95-f530-4a7f-b302-842675aaa249", "Mohabbatein ");
 
-    private String id;
-    private String etag;
-    private String desc;
+    private final String id;
+    private final String etag;
+    private final String desc;
 
     Moji(String id, String etag, String desc) {
         this.id = id;

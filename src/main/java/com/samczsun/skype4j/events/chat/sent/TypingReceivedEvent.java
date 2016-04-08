@@ -21,8 +21,8 @@ import com.samczsun.skype4j.events.chat.ChatEvent;
 import com.samczsun.skype4j.user.User;
 
 public class TypingReceivedEvent extends ChatEvent {
-    private User sender;
-    private boolean typing;
+    private final User sender;
+    private final boolean typing;
 
     public TypingReceivedEvent(Chat chat, User sender, boolean typing) {
         super(chat);

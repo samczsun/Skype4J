@@ -22,8 +22,8 @@ import com.samczsun.skype4j.user.Contact;
 import com.samczsun.skype4j.user.User;
 
 public class ContactReceivedEvent extends ChatEvent {
-    private User sender;
-    private Contact sentContact;
+    private final User sender;
+    private final Contact sentContact;
 
     public ContactReceivedEvent(Chat chat, User sender, Contact sent) {
         super(chat);

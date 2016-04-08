@@ -23,8 +23,8 @@ import com.samczsun.skype4j.user.User;
 import java.util.List;
 
 public class MultiContactReceivedEvent extends ContactReceivedEvent {
-    private User sender;
-    private List<Contact> sentContacts;
+    private final User sender;
+    private final List<Contact> sentContacts;
 
     public MultiContactReceivedEvent(Chat chat, User sender, List<Contact> sent) {
         super(chat, sender, sent.get(0));

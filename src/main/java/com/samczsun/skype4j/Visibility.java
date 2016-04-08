@@ -34,7 +34,7 @@ public enum Visibility {
      */
     INVISIBLE("Hidden");
 
-    private String name;
+    private final String name;
 
     Visibility(String name) {
         this.name = name;
