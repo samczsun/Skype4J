@@ -181,7 +181,7 @@ public abstract class ChatImpl implements Chat {
     @Override
     public List<ChatMessage> loadMoreMessages(int amount) throws ConnectionException {
         checkLoaded();
-        JsonObject data = null;
+        JsonObject data;
         if (backwardLink == null) {
             if (syncState == null) {
                 data = Endpoints.LOAD_MESSAGES
@@ -194,9 +194,10 @@ public abstract class ChatImpl implements Chat {
             }
         } else {
             Matcher matcher = SkypeImpl.PAGE_SIZE_PATTERN.matcher(this.backwardLink);
+            //Matcher find appears to be doing nothing.
             matcher.find();
             String url = matcher.replaceAll("pageSize=" + amount);
-            data = Endpoints
+            data =  Endpoints
                     .custom(url, getClient())
                     .header("RegistrationToken", getClient().getRegistrationToken())
                     .as(JsonObject.class)

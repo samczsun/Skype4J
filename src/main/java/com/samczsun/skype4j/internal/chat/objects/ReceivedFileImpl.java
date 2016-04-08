@@ -19,9 +19,9 @@ package com.samczsun.skype4j.internal.chat.objects;
 import com.samczsun.skype4j.chat.objects.ReceivedFile;
 
 public class ReceivedFileImpl implements ReceivedFile {
-    private String name;
-    private long size;
-    private long tid;
+    private final String name;
+    private final long size;
+    private final long tid;
 
     public ReceivedFileImpl(String name, long size, long tid) {
         this.name = name;

@@ -20,7 +20,7 @@ package com.samczsun.skype4j.events;
  * Represents a message from Skype which is not implemented within this API
  */
 public class UnsupportedEvent extends Event {
-    private String name;
+    private final String name;
     private final String content;
 
 

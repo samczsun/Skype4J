@@ -22,14 +22,8 @@ import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
 import org.jsoup.select.Elements;
 
-import java.awt.Color;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.awt.*;
+import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
@@ -76,11 +70,7 @@ public class RichText extends Text {
 
     private static final Map<String, BiConsumer<RichText, Element>> TAG_APPLIER = Collections.unmodifiableMap(
             new HashMap<String, BiConsumer<RichText, Element>>() {{
-                Arrays.stream(Format.values()).forEach(format -> {
-                    put(format.getTagName(), (text, elem) -> {
-                        format.getApplicator().accept(text);
-                    });
-                });
+                Arrays.stream(Format.values()).forEach(format -> put(format.getTagName(), (text, elem) -> format.getApplicator().accept(text)));
                 put("font", (text, elem) -> {
                     if (elem.hasAttr("size")) {
                         text.withSize(Integer.parseInt(elem.attr("size")));
@@ -89,9 +79,7 @@ public class RichText extends Text {
                         text.withColor(Color.decode(elem.attr("color")));
                     }
                 });
-                put("a", (text, elem) -> {
-                    text.withLink(elem.attr("href"));
-                });
+                put("a", (text, elem) -> text.withLink(elem.attr("href")));
                 put("#text", (text, elem) -> {
                     // How do we handle this?
                 });
@@ -100,9 +88,7 @@ public class RichText extends Text {
 
     private static final Map<String, BiPredicate<RichText, Element>> TAG_TEST = Collections.unmodifiableMap(
             new HashMap<String, BiPredicate<RichText, Element>>() {{
-                Arrays.stream(Format.values()).forEach(format -> {
-                    put(format.getTagName(), (text, elem) -> text.hasFormat(format));
-                });
+                Arrays.stream(Format.values()).forEach(format -> put(format.getTagName(), (text, elem) -> text.hasFormat(format)));
                 put("font", (text, elem) -> {
                     boolean equal = true;
                     if (elem.hasAttr("size") && text.size >= 0) {

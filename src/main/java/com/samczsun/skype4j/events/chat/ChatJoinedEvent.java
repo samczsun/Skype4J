@@ -20,7 +20,7 @@ import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.user.User;
 
 public class ChatJoinedEvent extends ChatEvent {
-    private User initiator;
+    private final User initiator;
 
     public ChatJoinedEvent(Chat c, User initiator) {
         super(c);

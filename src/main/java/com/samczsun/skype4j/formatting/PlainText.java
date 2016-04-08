@@ -21,7 +21,7 @@ package com.samczsun.skype4j.formatting;
  */
 public class PlainText extends Text {
 
-    private String value;
+    private final String value;
 
     PlainText(String value) {
         this.value = value;

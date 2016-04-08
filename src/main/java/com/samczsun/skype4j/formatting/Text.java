@@ -20,9 +20,7 @@ import com.samczsun.skype4j.formatting.lang.en.Emoticon;
 import org.jsoup.helper.Validate;
 import org.unbescape.html.HtmlEscape;
 
-import java.util.HashMap;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 /**
  * Represents a text component in a message

@@ -27,13 +27,16 @@ import com.samczsun.skype4j.user.User;
 import org.jsoup.helper.Validate;
 
 public abstract class ChatMessageImpl implements ChatMessage {
-    private Chat chat;
-    private User sender;
-    private String clientId;
-    private String id;
+
+    private final String clientId;
+    private final SkypeImpl skype;
+
+    private final User sender;
+    private final Chat chat;
+    private final String id;
+    private final long time;
+
     private Message message;
-    private long time;
-    private SkypeImpl skype;
 
     public ChatMessageImpl(Chat chat, User sender, String id, String clientId, long time, Message message, SkypeImpl skype) {
         this.chat = chat;
@@ -85,7 +88,8 @@ public abstract class ChatMessageImpl implements ChatMessage {
         Validate.isTrue(chat instanceof ChatImpl, "Chat must be instanceof ChatImpl");
         Validate.notNull(user, "User must not be null");
         Validate.isTrue(user instanceof UserImpl, "User must be instanceof UserImpl");
-        if (((ChatImpl) chat).getClient().getUsername().equals(user.getUsername())) {
+        // Removed cast to ChatImpl
+        if (chat.getClient().getUsername().equals(user.getUsername())) {
             return new SentMessageImpl(chat, user, id, clientId, time, message, skype);
         } else {
             return new ReceivedMessageImpl(chat, user, id, clientId, time, message, skype);

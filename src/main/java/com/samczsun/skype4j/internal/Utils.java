@@ -25,8 +25,6 @@ import com.samczsun.skype4j.internal.chat.ChatImpl;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.util.Iterator;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -42,12 +40,9 @@ public class Utils {
     }
 
     public static JsonValue parseJsonValue(InputStream inputStream) throws IOException {
-        InputStreamReader reader = new InputStreamReader(inputStream, "UTF-8");
         JsonValue jsonValue;
-        try {
+        try (InputStreamReader reader = new InputStreamReader(inputStream, "UTF-8")) {
             jsonValue = JsonValue.readFrom(reader);
-        } finally {
-            reader.close();
         }
         return jsonValue;
     }

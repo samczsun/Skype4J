@@ -23,9 +23,9 @@ import com.samczsun.skype4j.user.User;
 import java.awt.image.BufferedImage;
 
 public class PictureReceivedEvent extends ChatEvent {
-    private User sender;
-    private String originalName;
-    private BufferedImage sentImage;
+    private final User sender;
+    private final String originalName;
+    private final BufferedImage sentImage;
 
     public PictureReceivedEvent(Chat chat, User sender, String originalName, BufferedImage sent) {
         super(chat);

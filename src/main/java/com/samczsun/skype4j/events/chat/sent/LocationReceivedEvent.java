@@ -26,8 +26,8 @@ import javax.xml.bind.DatatypeConverter;
 import java.io.UnsupportedEncodingException;
 
 public class LocationReceivedEvent extends ChatEvent {
-    private User sender;
-    private LocationInfo info;
+    private final User sender;
+    private final LocationInfo info;
 
     public LocationReceivedEvent(Chat chat, User sender, LocationInfo info) {
         super(chat);

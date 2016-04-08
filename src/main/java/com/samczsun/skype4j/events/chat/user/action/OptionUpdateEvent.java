@@ -20,9 +20,9 @@ import com.samczsun.skype4j.events.chat.user.UserEvent;
 import com.samczsun.skype4j.user.User;
 
 public class OptionUpdateEvent extends UserEvent {
-    private long time;
-    private Option option;
-    private boolean enabled;
+    private final long time;
+    private final Option option;
+    private final boolean enabled;
 
     public OptionUpdateEvent(User user, long time, Option option, boolean enabled) {
         super(user);
