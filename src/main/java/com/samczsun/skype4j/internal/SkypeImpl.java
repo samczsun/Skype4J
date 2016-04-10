@@ -124,6 +124,25 @@ public abstract class SkypeImpl implements Skype {
         this.shutdownThread = Executors.newSingleThreadExecutor(new SkypeThreadFactory(this, "Shutdown"));
     }
 
+    @Override
+    public void login() throws ConnectionException, InvalidCredentialsException {
+        Endpoints.ELIGIBILITY_CHECK.open(this)
+                .expect(200, "You are not eligible to use Skype for Web!")
+                .get();
+
+        this.loggedIn.set(true);
+        if (this.serverPingThread != null) {
+            this.serverPingThread.kill();
+            this.serverPingThread = null;
+        }
+        if (this.reauthThread != null) {
+            this.reauthThread.kill();
+            this.reauthThread = null;
+        }
+        (serverPingThread = new ServerPingThread(this)).start();
+        (reauthThread = new AuthenticationChecker(this)).start();
+    }
+
     public List<Chat> loadMoreChats(int amount) throws ConnectionException {
         try {
             JsonObject data;
@@ -558,6 +577,7 @@ public abstract class SkypeImpl implements Skype {
                 .open(this)
                 .as(HttpURLConnection.class)
                 .cookies(cookies)
+                .header("Content-Type", "application/x-www-form-encoded")
                 .expect(204, "While fetching asmtoken")
                 .post("skypetoken=" + Encoder.encode(skypeToken));
     }

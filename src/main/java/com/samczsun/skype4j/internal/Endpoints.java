@@ -29,8 +29,12 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -144,6 +148,7 @@ public class Endpoints {
             "https://api.skype.com/users/self/contacts/profiles").skypetoken();
     public static final Endpoints RECONNECT_WEBSOCKET = new Endpoints(
             "https://go.trouter.io/v2/h?ccid=%s&dom=web.skype.com");
+    public static final Endpoints ELIGIBILITY_CHECK = new Endpoints("https://web.skype.com/api/v2/eligibility-check").skypetoken();
 
     private boolean requiresCloud;
     private boolean requiresRegToken;

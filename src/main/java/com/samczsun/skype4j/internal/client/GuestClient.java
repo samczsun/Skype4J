@@ -19,6 +19,7 @@ package com.samczsun.skype4j.internal.client;
 import com.eclipsesource.json.JsonObject;
 import com.samczsun.skype4j.chat.GroupChat;
 import com.samczsun.skype4j.exceptions.ConnectionException;
+import com.samczsun.skype4j.exceptions.InvalidCredentialsException;
 import com.samczsun.skype4j.exceptions.NotParticipatingException;
 import com.samczsun.skype4j.exceptions.handler.ErrorHandler;
 import com.samczsun.skype4j.exceptions.handler.ErrorSource;
@@ -47,7 +48,7 @@ public class GuestClient extends SkypeImpl {
     }
 
     @Override
-    public void login() throws ConnectionException {
+    public void login() throws ConnectionException, InvalidCredentialsException {
         JsonObject response = Endpoints.NEW_GUEST
                 .open(this)
                 .as(JsonObject.class)
@@ -65,7 +66,6 @@ public class GuestClient extends SkypeImpl {
         this.setSkypeToken(response.get("skypetoken").asString());
 
         List<UncheckedRunnable> tasks = new ArrayList<>();
-        tasks.add(this::registerEndpoint);
         tasks.add(() -> {
             HttpURLConnection asmResponse = getAsmToken();
             String[] setCookie = asmResponse.getHeaderField("Set-Cookie").split(";")[0].split("=");
@@ -78,6 +78,7 @@ public class GuestClient extends SkypeImpl {
                 handleError(ErrorSource.REGISTERING_WEBSOCKET, e, false);
             }
         });
+        tasks.add(this::registerEndpoint);
 
         try {
             ExecutorService executorService = Executors.newFixedThreadPool(2);
@@ -88,17 +89,7 @@ public class GuestClient extends SkypeImpl {
             throw new RuntimeException(e);
         }
 
-        this.loggedIn.set(true);
-        if (this.serverPingThread != null) {
-            this.serverPingThread.kill();
-            this.serverPingThread = null;
-        }
-        if (this.reauthThread != null) {
-            this.reauthThread.kill();
-            this.reauthThread = null;
-        }
-        (serverPingThread = new ServerPingThread(this)).start();
-        (reauthThread = new AuthenticationChecker(this)).start();
+        super.login();
     }
 
     @Override

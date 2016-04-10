@@ -71,7 +71,6 @@ public class FullClient extends SkypeImpl {
         this.setSkypeToken(loginData.get("skypetoken").asString());
 
         List<UncheckedRunnable> tasks = new ArrayList<>();
-        tasks.add(this::registerEndpoint);
         tasks.add(() -> {
             HttpURLConnection asmResponse = getAsmToken();
             String[] setCookie = asmResponse.getHeaderField("Set-Cookie").split(";")[0].split("=");
@@ -86,6 +85,7 @@ public class FullClient extends SkypeImpl {
                 handleError(ErrorSource.REGISTERING_WEBSOCKET, e, false);
             }
         });
+        tasks.add(this::registerEndpoint);
 
         try {
             ExecutorService executorService = Executors.newFixedThreadPool(5);
@@ -96,17 +96,7 @@ public class FullClient extends SkypeImpl {
             throw new RuntimeException(e);
         }
 
-        loggedIn.set(true);
-        if (this.serverPingThread != null) {
-            this.serverPingThread.kill();
-            this.serverPingThread = null;
-        }
-        if (this.reauthThread != null) {
-            this.reauthThread.kill();
-            this.reauthThread = null;
-        }
-        (serverPingThread = new ServerPingThread(this)).start();
-        (reauthThread = new AuthenticationChecker(this)).start();
+        super.login();
     }
 
     @Override

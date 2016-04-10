@@ -31,7 +31,7 @@ import java.util.logging.Logger;
  * This class represents a single Skype account, which may or may not have been logged in
  */
 public interface Skype {
-    String VERSION = "908/1.33.0.111//skype.com";
+    String VERSION = "908/1.36.0.75//skype.com";
 
     /**
      * Log into Skype. This will perform the following actions:
