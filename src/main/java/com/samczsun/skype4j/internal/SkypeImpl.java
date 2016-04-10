@@ -319,6 +319,7 @@ public abstract class SkypeImpl implements Skype {
                         .custom(Endpoints.ENDPOINTS_URL.url() + "/" + Encoder.encode(endpointId), SkypeImpl.this)
                         .expect(200, "While registering endpoint")
                         .header("Authentication", "skypetoken=" + skypeToken)
+                        .header("LockAndKey", Utils.generateChallengeHeader())
                         .put(new JsonObject().add("endpointFeatures", "Agent")))
                 .expect(201, "While registering endpoint")
                 .header("Authentication", "skypetoken=" + skypeToken)
