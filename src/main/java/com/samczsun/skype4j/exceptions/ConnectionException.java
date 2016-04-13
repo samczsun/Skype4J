@@ -42,7 +42,6 @@ public class ConnectionException extends SkypeException {
         messageBuilder.append("\t\t").append("Cause: ").append(cause).append(System.lineSeparator());
         messageBuilder.append("\t\t").append("Response: ").append(responseCode).append(" ").append(responseMessage).append(System.lineSeparator());
         InputStream readFrom;
-        System.err.println(connection.getErrorStream());
         if (getResponseCode() == 401 || getResponseCode() == 407) {
             // http://grepcode.com/file/repository.grepcode.com/java/root/jdk/openjdk/8u40-b25/sun/net/www/protocol/http/HttpURLConnection.java/#1634
             readFrom = new ByteArrayInputStream(ExceptionHandler.MESSAGES_FROM_JAVA.remove(connection).getBytes(StandardCharsets.UTF_8));
