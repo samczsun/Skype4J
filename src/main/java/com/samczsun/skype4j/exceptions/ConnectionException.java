@@ -50,25 +50,25 @@ public class ConnectionException extends SkypeException {
         } else {
             readFrom = connection.getErrorStream();
         }
+        messageBuilder.append("\t\t").append("Begin Message ")
+                .append(System.lineSeparator())
+                .append(System.lineSeparator());
         if (readFrom != null) {
             try {
                 ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
                 Utils.copy(readFrom, outputStream);
                 String result = outputStream.toString("UTF-8");
-                messageBuilder.append("\t\t").append("Begin Message ")
-                        .append(System.lineSeparator())
-                        .append(System.lineSeparator())
-                        .append(result)
-                        .append(System.lineSeparator())
-                        .append(System.lineSeparator())
-                        .append("\t\t").append("End message")
-                        .append(System.lineSeparator());
+                messageBuilder.append(result);
             } catch (IOException e) {
                 e.printStackTrace();
             }
         } else {
-            System.err.println("ReadFrom was null");
+            messageBuilder.append("There was no message");
         }
+        messageBuilder.append(System.lineSeparator())
+                .append(System.lineSeparator())
+                .append("\t\t").append("End message")
+                .append(System.lineSeparator());
         message = messageBuilder.toString();
     }
 
