@@ -23,6 +23,8 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.HttpURLConnection;
 import java.nio.charset.StandardCharsets;
 
@@ -54,13 +56,20 @@ public class ConnectionException extends SkypeException {
                 .append(System.lineSeparator())
                 .append(System.lineSeparator());
         if (readFrom != null) {
+            StringWriter errorLogger = new StringWriter();
+            PrintWriter printWriter = new PrintWriter(errorLogger);
             try {
                 ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
                 Utils.copy(readFrom, outputStream);
                 String result = outputStream.toString("UTF-8");
                 messageBuilder.append(result);
             } catch (IOException e) {
-                e.printStackTrace();
+                e.printStackTrace(printWriter);
+                messageBuilder.append(System.lineSeparator())
+                        .append("Exception: ")
+                        .append(System.lineSeparator())
+                        .append(errorLogger.toString())
+                        .append(System.lineSeparator());
             }
         } else {
             messageBuilder.append("There was no message");
