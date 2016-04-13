@@ -24,6 +24,8 @@ import com.samczsun.skype4j.internal.utils.Encoder;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -246,14 +248,12 @@ public class Endpoints {
         }
 
         public EndpointConnection<E_TYPE> expect(int code, String cause) {
-            return expect((x) -> x == code, cause);
+            return expect(x -> x == code, cause);
         }
 
         public EndpointConnection<E_TYPE> expect(Predicate<Integer> check, String cause) {
             this.cause = cause;
-            return on(check, (connection) -> {
-                return convert(clazz, skype, connection);
-            });
+            return on(check, (connection) -> convert(clazz, skype, connection));
         }
 
         public EndpointConnection<E_TYPE> noRedirects() {
@@ -362,7 +362,13 @@ public class Endpoints {
                     }
                 }
                 if (!this.dontConnect) {
-                    if (connection.getHeaderField("Set-RegistrationToken") != null) {
+                    InputStream cachedStream = null;
+                    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                    if (connection.getResponseCode() == 401 || connection.getResponseCode() == 407) {
+                        // Magical Java is magical
+                        cachedStream = ExceptionHandler.getInputStreamFromHttpClient(connection);
+                        Utils.copy(cachedStream, outputStream);
+                    } else if (connection.getHeaderField("Set-RegistrationToken") != null) {
                         skype.setRegistrationToken(connection.getHeaderField("Set-RegistrationToken"));
                     }
                     for (Map.Entry<Predicate<Integer>, UncheckedFunction<E_TYPE>> entry : errors.entrySet()) {
@@ -374,6 +380,9 @@ public class Endpoints {
                             }
                         }
                     }
+                    if (outputStream != null) {
+                        ExceptionHandler.MESSAGES_FROM_JAVA.put(connection, new String(outputStream.toByteArray(), "UTF-8"));
+                    }
                     throw ExceptionHandler.generateException(cause == null ? this.url.toString() : cause, connection);
                 } else if (HttpURLConnection.class.isAssignableFrom(clazz)) {
                     return (E_TYPE) connection;
@@ -382,10 +391,11 @@ public class Endpoints {
                             "DontConnect requested but did not request cast to HttpURLConnection");
                 }
             } catch (IOException e) {
+                throw ExceptionHandler.generateException(cause, e);
+            } finally {
                 if (connection != null) {
                     connection.disconnect();
                 }
-                throw ExceptionHandler.generateException(cause, e);
             }
         }
 

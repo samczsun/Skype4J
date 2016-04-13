@@ -26,6 +26,7 @@ import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -151,6 +152,20 @@ public class Utils {
         } catch (NoSuchAlgorithmException e1) {
             throw new RuntimeException(e1);
         }
+    }
+
+    public static long copy(InputStream from, OutputStream to) throws IOException {
+        byte[] buf = new byte[4096];
+        long total = 0;
+        while (true) {
+            int r = from.read(buf);
+            if (r == -1) {
+                break;
+            }
+            to.write(buf, 0, r);
+            total += r;
+        }
+        return total;
     }
 
     private static final String FORMAT = "appId=%s; time=%s; lockAndKeyResponse=%s";
