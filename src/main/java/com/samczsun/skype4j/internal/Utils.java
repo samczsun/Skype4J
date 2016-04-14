@@ -168,6 +168,11 @@ public class Utils {
         return total;
     }
 
+    public static String makeValidBase64(String input) {
+        while (input.length() % 4 != 0) input += "=";
+        return input;
+    }
+
     private static final String FORMAT = "appId=%s; time=%s; lockAndKeyResponse=%s";
 
     private static String generateTime() {

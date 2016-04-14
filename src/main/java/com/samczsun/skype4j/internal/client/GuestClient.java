@@ -25,13 +25,17 @@ import com.samczsun.skype4j.exceptions.handler.ErrorHandler;
 import com.samczsun.skype4j.exceptions.handler.ErrorSource;
 import com.samczsun.skype4j.internal.Endpoints;
 import com.samczsun.skype4j.internal.SkypeImpl;
+import com.samczsun.skype4j.internal.Utils;
 import com.samczsun.skype4j.internal.threads.AuthenticationChecker;
 import com.samczsun.skype4j.internal.threads.ServerPingThread;
 import com.samczsun.skype4j.internal.utils.UncheckedRunnable;
 import com.samczsun.skype4j.user.Contact;
 
+import javax.xml.bind.DatatypeConverter;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -41,10 +45,14 @@ import java.util.logging.Logger;
 
 public class GuestClient extends SkypeImpl {
     private final String chatId;
+    private final String requestedUsername;
+
+    private volatile String actualUsername;
 
     public GuestClient(String username, String chatId, Set<String> resources, Logger logger, List<ErrorHandler> errorHandlers) {
         super(username, resources, logger, errorHandlers);
         this.chatId = chatId;
+        this.requestedUsername = username;
     }
 
     @Override
@@ -59,24 +67,26 @@ public class GuestClient extends SkypeImpl {
                 .header("csrf_token", "skype4j")
                 .cookie("csrf_token", "skype4j")
                 .post(new JsonObject()
-                        .add("name", username)
+                        .add("name", requestedUsername)
                         .add("threadId", chatId)
                         .add("shortId", "Skype4J")
                         .add("flowId", "Skype4J"));
         this.setSkypeToken(response.get("skypetoken").asString());
+
+        String[] splits = response.get("skypetoken").asString().split("\\.");
+        try {
+            String decoded = new String(DatatypeConverter.parseBase64Binary(Utils.makeValidBase64(splits[1])), "UTF-8");
+            JsonObject object = JsonObject.readFrom(decoded).asObject();
+            this.actualUsername = object.get("skypeid").asString();
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
 
         List<UncheckedRunnable> tasks = new ArrayList<>();
         tasks.add(() -> {
             HttpURLConnection asmResponse = getAsmToken();
             String[] setCookie = asmResponse.getHeaderField("Set-Cookie").split(";")[0].split("=");
             this.cookies.put(setCookie[0], setCookie[1]);
-        });
-        tasks.add(() -> {
-            try {
-                this.registerWebSocket();
-            } catch (Exception e) {
-                handleError(ErrorSource.REGISTERING_WEBSOCKET, e, false);
-            }
         });
         tasks.add(this::registerEndpoint);
 
@@ -122,5 +132,13 @@ public class GuestClient extends SkypeImpl {
     @Override
     public void updateContactList() {
         throw new UnsupportedOperationException("Not supported with a guest account");
+    }
+
+    @Override
+    public String getUsername() {
+        if (actualUsername == null) {
+            throw new IllegalStateException("Should not be called when login has not completed");
+        }
+        return actualUsername;
     }
 }

@@ -62,7 +62,7 @@ public class FullClient extends SkypeImpl {
         Map<String, String> data = new HashMap<>();
         data.put("scopes", "client");
         data.put("clientVersion", "0/7.4.85.102/259/");
-        data.put("username", username.toLowerCase());
+        data.put("username", getUsername().toLowerCase());
         data.put("passwordHash", hash());
         JsonObject loginData = Endpoints.LOGIN_URL.open(this)
                 .as(JsonObject.class)
@@ -200,7 +200,7 @@ public class FullClient extends SkypeImpl {
     private String hash() {
         try {
             MessageDigest messageDigest = MessageDigest.getInstance("MD5");
-            byte[] encodedMD = messageDigest.digest(String.format("%s\nskyper\n%s", username.toLowerCase(), password).getBytes(StandardCharsets.UTF_8));
+            byte[] encodedMD = messageDigest.digest(String.format("%s\nskyper\n%s", getUsername().toLowerCase(), password).getBytes(StandardCharsets.UTF_8));
             return DatatypeConverter.printBase64Binary(encodedMD);
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);

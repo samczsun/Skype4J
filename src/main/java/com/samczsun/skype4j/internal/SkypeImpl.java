@@ -67,9 +67,9 @@ public abstract class SkypeImpl implements Skype {
     protected final UUID guid = UUID.randomUUID();
     protected final Set<String> resources;
     protected final List<ErrorHandler> errorHandlers;
-    protected final String username;
-    protected final ExecutorService scheduler = Executors.newFixedThreadPool(4, new SkypeThreadFactory(this, "Poller"));
-    protected final ExecutorService shutdownThread;
+    private final String username;
+    protected ExecutorService scheduler;
+    protected ExecutorService shutdownThread;
     protected final Map<String, ChatImpl> allChats = new ConcurrentHashMap<>();
     protected final Map<String, Contact> allContacts = new ConcurrentHashMap<>();
     protected final Set<ContactRequest> allContactRequests = new HashSet<>();
@@ -121,7 +121,6 @@ public abstract class SkypeImpl implements Skype {
             this.logger.setUseParentHandlers(false);
             this.logger.addHandler(handler);
         }
-        this.shutdownThread = Executors.newSingleThreadExecutor(new SkypeThreadFactory(this, "Shutdown"));
     }
 
     @Override
@@ -139,6 +138,12 @@ public abstract class SkypeImpl implements Skype {
             this.reauthThread.kill();
             this.reauthThread = null;
         }
+        if (scheduler != null) {
+            scheduler.shutdownNow();
+            while (!scheduler.isTerminated()) ;
+        }
+        shutdownThread = Executors.newSingleThreadExecutor(new SkypeThreadFactory(this, "Shutdown"));
+        scheduler = Executors.newFixedThreadPool(4, new SkypeThreadFactory(this, "Poller"));
         (serverPingThread = new ServerPingThread(this)).start();
         (reauthThread = new AuthenticationChecker(this)).start();
     }
@@ -224,7 +229,7 @@ public abstract class SkypeImpl implements Skype {
         if (this.loggedIn.get()) {
             loggedIn.set(false);
             shutdownRequested.set(true);
-            this.shutdownThread.submit((Runnable) () -> {
+            this.shutdownThread.submit(() -> {
                 shutdownThread.shutdown();
                 reauthThread.kill();
                 scheduler.shutdownNow();
