@@ -362,13 +362,7 @@ public class Endpoints {
                     }
                 }
                 if (!this.dontConnect) {
-                    InputStream cachedStream = null;
-                    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                    if (connection.getResponseCode() == 401 || connection.getResponseCode() == 407) {
-                        // Magical Java is magical
-                        cachedStream = ExceptionHandler.getInputStreamFromHttpClient(connection);
-                        Utils.copy(cachedStream, outputStream);
-                    } else if (connection.getHeaderField("Set-RegistrationToken") != null) {
+                    if (connection.getHeaderField("Set-RegistrationToken") != null) {
                         skype.setRegistrationToken(connection.getHeaderField("Set-RegistrationToken"));
                     }
                     for (Map.Entry<Predicate<Integer>, UncheckedFunction<E_TYPE>> entry : errors.entrySet()) {
@@ -379,9 +373,6 @@ public class Endpoints {
                                 Utils.sneakyThrow(t);
                             }
                         }
-                    }
-                    if (outputStream != null) {
-                        ExceptionHandler.MESSAGES_FROM_JAVA.put(connection, new String(outputStream.toByteArray(), "UTF-8"));
                     }
                     throw ExceptionHandler.generateException(cause == null ? this.url.toString() : cause, connection);
                 } else if (HttpURLConnection.class.isAssignableFrom(clazz)) {

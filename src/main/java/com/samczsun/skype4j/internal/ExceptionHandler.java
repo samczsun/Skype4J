@@ -17,6 +17,8 @@
 package com.samczsun.skype4j.internal;
 
 import com.samczsun.skype4j.exceptions.ConnectionException;
+import sun.net.www.MessageHeader;
+import sun.net.www.URLConnection;
 import sun.net.www.http.HttpClient;
 import sun.net.www.protocol.https.HttpsURLConnectionImpl;
 
@@ -38,10 +40,8 @@ import java.util.Map;
 public class ExceptionHandler {
     private static final boolean DEBUG;
     private static Field POSTER_FIELD;
-    private static Field HTTP_FIELD;
     private static Field DELEGATE_FIELD;
-
-    public static final Map<HttpURLConnection, String> MESSAGES_FROM_JAVA = new HashMap<>();
+    private static Field REQUESTS_FIELD;
 
     static {
         DEBUG = AccessController.doPrivileged((PrivilegedAction<Boolean>) () -> Boolean.getBoolean("com.samczsun.skype4j.debugExceptions"));
@@ -56,8 +56,8 @@ public class ExceptionHandler {
         } catch (NoSuchFieldException ignored) {
         }
         try {
-            HTTP_FIELD = sun.net.www.protocol.http.HttpURLConnection.class.getDeclaredField("http");
-            HTTP_FIELD.setAccessible(true);
+            REQUESTS_FIELD = sun.net.www.protocol.http.HttpURLConnection.class.getDeclaredField("requests");
+            REQUESTS_FIELD.setAccessible(true);
         } catch (NoSuchFieldException ignored) {
         }
     }
@@ -65,23 +65,27 @@ public class ExceptionHandler {
     public static ConnectionException generateException(String reason, HttpURLConnection connection) {
         try {
             if (DEBUG) {
-                connection.disconnect();
-                System.err.println("URL");
-                System.err.println("\t" + connection.getURL());
-                System.err.println("Request headers");
-                for (Map.Entry<String, List<String>> header : connection.getRequestProperties().entrySet()) {
-                    System.err.println(String.format("\t%s - %s", header.getKey(), header.getValue()));
-                }
-                System.err.println("Response headers");
-                for (Map.Entry<String, List<String>> header : connection.getHeaderFields().entrySet()) {
-                    System.err.println(String.format("\t%s - %s", header.getKey(), header.getValue()));
-                }
                 Object reflect = connection;
                 if (reflect instanceof HttpsURLConnectionImpl && DELEGATE_FIELD != null) {
                     try {
                         reflect = DELEGATE_FIELD.get(reflect);
                     } catch (ReflectiveOperationException ignored) {
                     }
+                }
+                System.err.println("URL");
+                System.err.println("\t" + connection.getURL());
+                try {
+                    MessageHeader messageHeader = (MessageHeader) REQUESTS_FIELD.get(reflect);
+                    System.err.println("Request headers");
+                    for (Map.Entry<String, List<String>> header : messageHeader.getHeaders(null).entrySet()) {
+                        System.err.println(String.format("\t%s - %s", header.getKey(), header.getValue()));
+                    }
+                } catch (ReflectiveOperationException ignored) {
+
+                }
+                System.err.println("Response headers");
+                for (Map.Entry<String, List<String>> header : connection.getHeaderFields().entrySet()) {
+                    System.err.println(String.format("\t%s - %s", header.getKey(), header.getValue()));
                 }
                 if (reflect instanceof sun.net.www.protocol.http.HttpURLConnection && POSTER_FIELD != null) {
                     try {
@@ -98,35 +102,11 @@ public class ExceptionHandler {
         } catch (IOException e) {
             throw new RuntimeException(String.format("IOException while constructing exception (%s, %s)", reason, connection));
         } finally {
-            MESSAGES_FROM_JAVA.remove(connection);
+            connection.disconnect();
         }
     }
 
     public static ConnectionException generateException(String reason, IOException nested) {
         return new ConnectionException(reason, nested);
-    }
-
-
-
-    public static InputStream getInputStreamFromHttpClient(HttpURLConnection connection) {
-        StringWriter errorLogger = new StringWriter();
-        PrintWriter printWriter = new PrintWriter(errorLogger);
-        Object reflect = connection;
-        if (reflect instanceof HttpsURLConnectionImpl && DELEGATE_FIELD != null) {
-            try {
-                reflect = DELEGATE_FIELD.get(reflect);
-            } catch (Throwable e) {
-                e.printStackTrace(printWriter);
-            }
-        }
-        if (reflect instanceof sun.net.www.protocol.http.HttpURLConnection && HTTP_FIELD != null) {
-            try {
-                HttpClient client = (HttpClient) HTTP_FIELD.get(reflect);
-                return client.getInputStream();
-            } catch (Throwable e) {
-                e.printStackTrace(printWriter);
-            }
-        }
-        return new ByteArrayInputStream(errorLogger.toString().getBytes(StandardCharsets.UTF_8));
     }
 }

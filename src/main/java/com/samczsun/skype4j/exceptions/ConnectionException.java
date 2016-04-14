@@ -43,13 +43,10 @@ public class ConnectionException extends SkypeException {
         StringBuilder messageBuilder = new StringBuilder(System.lineSeparator());
         messageBuilder.append("\t\t").append("Cause: ").append(cause).append(System.lineSeparator());
         messageBuilder.append("\t\t").append("Response: ").append(responseCode).append(" ").append(responseMessage).append(System.lineSeparator());
-        InputStream readFrom;
-        if (getResponseCode() == 401 || getResponseCode() == 407) {
-            // http://grepcode.com/file/repository.grepcode.com/java/root/jdk/openjdk/8u40-b25/sun/net/www/protocol/http/HttpURLConnection.java/#1634
-            readFrom = new ByteArrayInputStream(ExceptionHandler.MESSAGES_FROM_JAVA.remove(connection).getBytes(StandardCharsets.UTF_8));
-        } else if (getResponseCode() < 400) {
+        InputStream readFrom = null;
+        try {
             readFrom = connection.getInputStream();
-        } else {
+        } catch (IOException e) {
             readFrom = connection.getErrorStream();
         }
         messageBuilder.append("\t\t").append("Begin Message ")
