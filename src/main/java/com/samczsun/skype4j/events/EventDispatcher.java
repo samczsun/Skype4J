@@ -28,7 +28,7 @@ public interface EventDispatcher {
     void registerListener(Listener listener);
 
     /**
-     * Notify all listeners that an event has occured
+     * Notify all listeners that an event has occurred
      *
      * @param event The event to call
      */
