@@ -108,7 +108,7 @@ public class Endpoints {
     public static final Endpoints ACTIVE = new Endpoints(
             "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/endpoints/%s/active").cloud().regtoken();
     public static final Endpoints LOAD_CHATS = new Endpoints(
-            "https://client-s.gateway.messenger.live.com/v1/users/ME/conversations?startTime=%s&pageSize=%s&view=msnp24Equivalent&targetType=Passport|Skype|Lync|Thread")
+            "https://client-s.gateway.messenger.live.com/v1/users/ME/conversations?startTime=%s&pageSize=%s&view=msnp24Equivalent&targetType=Passport|Skype|Lync|Thread|PSTN|Agent")
             .regtoken();
     public static final Endpoints LOAD_MESSAGES = new Endpoints(
             "https://client-s.gateway.messenger.live.com/v1/users/ME/conversations/%s/messages?startTime=0&pageSize=%s&view=msnp24Equivalent|supportsMessageProperties&targetType=Passport|Skype|Lync|Thread")
@@ -128,7 +128,7 @@ public class Endpoints {
     public static final Endpoints SEARCH_SKYPE_DIRECTORY = new Endpoints(
             "https://api.skype.com/search/users/any?keyWord=%s&contactTypes[]=skype").skypetoken();
     public static final Endpoints GET_ALL_CONTACTS = new Endpoints(
-            "https://contacts.skype.com/contacts/v1/users/%s/contacts?delta&$filter=type%20eq%20%27skype%27%20or%20type%20eq%20%27msn%27%20or%20type%20eq%20%27pstn%27%20or%20type%20eq%20%27agent%27%20or%20type%20eq%20%27lync%27&reason=%s")
+            "https://contacts.skype.com/contacts/v1/users/%s/contacts?delta&$filter=type%%20eq%%20%%27skype%%27%%20or%%20type%%20eq%%20%%27msn%%27%%20or%%20type%%20eq%%20%%27pstn%%27%%20or%%20type%%20eq%%20%%27agent%%27%%20or%%20type%%20eq%%20%%27lync%%27&reason=%s")
             .skypetoken();
     public static final Endpoints GET_CONTACT_BY_ID = new Endpoints(
             "https://contacts.skype.com/contacts/v1/users/%s/contacts?$filter=id%%20eq%%20%%27%s%%27&reason=default").skypetoken();
@@ -392,8 +392,10 @@ public class Endpoints {
             } catch (IOException e) {
                 throw ExceptionHandler.generateException(cause, e);
             } finally {
-                if (connection != null) {
-                    connection.disconnect();
+                if (clazz != InputStream.class && clazz != HttpURLConnection.class) {
+                    if (connection != null) {
+                        connection.disconnect();
+                    }
                 }
             }
         }
