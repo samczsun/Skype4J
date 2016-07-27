@@ -30,6 +30,7 @@ import org.jsoup.helper.Validate;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 public class ContactImpl implements Contact {
@@ -56,6 +57,11 @@ public class ContactImpl implements Contact {
 
     private boolean isAuthorized;
     private boolean isBlocked;
+
+    // What is this?
+    private String authCertificate;
+    private UUID personId;
+    private String type;
 
     ContactImpl(SkypeImpl skype, String username) throws ConnectionException {
         this.skype = skype;
@@ -261,6 +267,9 @@ public class ContactImpl implements Contact {
         this.isBlocked = contact.get("blocked").asBoolean();
         this.displayName = Utils.getString(contact, "display_name");
         this.avatarURL = Utils.getString(contact, "avatar_url");
+        this.mood = Utils.getString(contact, "mood");
+        this.type = Utils.getString(contact, "type");
+        this.authCertificate = Utils.getString(contact, "auth_certificate");
         this.firstName = contact.get("name") == null ? null : Utils.getString(contact.get("name").asObject(), "first");
         if (contact.get("locations") != null) {
             JsonObject locations = contact.get("locations").asArray().get(0).asObject();

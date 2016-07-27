@@ -128,7 +128,7 @@ public class Endpoints {
     public static final Endpoints SEARCH_SKYPE_DIRECTORY = new Endpoints(
             "https://api.skype.com/search/users/any?keyWord=%s&contactTypes[]=skype").skypetoken();
     public static final Endpoints GET_ALL_CONTACTS = new Endpoints(
-            "https://contacts.skype.com/contacts/v1/users/%s/contacts?$filter=type%%20eq%%20%%27skype%%27%%20or%%20type%%20eq%%20%%27msn%%27%%20or%%20type%%20eq%%20%%27pstn%%27%%20or%%20type%%20eq%%20%%27agent%%27&reason=%s")
+            "https://contacts.skype.com/contacts/v1/users/%s/contacts?delta&$filter=type%20eq%20%27skype%27%20or%20type%20eq%20%27msn%27%20or%20type%20eq%20%27pstn%27%20or%20type%20eq%20%27agent%27%20or%20type%20eq%20%27lync%27&reason=%s")
             .skypetoken();
     public static final Endpoints GET_CONTACT_BY_ID = new Endpoints(
             "https://contacts.skype.com/contacts/v1/users/%s/contacts?$filter=id%%20eq%%20%%27%s%%27&reason=default").skypetoken();
