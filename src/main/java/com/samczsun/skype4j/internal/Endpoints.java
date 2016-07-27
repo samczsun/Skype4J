@@ -152,6 +152,14 @@ public class Endpoints {
             "https://go.trouter.io/v2/h?ccid=%s&dom=web.skype.com");
     public static final Endpoints ELIGIBILITY_CHECK = new Endpoints("https://web.skype.com/api/v2/eligibility-check").skypetoken();
 
+    // todo implement
+    // what other scopes are there?
+    public static final Endpoints LANGUAGES_GET = new Endpoints("https://dev.microsofttranslator.com/api/languages?scope=text").skypetoken();
+
+    public static final Endpoints NEW_KEY = new Endpoints("https://kes.skype.com/v2/swx/newkey").skypetoken();
+    public static final Endpoints PETOKEN = new Endpoints("https://static.asm.skype.com/pes/v1/petoken").defaultHeader("Authorization", AUTHORIZATION);
+    public static final Endpoints PROFILE = new Endpoints("https://api.skype.com/users/self/profile").skypetoken();
+
     private boolean requiresCloud;
     private boolean requiresRegToken;
     private boolean requiresSkypeToken;
