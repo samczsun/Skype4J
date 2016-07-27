@@ -85,6 +85,7 @@ public interface Contact {
      *
      * @return The mood as richtext
      */
+    @Deprecated
     String getRichMood();
 
     /**
