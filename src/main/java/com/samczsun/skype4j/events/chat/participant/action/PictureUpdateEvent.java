@@ -14,19 +14,29 @@
  *    limitations under the License.
  */
 
-package com.samczsun.skype4j.events.chat.user;
+package com.samczsun.skype4j.events.chat.participant.action;
 
-import com.samczsun.skype4j.user.User;
+import com.samczsun.skype4j.events.chat.participant.ParticipantEvent;
+import com.samczsun.skype4j.participants.User;
 
-public class UserRemoveEvent extends UserEvent {
-    private final User initiator;
+/**
+ * Called when the picture of a group chat is updated
+ */
+public class PictureUpdateEvent extends ParticipantEvent {
+    private final long time;
+    private final String url;
 
-    public UserRemoveEvent(User user, User initiator) {
-        super(user);
-        this.initiator = initiator;
+    public PictureUpdateEvent(User initiator, long time, String url) {
+        super(initiator);
+        this.time = time;
+        this.url = url;
     }
 
-    public User getInitiator() {
-        return this.initiator;
+    public long getEventTime() {
+        return this.time;
+    }
+
+    public String getPictureURL() {
+        return this.url;
     }
 }

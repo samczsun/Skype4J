@@ -14,18 +14,18 @@
  *    limitations under the License.
  */
 
-package com.samczsun.skype4j.internal;
+package com.samczsun.skype4j.internal.participants.info;
 
 import com.samczsun.skype4j.exceptions.ConnectionException;
+import com.samczsun.skype4j.internal.Endpoints;
 import com.samczsun.skype4j.internal.client.FullClient;
-import com.samczsun.skype4j.user.Contact;
-import com.samczsun.skype4j.user.ContactRequest;
+import com.samczsun.skype4j.participants.info.Contact;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-public class ContactRequestImpl implements ContactRequest {
+public class ContactRequestImpl implements Contact.ContactRequest {
 
     private final Date time;
     private final String sender;

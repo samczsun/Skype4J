@@ -27,11 +27,11 @@ import com.samczsun.skype4j.exceptions.InvalidCredentialsException;
 import com.samczsun.skype4j.exceptions.handler.ErrorHandler;
 import com.samczsun.skype4j.exceptions.handler.ErrorSource;
 import com.samczsun.skype4j.internal.*;
-import com.samczsun.skype4j.internal.threads.AuthenticationChecker;
-import com.samczsun.skype4j.internal.threads.ServerPingThread;
+import com.samczsun.skype4j.internal.participants.info.ContactImpl;
+import com.samczsun.skype4j.internal.participants.info.ContactRequestImpl;
 import com.samczsun.skype4j.internal.utils.Encoder;
 import com.samczsun.skype4j.internal.utils.UncheckedRunnable;
-import com.samczsun.skype4j.user.Contact;
+import com.samczsun.skype4j.participants.info.Contact;
 
 import javax.xml.bind.DatatypeConverter;
 import java.net.HttpURLConnection;

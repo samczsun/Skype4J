@@ -14,31 +14,23 @@
  *    limitations under the License.
  */
 
-package com.samczsun.skype4j.events.chat.sent;
+package com.samczsun.skype4j.events.chat.participant;
 
-import com.samczsun.skype4j.chat.Chat;
-import com.samczsun.skype4j.user.Contact;
-import com.samczsun.skype4j.user.User;
+import com.samczsun.skype4j.participants.Participant;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
-public class MultiContactReceivedEvent extends ContactReceivedEvent {
-    private final User sender;
-    private final List<Contact> sentContacts;
+public class ParticipantRemovedEvent extends ParticipantEvent {
+    private final List<Participant> removed;
 
-    public MultiContactReceivedEvent(Chat chat, User sender, List<Contact> sent) {
-        super(chat, sender, sent.get(0));
-        this.sender = sender;
-        this.sentContacts = sent;
+    public ParticipantRemovedEvent(Participant initiator, List<Participant> removed) {
+        super(initiator);
+        this.removed = new ArrayList<>(removed);
     }
 
-    public User getSender()
-    {
-        return this.sender;
-    }
-
-    public Iterable<Contact> getSentContacts()
-    {
-        return this.sentContacts;
+    public List<Participant> getRemovedParticipants() {
+        return Collections.unmodifiableList(this.removed);
     }
 }

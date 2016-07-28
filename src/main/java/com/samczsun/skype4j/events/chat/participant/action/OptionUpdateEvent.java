@@ -14,17 +14,18 @@
  *    limitations under the License.
  */
 
-package com.samczsun.skype4j.events.chat.user.action;
+package com.samczsun.skype4j.events.chat.participant.action;
 
-import com.samczsun.skype4j.events.chat.user.UserEvent;
-import com.samczsun.skype4j.user.User;
+import com.samczsun.skype4j.chat.GroupChat;
+import com.samczsun.skype4j.events.chat.participant.ParticipantEvent;
+import com.samczsun.skype4j.participants.User;
 
-public class OptionUpdateEvent extends UserEvent {
+public class OptionUpdateEvent extends ParticipantEvent {
     private final long time;
-    private final Option option;
+    private final GroupChat.Option option;
     private final boolean enabled;
 
-    public OptionUpdateEvent(User user, long time, Option option, boolean enabled) {
+    public OptionUpdateEvent(User user, long time, GroupChat.Option option, boolean enabled) {
         super(user);
         this.time = time;
         this.option = option;
@@ -35,7 +36,7 @@ public class OptionUpdateEvent extends UserEvent {
         return this.time;
     }
 
-    public Option getOption() {
+    public GroupChat.Option getOption() {
         return this.option;
     }
 
@@ -43,18 +44,4 @@ public class OptionUpdateEvent extends UserEvent {
         return enabled;
     }
 
-    public enum Option {
-        JOINING_ENABLED("joiningenabled"),
-        HISTORY_DISCLOSED("historydisclosed");
-
-        private String id;
-
-        Option(String id) {
-            this.id = id;
-        }
-
-        public String getId() {
-            return this.id;
-        }
-    }
 }

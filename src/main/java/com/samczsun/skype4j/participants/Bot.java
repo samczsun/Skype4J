@@ -14,19 +14,23 @@
  *    limitations under the License.
  */
 
-package com.samczsun.skype4j.events.chat.user;
+package com.samczsun.skype4j.participants;
 
-import com.samczsun.skype4j.user.User;
+import com.samczsun.skype4j.participants.info.BotInfo;
 
-public class UserAddEvent extends UserEvent {
-    private final User initiator;
+/*
+ * Represents a Bot in a chat.
+ *
+ * Note that while currently, Bots cannot be added to group chats, the feature is being planned.
+ * As such, a Bot represents a single instance of a Bot in a chat. To get information about the bot you must
+ * use {@link BotInfo}
+ */
+public interface Bot extends Participant {
 
-    public UserAddEvent(User user, User initiator) {
-        super(user);
-        this.initiator = initiator;
-    }
-
-    public User getInitiator() {
-        return this.initiator;
-    }
+    /*
+     * Gets information and metadata associated with this Bot. Multiple Bot instances may point to the same BotInfo instance
+     *
+     * @returns The info pertaining to this Bot
+     */
+    BotInfo getBotInfo();
 }

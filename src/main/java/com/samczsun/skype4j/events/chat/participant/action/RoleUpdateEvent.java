@@ -14,17 +14,18 @@
  *    limitations under the License.
  */
 
-package com.samczsun.skype4j.events.chat.user.action;
+package com.samczsun.skype4j.events.chat.participant.action;
 
-import com.samczsun.skype4j.events.chat.user.UserEvent;
-import com.samczsun.skype4j.user.User;
+import com.samczsun.skype4j.events.chat.participant.ParticipantEvent;
+import com.samczsun.skype4j.participants.Participant;
+import com.samczsun.skype4j.participants.User;
 
-public class RoleUpdateEvent extends UserEvent {
+public class RoleUpdateEvent extends ParticipantEvent {
     private final long time;
-    private final User target;
+    private final Participant target;
     private final User.Role newRole;
 
-    public RoleUpdateEvent(User initiator, long time, User target, User.Role newRole) {
+    public RoleUpdateEvent(User initiator, long time, Participant target, User.Role newRole) {
         super(initiator);
         this.time = time;
         this.target = target;
@@ -35,7 +36,7 @@ public class RoleUpdateEvent extends UserEvent {
         return this.time;
     }
 
-    public User getTarget() {
+    public Participant getTarget() {
         return this.target;
     }
 

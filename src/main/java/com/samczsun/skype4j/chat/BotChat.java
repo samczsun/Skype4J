@@ -14,20 +14,10 @@
  *    limitations under the License.
  */
 
-package com.samczsun.skype4j.events.chat.user;
+package com.samczsun.skype4j.chat;
 
-import com.samczsun.skype4j.events.chat.ChatEvent;
-import com.samczsun.skype4j.user.User;
+import com.samczsun.skype4j.participants.Bot;
 
-public abstract class UserEvent extends ChatEvent {
-    private final User user;
-
-    public UserEvent(User user) {
-        super(user.getChat());
-        this.user = user;
-    }
-
-    public User getUser() {
-        return this.user;
-    }
+public interface BotChat extends Chat {
+    Bot getBot();
 }

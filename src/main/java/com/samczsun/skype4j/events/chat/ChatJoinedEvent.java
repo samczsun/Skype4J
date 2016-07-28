@@ -17,7 +17,7 @@
 package com.samczsun.skype4j.events.chat;
 
 import com.samczsun.skype4j.chat.Chat;
-import com.samczsun.skype4j.user.User;
+import com.samczsun.skype4j.participants.User;
 
 public class ChatJoinedEvent extends ChatEvent {
     private final User initiator;

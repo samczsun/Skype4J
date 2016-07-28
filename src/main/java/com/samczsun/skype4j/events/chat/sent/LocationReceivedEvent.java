@@ -20,22 +20,23 @@ import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.events.chat.ChatEvent;
 import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.formatting.Text;
-import com.samczsun.skype4j.user.User;
+import com.samczsun.skype4j.participants.Participant;
+import com.samczsun.skype4j.participants.User;
 
 import javax.xml.bind.DatatypeConverter;
 import java.io.UnsupportedEncodingException;
 
 public class LocationReceivedEvent extends ChatEvent {
-    private final User sender;
+    private final Participant sender;
     private final LocationInfo info;
 
-    public LocationReceivedEvent(Chat chat, User sender, LocationInfo info) {
+    public LocationReceivedEvent(Chat chat, Participant sender, LocationInfo info) {
         super(chat);
         this.sender = sender;
         this.info = info;
     }
 
-    public User getSender() {
+    public Participant getSender() {
         return this.sender;
     }
 
@@ -51,6 +52,7 @@ public class LocationReceivedEvent extends ChatEvent {
         private int zoomLevel = -1;
         private String sty; //TODO what is this?
         private String ss; //TODO what is this?
+
         public LocationInfo(String parse, String text) throws IllegalArgumentException {
             this.base64 = parse;
             this.text = text;

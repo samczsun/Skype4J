@@ -20,19 +20,18 @@ import com.eclipsesource.json.JsonArray;
 import com.eclipsesource.json.JsonObject;
 import com.eclipsesource.json.JsonValue;
 import com.samczsun.skype4j.chat.GroupChat;
-import com.samczsun.skype4j.chat.messages.ChatMessage;
-import com.samczsun.skype4j.events.chat.user.action.OptionUpdateEvent;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
-import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.internal.Endpoints;
-import com.samczsun.skype4j.internal.MessageType;
+import com.samczsun.skype4j.internal.Factory;
 import com.samczsun.skype4j.internal.SkypeImpl;
-import com.samczsun.skype4j.internal.UserImpl;
+import com.samczsun.skype4j.internal.participants.BotImpl;
+import com.samczsun.skype4j.internal.participants.ParticipantImpl;
+import com.samczsun.skype4j.internal.participants.UserImpl;
 import com.samczsun.skype4j.internal.Utils;
-import com.samczsun.skype4j.internal.chat.messages.ChatMessageImpl;
-import com.samczsun.skype4j.user.Contact;
-import com.samczsun.skype4j.user.User.Role;
+import com.samczsun.skype4j.internal.participants.info.ContactImpl;
+import com.samczsun.skype4j.participants.Participant;
+import com.samczsun.skype4j.participants.info.Contact;
 
 import javax.imageio.ImageIO;
 import java.awt.Graphics2D;
@@ -41,84 +40,111 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.regex.Matcher;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class ChatGroup extends ChatImpl implements GroupChat {
+
     private String topic;
     private String pictureUrl;
     private boolean pictureUpdated;
     private BufferedImage picture;
-    private Set<OptionUpdateEvent.Option> enabledOptions;
 
-    protected ChatGroup(SkypeImpl skype, String identity) throws ConnectionException, ChatNotFoundException {
+    private Set<Option> enabledOptions = new HashSet<>();
+
+    private List<String> bannedIds = new ArrayList<>();
+    private List<String> whitelistedIds = new ArrayList<>();
+
+    public ChatGroup(SkypeImpl skype, String identity) throws ConnectionException, ChatNotFoundException {
         super(skype, identity);
     }
 
-    protected void load() throws ConnectionException, ChatNotFoundException {
-        if (isLoaded()) {
-            return;
+    public void load() throws ConnectionException, ChatNotFoundException {
+        JsonObject object = Endpoints.CHAT_INFO_URL
+                .open(getClient(), getIdentity())
+                .as(JsonObject.class)
+                .on(404, (connection) -> {
+                    throw new ChatNotFoundException();
+                })
+                .expect(200, "While loading users")
+                .get();
+
+        JsonObject props = object.get("properties").asObject();
+        for (Option option : GroupChat.Option.values()) {
+            if (props.get(option.getId()) != null && props.get(option.getId()).asString().equals("true")) {
+                this.enabledOptions.add(option);
+            }
         }
-        enabledOptions = new HashSet<>();
-        try {
-            isLoading.set(true);
-            Map<String, UserImpl> newUsers = new HashMap<>();
-            JsonObject object = Endpoints.CHAT_INFO_URL
-                    .open(getClient(), getIdentity())
-                    .as(JsonObject.class)
-                    .on(404, (connection) -> {throw new ChatNotFoundException();})
-                    .expect(200, "While loading users")
-                    .get();
-
-            JsonObject props = object.get("properties").asObject();
-            for (OptionUpdateEvent.Option option : OptionUpdateEvent.Option.values()) {
-                if (props.get(option.getId()) != null && props.get(option.getId()).asString().equals("true")) {
-                    this.enabledOptions.add(option);
-                }
-            }
-            if (props.get("topic") != null) {
-                this.topic = props.get("topic").asString();
+        if (props.get("topic") != null) {
+            this.topic = props.get("topic").asString();
+        } else {
+            this.topic = "";
+        }
+        if (props.get("picture") != null) {
+            this.pictureUrl = props.get("picture").asString().substring(4);
+        }
+        JsonArray members = object.get("members").asArray();
+        for (JsonValue element : members) {
+            String id = element.asObject().get("id").asString();
+            String role = element.asObject().get("role").asString();
+            ParticipantImpl user = Factory.createParticipant(getClient(), this, id);
+            users.put(id.toLowerCase(), user);
+            if (role.equalsIgnoreCase("admin")) {
+                user.updateRole(Participant.Role.ADMIN);
             } else {
-                this.topic = "";
+                user.updateRole(Participant.Role.USER);
             }
-            if (props.get("picture") != null) {
-                this.pictureUrl = props.get("picture").asString().substring(4);
-            }
-            JsonArray members = object.get("members").asArray();
-            for (JsonValue element : members) {
-                String username = element.asObject().get("id").asString().substring(2);
-                String role = element.asObject().get("role").asString();
-                UserImpl user = users.get(username.toLowerCase());
-                if (user == null) {
-                    user = new UserImpl(username, this, getClient());
-                }
-                newUsers.put(username.toLowerCase(), user);
-                if (role.equalsIgnoreCase("admin")) {
-                    user.updateRole(Role.ADMIN);
+        }
+
+        Map<String, UserImpl> toLoad = new HashMap<>();
+
+        for (ParticipantImpl participant : this.users.values()) {
+            if (participant instanceof UserImpl) {
+                if (getClient().getContact(participant.getId()) != null) {
+                    ((UserImpl) participant).setInfo(getClient().getContact(participant.getId()));
                 } else {
-                    user.updateRole(Role.USER);
+                    toLoad.put(((UserImpl) participant).getUsername(), (UserImpl) participant);
                 }
+            } else if (participant instanceof BotImpl) {
+                ((BotImpl) participant).setInfo(getClient().getOrLoadBotInfo(participant.getId()));
+            }
+        }
+
+        while (!toLoad.isEmpty()) {
+            Map<String, UserImpl> localToLoad = new HashMap<>();
+            Iterator<Map.Entry<String, UserImpl>> it = toLoad.entrySet().iterator();
+            while (localToLoad.size() < 100 && !toLoad.isEmpty()) {
+                Map.Entry<String, UserImpl> ent = it.next();
+                localToLoad.put(ent.getKey(), ent.getValue());
+                it.remove();
             }
 
-            this.users.clear();
-            this.users.putAll(newUsers);
-            hasLoaded.set(true);
-        } finally {
-            isLoading.set(false);
+            JsonArray usernames = new JsonArray();
+            localToLoad.keySet().forEach(usernames::add);
+
+            JsonArray info = Endpoints.PROFILE_INFO
+                    .open(getClient())
+                    .expect(200, "While getting contact info")
+                    .as(JsonArray.class)
+                    .post(new JsonObject()
+                            .add("usernames", usernames)
+                    );
+
+            for (JsonValue jsonValue : info) {
+                JsonObject data = jsonValue.asObject();
+
+                UserImpl matching = localToLoad.get(data.get("username").asString());
+                if (matching != null) {
+                    matching.setInfo(ContactImpl.createContact(getClient(), matching.getUsername(), data));
+                }
+            }
         }
     }
 
     public void addUser(String username) throws ConnectionException {
+        username = "8:" + username;
         if (!users.containsKey(username.toLowerCase())) {
-            UserImpl user = new UserImpl(username, this, getClient());
+            ParticipantImpl user = Factory.createParticipant(getClient(), this, username);
             users.put(username.toLowerCase(), user);
         } else if (!username.equalsIgnoreCase(getClient().getUsername())) { //Skype...
             throw new IllegalArgumentException(username + " joined the chat even though he was already in it?");
@@ -130,11 +156,44 @@ public class ChatGroup extends ChatImpl implements GroupChat {
     }
 
     public void kick(String username) throws ConnectionException {
-        checkLoaded();
         Endpoints.MODIFY_MEMBER_URL
                 .open(getClient(), getIdentity(), username)
                 .expect(200, "While kicking user")
                 .delete();
+    }
+
+    @Override
+    public void ban(String id) throws ConnectionException {
+        this.bannedIds.add(id);
+        updateBanlist();
+    }
+
+    @Override
+    public void unban(String id) throws ConnectionException {
+        this.bannedIds.remove(id);
+        updateBanlist();
+    }
+
+    @Override
+    public List<String> getBannedIds() {
+        return Collections.unmodifiableList(this.bannedIds);
+    }
+
+    @Override
+    public void whitelist(String id) throws ConnectionException {
+        this.whitelistedIds.add(id);
+        updateWhitelist();
+    }
+
+    @Override
+    public void unwhitelist(String id) throws ConnectionException {
+        this.whitelistedIds.remove(id);
+        updateWhitelist();
+    }
+
+    @Override
+    public List<String> getWhitelistedIds() {
+        return Collections.unmodifiableList(this.whitelistedIds);
     }
 
     public void leave() throws ConnectionException {
@@ -143,8 +202,7 @@ public class ChatGroup extends ChatImpl implements GroupChat {
 
     @Override
     public String getJoinUrl() throws ConnectionException {
-        checkLoaded();
-        if (isOptionEnabled(OptionUpdateEvent.Option.JOINING_ENABLED)) {
+        if (isOptionEnabled(GroupChat.Option.JOINING_ENABLED)) {
             JsonObject data = new JsonObject();
             data.add("baseDomain", "https://join.skype.com/launch/");
             data.add("threadId", this.getIdentity());
@@ -161,18 +219,15 @@ public class ChatGroup extends ChatImpl implements GroupChat {
 
     @Override
     public String getTopic() {
-        checkLoaded();
         return this.topic;
     }
 
     public void setTopic(String topic) throws ConnectionException {
-        checkLoaded();
         putOption("topic", JsonValue.valueOf(topic), true);
     }
 
     @Override
     public BufferedImage getPicture() throws ConnectionException {
-        checkLoaded();
         if (pictureUrl != null) {
             if (pictureUpdated) {
                 picture = null;
@@ -197,7 +252,6 @@ public class ChatGroup extends ChatImpl implements GroupChat {
 
     @Override
     public void setImage(BufferedImage image, String imageType) throws ConnectionException, IOException {
-        checkLoaded();
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         ImageIO.write(image, imageType, baos);
         String id = Utils.uploadImage(baos.toByteArray(), Utils.ImageType.AVATAR, this);
@@ -207,7 +261,6 @@ public class ChatGroup extends ChatImpl implements GroupChat {
 
     @Override
     public void setImage(File image) throws ConnectionException, IOException {
-        checkLoaded();
         byte[] data = Files.readAllBytes(image.toPath());
         String id = Utils.uploadImage(data, Utils.ImageType.AVATAR, this);
         putOption("picture", JsonValue.valueOf(
@@ -215,21 +268,18 @@ public class ChatGroup extends ChatImpl implements GroupChat {
     }
 
     @Override
-    public boolean isOptionEnabled(OptionUpdateEvent.Option option) {
-        checkLoaded();
+    public boolean isOptionEnabled(Option option) {
         return this.enabledOptions.contains(option);
     }
 
     @Override
-    public void setOptionEnabled(OptionUpdateEvent.Option option, boolean enabled) throws ConnectionException {
-        checkLoaded();
+    public void setOptionEnabled(Option option, boolean enabled) throws ConnectionException {
         putOption(option.getId(), JsonValue.valueOf(enabled), true);
         updateOption(option, enabled);
     }
 
     @Override
     public void add(Contact contact) throws ConnectionException {
-        checkLoaded();
         Endpoints.ADD_MEMBER_URL
                 .open(getClient(), getIdentity(), contact.getUsername())
                 .expect(200, "While adding user to group")
@@ -245,8 +295,18 @@ public class ChatGroup extends ChatImpl implements GroupChat {
         pictureUpdated = true;
     }
 
-    public void updateOption(OptionUpdateEvent.Option option, boolean enabled) {
+    public void updateOption(Option option, boolean enabled) {
         if (enabled) enabledOptions.add(option);
         else enabledOptions.remove(option);
+    }
+
+    private void updateBanlist() throws ConnectionException {
+        JsonValue bannedUserList = JsonValue.valueOf(bannedIds.stream().collect(Collectors.joining(",")));
+        putOption("banneduserlist", bannedUserList, true);
+    }
+
+    private void updateWhitelist() throws ConnectionException {
+        JsonValue whitelistedUserList = JsonValue.valueOf(whitelistedIds.stream().collect(Collectors.joining(",")));
+        putOption("alloweduserlist", whitelistedUserList, true);
     }
 }

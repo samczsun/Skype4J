@@ -18,19 +18,20 @@ package com.samczsun.skype4j.events.chat.sent;
 
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.events.chat.ChatEvent;
-import com.samczsun.skype4j.user.User;
+import com.samczsun.skype4j.participants.Participant;
+import com.samczsun.skype4j.participants.User;
 
 public class TypingReceivedEvent extends ChatEvent {
-    private final User sender;
+    private final Participant sender;
     private final boolean typing;
 
-    public TypingReceivedEvent(Chat chat, User sender, boolean typing) {
+    public TypingReceivedEvent(Chat chat, Participant sender, boolean typing) {
         super(chat);
         this.sender = sender;
         this.typing = typing;
     }
 
-    public User getSender() {
+    public Participant getSender() {
         return this.sender;
     }
 

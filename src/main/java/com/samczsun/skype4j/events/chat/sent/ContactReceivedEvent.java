@@ -18,26 +18,31 @@ package com.samczsun.skype4j.events.chat.sent;
 
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.events.chat.ChatEvent;
-import com.samczsun.skype4j.user.Contact;
-import com.samczsun.skype4j.user.User;
+import com.samczsun.skype4j.participants.Participant;
+import com.samczsun.skype4j.participants.info.Contact;
+import com.samczsun.skype4j.participants.User;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class ContactReceivedEvent extends ChatEvent {
-    private final User sender;
-    private final Contact sentContact;
+    private final Participant sender;
+    private final List<Contact> sentContacts;
 
-    public ContactReceivedEvent(Chat chat, User sender, Contact sent) {
+    public ContactReceivedEvent(Chat chat, Participant sender, List<Contact> sent) {
         super(chat);
         this.sender = sender;
-        this.sentContact = sent;
+        this.sentContacts = new ArrayList<>(sent);
     }
 
-    public User getSender()
+    public Participant getSender()
     {
         return this.sender;
     }
 
-    public Contact getSentContact()
+    public List<Contact> getSentContacts()
     {
-        return this.sentContact;
+        return Collections.unmodifiableList(sentContacts);
     }
 }

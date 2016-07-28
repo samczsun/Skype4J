@@ -21,9 +21,11 @@ import com.samczsun.skype4j.chat.messages.ChatMessage;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.internal.SkypeImpl;
-import com.samczsun.skype4j.internal.UserImpl;
 import com.samczsun.skype4j.internal.chat.ChatImpl;
-import com.samczsun.skype4j.user.User;
+import com.samczsun.skype4j.internal.participants.ParticipantImpl;
+import com.samczsun.skype4j.internal.participants.UserImpl;
+import com.samczsun.skype4j.participants.Participant;
+import com.samczsun.skype4j.participants.User;
 import org.jsoup.helper.Validate;
 
 public abstract class ChatMessageImpl implements ChatMessage {
@@ -31,14 +33,14 @@ public abstract class ChatMessageImpl implements ChatMessage {
     private final String clientId;
     private final SkypeImpl skype;
 
-    private final User sender;
+    private final ParticipantImpl sender;
     private final Chat chat;
     private final String id;
     private final long time;
 
     private Message message;
 
-    public ChatMessageImpl(Chat chat, User sender, String id, String clientId, long time, Message message, SkypeImpl skype) {
+    public ChatMessageImpl(Chat chat, ParticipantImpl sender, String id, String clientId, long time, Message message, SkypeImpl skype) {
         this.chat = chat;
         this.sender = sender;
         this.id = id;
@@ -54,7 +56,7 @@ public abstract class ChatMessageImpl implements ChatMessage {
     }
 
     @Override
-    public User getSender() {
+    public ParticipantImpl getSender() {
         return this.sender;
     }
 
@@ -81,19 +83,6 @@ public abstract class ChatMessageImpl implements ChatMessage {
     @Override
     public SkypeImpl getClient() {
         return this.skype;
-    }
-
-    public static ChatMessage createMessage(Chat chat, User user, String id, String clientId, long time, Message message, SkypeImpl skype) throws ConnectionException {
-        Validate.notNull(chat, "Chat must not be null");
-        Validate.isTrue(chat instanceof ChatImpl, "Chat must be instanceof ChatImpl");
-        Validate.notNull(user, "User must not be null");
-        Validate.isTrue(user instanceof UserImpl, "User must be instanceof UserImpl");
-        // Removed cast to ChatImpl
-        if (chat.getClient().getUsername().equals(user.getUsername())) {
-            return new SentMessageImpl(chat, user, id, clientId, time, message, skype);
-        } else {
-            return new ReceivedMessageImpl(chat, user, id, clientId, time, message, skype);
-        }
     }
 
     public void edit0(Message newMessage) {

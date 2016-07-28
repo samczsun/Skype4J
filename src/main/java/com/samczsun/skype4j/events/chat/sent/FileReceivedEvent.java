@@ -19,21 +19,23 @@ package com.samczsun.skype4j.events.chat.sent;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.objects.ReceivedFile;
 import com.samczsun.skype4j.events.chat.ChatEvent;
-import com.samczsun.skype4j.user.User;
+import com.samczsun.skype4j.participants.Participant;
+import com.samczsun.skype4j.participants.User;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class FileReceivedEvent extends ChatEvent {
-    private final User sender;
+    private final Participant sender;
     private final List<ReceivedFile> files;
 
-    public FileReceivedEvent(Chat chat, User sender, List<ReceivedFile> files) {
+    public FileReceivedEvent(Chat chat, Participant sender, List<ReceivedFile> files) {
         super(chat);
         this.sender = sender;
-        this.files = files;
+        this.files = new ArrayList<>(files);
     }
 
-    public User getSender() {
+    public Participant getSender() {
         return this.sender;
     }
 

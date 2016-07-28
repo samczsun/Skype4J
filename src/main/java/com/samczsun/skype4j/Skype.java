@@ -21,7 +21,8 @@ import com.samczsun.skype4j.chat.GroupChat;
 import com.samczsun.skype4j.events.EventDispatcher;
 import com.samczsun.skype4j.exceptions.*;
 import com.samczsun.skype4j.exceptions.handler.ErrorSource;
-import com.samczsun.skype4j.user.Contact;
+import com.samczsun.skype4j.participants.info.BotInfo;
+import com.samczsun.skype4j.participants.info.Contact;
 
 import java.util.Collection;
 import java.util.List;
@@ -31,7 +32,9 @@ import java.util.logging.Logger;
  * This class represents a single Skype account, which may or may not have been logged in
  */
 public interface Skype {
-    String VERSION = "908/1.36.0.75//skype.com";
+    String VERSION = "908/1.52.0.82//skype.com";
+
+    RuntimeException UNEXPECTED = new RuntimeException("Please open a GitHub issue with this stacktrace, something unexpected happened");
 
     /**
      * Log into Skype. This will perform the following actions:
@@ -146,6 +149,15 @@ public interface Skype {
      * @throws ConnectionException If an exception occured while fetching all contacts
      */
     void loadAllContacts() throws ConnectionException;
+
+
+    /*
+     * Gets (and loads if not loaded) the bot info given a bot id (28:{uuid})
+     *
+     * @returns The bot info
+     * @throws ConnectionException If an exception occured while fetching the bot info
+     */
+    BotInfo getOrLoadBotInfo(String id) throws ConnectionException;
 
     /**
      * Get all the chats loaded by this API

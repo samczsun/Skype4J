@@ -14,12 +14,12 @@
  *    limitations under the License.
  */
 
-package com.samczsun.skype4j.events.chat.user;
+package com.samczsun.skype4j.events.chat.participant;
 
-import com.samczsun.skype4j.user.User;
+import com.samczsun.skype4j.participants.Participant;
 
-public class LegacyMemberUpgradedEvent extends UserEvent {
-    public LegacyMemberUpgradedEvent(User user) {
+public class LegacyMemberAddedEvent extends ParticipantEvent {
+    public LegacyMemberAddedEvent(Participant user) {
         super(user);
     }
 }

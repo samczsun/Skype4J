@@ -19,7 +19,8 @@ package com.samczsun.skype4j.chat.messages;
 import com.samczsun.skype4j.Skype;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.formatting.Message;
-import com.samczsun.skype4j.user.User;
+import com.samczsun.skype4j.participants.Participant;
+import com.samczsun.skype4j.participants.User;
 
 /**
  * Represents a single message
@@ -45,10 +46,10 @@ public interface ChatMessage {
      *
      * @return The user who sent this message
      */
-    User getSender();
+    Participant getSender();
 
     /**
-     * Get the chat this message was sent in. See {@link User#getChat()}
+     * Get the chat this message was sent in. See {@link Participant#getChat()}
      *
      * @return The chat that the user belongs to
      */

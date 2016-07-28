@@ -22,17 +22,18 @@ import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.chat.messages.ChatMessage;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
-import com.samczsun.skype4j.exceptions.NotLoadedException;
 import com.samczsun.skype4j.exceptions.handler.ErrorHandler;
 import com.samczsun.skype4j.formatting.IMoji;
 import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.formatting.Text;
 import com.samczsun.skype4j.internal.*;
 import com.samczsun.skype4j.internal.chat.messages.ChatMessageImpl;
+import com.samczsun.skype4j.internal.participants.ParticipantImpl;
+import com.samczsun.skype4j.internal.participants.UserImpl;
 import com.samczsun.skype4j.internal.threads.TypingThread;
-import com.samczsun.skype4j.user.Contact;
-import com.samczsun.skype4j.user.User;
-import org.jsoup.helper.Validate;
+import com.samczsun.skype4j.participants.Participant;
+import com.samczsun.skype4j.participants.info.Contact;
+import com.samczsun.skype4j.participants.User;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -46,14 +47,10 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 
 public abstract class ChatImpl implements Chat {
-    protected final AtomicBoolean isLoading = new AtomicBoolean(false);
-    protected final AtomicBoolean hasLoaded = new AtomicBoolean(false);
-
-    protected final Map<String, UserImpl> users = new ConcurrentHashMap<>();
+    protected final Map<String, ParticipantImpl> users = Collections.synchronizedMap(new HashMap<>());
     protected final List<ChatMessage> messages = new CopyOnWriteArrayList<>();
 
     private final SkypeImpl client;
@@ -68,12 +65,10 @@ public abstract class ChatImpl implements Chat {
     ChatImpl(SkypeImpl client, String identity) throws ConnectionException, ChatNotFoundException {
         this.client = client;
         this.identity = identity;
-        load();
     }
 
     @Override
     public ChatMessage sendMessage(Message message) throws ConnectionException {
-        checkLoaded();
         long ms = System.currentTimeMillis();
 
         JsonObject obj = new JsonObject();
@@ -84,7 +79,7 @@ public abstract class ChatImpl implements Chat {
 
         Endpoints.SEND_MESSAGE_URL.open(getClient(), getIdentity()).expect(201, "While sending message").post(obj);
 
-        return ChatMessageImpl.createMessage(this, getUser(client.getUsername()), null, String.valueOf(ms), ms, message,
+        return Factory.createMessage(this, getSelf(), null, String.valueOf(ms), ms, message,
                 getClient());
     }
 
@@ -95,7 +90,6 @@ public abstract class ChatImpl implements Chat {
 
     @Override
     public void sendContact(Contact contact) throws ConnectionException {
-        checkLoaded();
         long ms = System.currentTimeMillis();
 
         JsonObject obj = new JsonObject();
@@ -110,7 +104,6 @@ public abstract class ChatImpl implements Chat {
 
     @Override
     public void sendImage(BufferedImage image, String imageType, String imageName) throws ConnectionException, IOException {
-        checkLoaded();
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         ImageIO.write(image, imageType, baos);
         sendImage(baos.toByteArray(), imageName);
@@ -118,7 +111,6 @@ public abstract class ChatImpl implements Chat {
 
     @Override
     public void sendImage(File image) throws ConnectionException, IOException {
-        checkLoaded();
         byte[] data = Files.readAllBytes(image.toPath());
         String name = image.getName().substring(0, image.getName().lastIndexOf('.'));
         sendImage(data, name);
@@ -140,7 +132,6 @@ public abstract class ChatImpl implements Chat {
 
     @Override
     public void sendFile(File file) throws ConnectionException {
-        checkLoaded();
         try {
             FileInputStream in = new FileInputStream(file);
             ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -165,7 +156,6 @@ public abstract class ChatImpl implements Chat {
 
     @Override
     public void sendMoji(IMoji flik) throws ConnectionException {
-        checkLoaded();
         long ms = System.currentTimeMillis();
         String content = "<URIObject type=\"Video.1/Flik.1\" uri=\"https://static.asm.skype.com/pes/v1/items/%s\" url_thumbnail=\"https://static.asm.skype.com/pes/v1/items/%s/views/thumbnail\"><a href=\"https://static.asm.skype.com/pes/v1/items/%s/views/default\">https://static.asm.skype.com/pes/v1/items/%s/views/default</a><OriginalName v=\"\"/></URIObject>";
         content = String.format(content, flik.getId(), flik.getId(), flik.getId(), flik.getId());
@@ -180,7 +170,6 @@ public abstract class ChatImpl implements Chat {
 
     @Override
     public List<ChatMessage> loadMoreMessages(int amount) throws ConnectionException {
-        checkLoaded();
         JsonObject data;
         if (backwardLink == null) {
             if (syncState == null) {
@@ -213,7 +202,7 @@ public abstract class ChatImpl implements Chat {
                     UserImpl u = (UserImpl) MessageType.getUser(msg.get("from").asString(), this);
                     Message message = Message.fromHtml(MessageType.stripMetadata(msg.get("content").asString()));
                     if (msg.get("clientmessageid") != null) {
-                        ChatMessage m = ChatMessageImpl.createMessage(this, u, msg.get("id").asString(),
+                        ChatMessage m = Factory.createMessage(this, u, msg.get("id").asString(),
                                 msg.get("clientmessageid").asString(),
                                 formatter.parse(msg.get("originalarrivaltime").asString()).getTime(), message
                                 ,getClient());
@@ -243,25 +232,22 @@ public abstract class ChatImpl implements Chat {
     }
 
     @Override
-    public Collection<User> getAllUsers() {
-        checkLoaded();
+    public Collection<Participant> getAllParticipants() {
         return Collections.unmodifiableCollection(users.values());
     }
 
     @Override
-    public UserImpl getUser(String username) {
-        checkLoaded();
+    public ParticipantImpl getParticipant(String username) {
         return this.users.get(username.toLowerCase());
     }
 
     @Override
-    public User getSelf() {
-        return getUser(getClient().getUsername());
+    public UserImpl getSelf() {
+        return (UserImpl) getParticipant(getClient().getId());
     }
 
     @Override
     public List<ChatMessage> getAllMessages() {
-        checkLoaded();
         return Collections.unmodifiableList(messages);
     }
 
@@ -291,26 +277,15 @@ public abstract class ChatImpl implements Chat {
         }
     }
 
-    // Begin internal access methods
-    public static ChatImpl createChat(SkypeImpl client, String identity) throws ConnectionException, ChatNotFoundException {
-        Validate.notNull(client, "Client must not be null");
-        Validate.notEmpty(identity, "Identity must not be null/empty");
-        if (identity.startsWith("19:")) {
-            if (identity.endsWith("@thread.skype")) {
-                return new ChatGroup(client, identity);
-            } else {
-                throw new IllegalArgumentException(String.format("Cannot load P2P chat with identity %s", identity));
-            }
-        } else if (identity.startsWith("8:")) {
-            return new ChatIndividual(client, identity);
-        } else {
-            throw new IllegalArgumentException(String.format("Unknown chat type with identity %s", identity));
-        }
+    @Override
+    public void sync() throws ConnectionException {
     }
 
-    public void onMessage(ChatMessage message) {
+    // Begin internal access methods
+
+    public void onMessage(ChatMessageImpl message) {
         this.messages.add(message);
-        ((UserImpl) message.getSender()).onMessage(message);
+        message.getSender().onMessage(message);
     }
 
     public void alertsOff() throws ConnectionException {
@@ -326,21 +301,11 @@ public abstract class ChatImpl implements Chat {
         putOption("alertmatches", JsonValue.valueOf(keyword), false);
     }
 
-    public boolean isLoaded() {
-        return !isLoading.get() && hasLoaded.get();
-    }
-
     public abstract void addUser(String username) throws ConnectionException;
 
     public abstract void removeUser(String username);
 
-    protected abstract void load() throws ConnectionException, ChatNotFoundException;
-
-    protected void checkLoaded() {
-        if (!isLoaded()) {
-            throw new NotLoadedException();
-        }
-    }
+    public abstract void load() throws ConnectionException, ChatNotFoundException;
 
     protected void putOption(String option, JsonValue value, boolean global) throws ConnectionException {
         JsonObject obj = new JsonObject();

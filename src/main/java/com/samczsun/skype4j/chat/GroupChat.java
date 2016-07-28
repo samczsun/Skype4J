@@ -16,11 +16,8 @@
 
 package com.samczsun.skype4j.chat;
 
-import com.samczsun.skype4j.chat.messages.ChatMessage;
-import com.samczsun.skype4j.events.chat.user.action.OptionUpdateEvent;
 import com.samczsun.skype4j.exceptions.ConnectionException;
-import com.samczsun.skype4j.exceptions.NotLoadedException;
-import com.samczsun.skype4j.user.Contact;
+import com.samczsun.skype4j.participants.info.Contact;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -35,7 +32,6 @@ public interface GroupChat extends Chat {
      * Get the topic of the chat.
      *
      * @return The topic of this chat
-     * @throws NotLoadedException If the chat is not yet loaded
      */
     String getTopic();
 
@@ -44,7 +40,6 @@ public interface GroupChat extends Chat {
      *
      * @param topic The topic
      * @throws ConnectionException If an error occurs while connecting to the endpoint
-     * @throws NotLoadedException  If the chat is not yet loaded
      */
     void setTopic(String topic) throws ConnectionException;
 
@@ -85,9 +80,8 @@ public interface GroupChat extends Chat {
      *
      * @param option The option to query
      * @return Whether the option is enabled
-     * @throws NotLoadedException If the chat is not yet loaded
      */
-    boolean isOptionEnabled(OptionUpdateEvent.Option option);
+    boolean isOptionEnabled(Option option);
 
     /**
      * Set whether an option is enabled.
@@ -96,16 +90,14 @@ public interface GroupChat extends Chat {
      * @param option  The option to set
      * @param enabled Whether to enable it or not
      * @throws ConnectionException If an error occurs while connecting to the endpoint
-     * @throws NotLoadedException  If the chat is not yet loaded
      */
-    void setOptionEnabled(OptionUpdateEvent.Option option, boolean enabled) throws ConnectionException;
+    void setOptionEnabled(Option option, boolean enabled) throws ConnectionException;
 
     /**
      * Add a contact into this chat. This will occur in real time
      *
      * @param contact The contact to add
      * @throws ConnectionException If an error occurs while connecting to the endpoint
-     * @throws NotLoadedException  If the chat is not yet loaded
      */
     void add(Contact contact) throws ConnectionException;
 
@@ -114,15 +106,57 @@ public interface GroupChat extends Chat {
      *
      * @param username The username of the user to kick
      * @throws ConnectionException If an error occurs while connecting to the endpoint
-     * @throws NotLoadedException  If the chat is not yet loaded
      */
     void kick(String username) throws ConnectionException;
+
+    /*
+     * Bans an id from this group chat.
+     *
+     * @param id The id to ban
+     */
+    void ban(String id) throws ConnectionException;
+
+    /*
+     * Unbans an id from this group chat.
+     *
+     * @param id The id to unban
+     */
+    void unban(String id) throws ConnectionException;
+
+    /*
+     * Gets the currently banned ids. Note that this may be out of sync if you happen to lose internet connection
+     *
+     * @returns A view of the currently banned ids, as recorded locally
+     */
+    List<String> getBannedIds();
+
+    /*
+     * Whitelists the id. The whitelist will only be active if there is one or more ids whitelisted.
+     *
+     * Non-whitelisted ids will be kicked as if they were banned
+     *
+     * @param id The id to whitelist
+     */
+    void whitelist(String id) throws ConnectionException;
+
+    /*
+     * Unwhitelists the id. If there are zero ids whitelisted the whitelist will be turned off by Skype, meaning anyone can join or be added.
+     *
+     * @param id The id to unwhitelist
+     */
+    void unwhitelist(String id) throws ConnectionException;
+
+    /*
+     * Gets the currently whitelisted ids. Note that this may be out of sync if you happen to lose internet connection
+     *
+     * @returns A view of the currently whitelisted ids, as recorded locally
+     */
+    List<String> getWhitelistedIds();
 
     /**
      * Leave the chat. This will occur in real time.
      *
      * @throws ConnectionException If an error occurs while connecting to the endpoint
-     * @throws NotLoadedException  If the chat is not yet loaded
      */
     void leave() throws ConnectionException;
 
@@ -131,8 +165,23 @@ public interface GroupChat extends Chat {
      *
      * @return The join url
      * @throws ConnectionException   If an error occurs while connecting to the endpoint
-     * @throws NotLoadedException    If the chat is not yet loaded
      * @throws IllegalStateException If joining is not enabled
      */
     String getJoinUrl() throws ConnectionException;
+
+    enum Option {
+        JOINING_ENABLED("joiningenabled"),
+        HISTORY_DISCLOSED("historydisclosed"),
+        LOCK_TOPIC_AND_PICTURE("moderatedthread");
+
+        private String id;
+
+        Option(String id) {
+            this.id = id;
+        }
+
+        public String getId() {
+            return this.id;
+        }
+    }
 }

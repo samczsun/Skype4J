@@ -14,12 +14,12 @@
  *    limitations under the License.
  */
 
-package com.samczsun.skype4j.events.chat.user.action;
+package com.samczsun.skype4j.events.chat.participant.action;
 
-import com.samczsun.skype4j.events.chat.user.UserEvent;
-import com.samczsun.skype4j.user.User;
+import com.samczsun.skype4j.events.chat.participant.ParticipantEvent;
+import com.samczsun.skype4j.participants.User;
 
-public class TopicUpdateEvent extends UserEvent {
+public class TopicUpdateEvent extends ParticipantEvent {
     private final String newTopic, oldTopic;
     private final long time;
 

@@ -28,13 +28,15 @@ import com.samczsun.skype4j.exceptions.*;
 import com.samczsun.skype4j.exceptions.handler.ErrorHandler;
 import com.samczsun.skype4j.exceptions.handler.ErrorSource;
 import com.samczsun.skype4j.internal.chat.ChatImpl;
+import com.samczsun.skype4j.internal.participants.info.BotInfoImpl;
+import com.samczsun.skype4j.internal.participants.info.ContactImpl;
 import com.samczsun.skype4j.internal.threads.ActiveThread;
 import com.samczsun.skype4j.internal.threads.AuthenticationChecker;
 import com.samczsun.skype4j.internal.threads.PollThread;
 import com.samczsun.skype4j.internal.threads.ServerPingThread;
 import com.samczsun.skype4j.internal.utils.Encoder;
-import com.samczsun.skype4j.user.Contact;
-import com.samczsun.skype4j.user.ContactRequest;
+import com.samczsun.skype4j.participants.info.BotInfo;
+import com.samczsun.skype4j.participants.info.Contact;
 import org.jsoup.helper.Validate;
 
 import java.io.*;
@@ -46,7 +48,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -58,7 +59,7 @@ import java.util.regex.Pattern;
 public abstract class SkypeImpl implements Skype {
     public static final String LINE_SEPARATOR = System.getProperty("line.separator");
     public static final Pattern PAGE_SIZE_PATTERN = Pattern.compile("pageSize=([0-9]+)");
-    public static final String VERSION = "0.1.6-SNAPSHOT";
+    public static final String VERSION = "0.2.0-SNAPSHOT";
 
     protected final AtomicBoolean loggedIn = new AtomicBoolean(false);
     protected final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
@@ -70,9 +71,6 @@ public abstract class SkypeImpl implements Skype {
     private final String username;
     protected ExecutorService scheduler;
     protected ExecutorService shutdownThread;
-    protected final Map<String, ChatImpl> allChats = new ConcurrentHashMap<>();
-    protected final Map<String, Contact> allContacts = new ConcurrentHashMap<>();
-    protected final Set<ContactRequest> allContactRequests = new HashSet<>();
     protected EventDispatcher eventDispatcher = new SkypeEventDispatcher(this);
     protected Map<String, String> cookies = new HashMap<>();
     protected ServerPingThread serverPingThread;
@@ -91,6 +89,12 @@ public abstract class SkypeImpl implements Skype {
     private String endpointId;
     private JsonObject trouterData;
     private int socketId = 1;
+
+    // Data
+    protected final Map<String, ChatImpl> allChats = Collections.synchronizedMap(new HashMap<>());
+    protected final Map<String, Contact> allContacts = Collections.synchronizedMap(new HashMap<>());
+    protected final Map<String, BotInfoImpl> allBots = Collections.synchronizedMap(new HashMap<>());
+    protected final Set<Contact.ContactRequest> allContactRequests = Collections.synchronizedSet(new HashSet<>());
 
     public SkypeImpl(String username, Set<String> resources, Logger logger, List<ErrorHandler> errorHandlers) {
         this.username = username;
@@ -181,6 +185,8 @@ public abstract class SkypeImpl implements Skype {
                     chats.add(this.getOrLoadChat(value.asObject().get("id").asString()));
                 } catch (ChatNotFoundException e) {
                     throw new RuntimeException(e);
+                } catch (IllegalArgumentException e) {
+                    handleError(null, new RuntimeException(value.toString(), e), false);
                 }
             }
 
@@ -216,7 +222,7 @@ public abstract class SkypeImpl implements Skype {
         publicInfo.add("capabilities", "video|audio");
         publicInfo.add("type", 1);
         publicInfo.add("skypeNameVersion", "skype.com");
-        publicInfo.add("nodeInfo", "xx");
+        publicInfo.add("nodeInfo", "");
         publicInfo.add("version", Skype.VERSION);
         JsonObject privateInfo = new JsonObject();
         privateInfo.add("epname", "Skype4J");
@@ -279,7 +285,7 @@ public abstract class SkypeImpl implements Skype {
     @Override
     public ChatImpl loadChat(String name) throws ConnectionException, ChatNotFoundException {
         if (!allChats.containsKey(name)) {
-            ChatImpl chat = ChatImpl.createChat(this, name);
+            ChatImpl chat = Factory.createChat(this, name);
             allChats.put(name, chat);
             return chat;
         } else {
@@ -333,6 +339,17 @@ public abstract class SkypeImpl implements Skype {
             allContacts.put(username, contact);
         }
         return contact;
+    }
+
+    @Override
+    public BotInfo getOrLoadBotInfo(String botId) throws ConnectionException {
+        BotInfoImpl botInfo = this.allBots.get(botId);
+        if (botInfo == null) {
+            botInfo = new BotInfoImpl(this, botId);
+            botInfo.load();
+            this.allBots.put(botInfo.getId(), botInfo);
+        }
+        return botInfo;
     }
 
     protected void registerEndpoint() throws ConnectionException {
@@ -608,5 +625,9 @@ public abstract class SkypeImpl implements Skype {
                 .open(this)
                 .expect(200, "While updating visibility")
                 .put(new JsonObject().add("status", visibility.internalName()));
+    }
+
+    public String getId() {
+        return "8:" + getUsername();
     }
 }

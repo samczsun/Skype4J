@@ -18,6 +18,7 @@ package com.samczsun.skype4j.internal;
 
 import com.eclipsesource.json.JsonObject;
 import com.samczsun.skype4j.chat.Chat;
+import com.samczsun.skype4j.chat.GroupChat;
 import com.samczsun.skype4j.chat.messages.ChatMessage;
 import com.samczsun.skype4j.chat.messages.ReceivedMessage;
 import com.samczsun.skype4j.chat.messages.SentMessage;
@@ -28,11 +29,11 @@ import com.samczsun.skype4j.events.chat.ChatQuitEvent;
 import com.samczsun.skype4j.events.chat.call.CallReceivedEvent;
 import com.samczsun.skype4j.events.chat.message.*;
 import com.samczsun.skype4j.events.chat.sent.*;
-import com.samczsun.skype4j.events.chat.user.*;
-import com.samczsun.skype4j.events.chat.user.action.OptionUpdateEvent;
-import com.samczsun.skype4j.events.chat.user.action.PictureUpdateEvent;
-import com.samczsun.skype4j.events.chat.user.action.RoleUpdateEvent;
-import com.samczsun.skype4j.events.chat.user.action.TopicUpdateEvent;
+import com.samczsun.skype4j.events.chat.participant.*;
+import com.samczsun.skype4j.events.chat.participant.action.OptionUpdateEvent;
+import com.samczsun.skype4j.events.chat.participant.action.PictureUpdateEvent;
+import com.samczsun.skype4j.events.chat.participant.action.RoleUpdateEvent;
+import com.samczsun.skype4j.events.chat.participant.action.TopicUpdateEvent;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.NoSuchUserException;
@@ -44,9 +45,10 @@ import com.samczsun.skype4j.internal.chat.ChatGroup;
 import com.samczsun.skype4j.internal.chat.ChatImpl;
 import com.samczsun.skype4j.internal.chat.messages.ChatMessageImpl;
 import com.samczsun.skype4j.internal.chat.objects.ReceivedFileImpl;
-import com.samczsun.skype4j.user.Contact;
-import com.samczsun.skype4j.user.User;
-import com.samczsun.skype4j.user.User.Role;
+import com.samczsun.skype4j.internal.participants.ParticipantImpl;
+import com.samczsun.skype4j.internal.participants.UserImpl;
+import com.samczsun.skype4j.participants.Participant;
+import com.samczsun.skype4j.participants.info.Contact;
 import org.jsoup.helper.Validate;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -74,7 +76,7 @@ public enum MessageType {
         public void handle(SkypeImpl skype, JsonObject resource) throws SkypeException, IOException {
             String content = Utils.getString(resource, "content");
             ChatImpl chat = getChat(resource, skype);
-            UserImpl user = getSender(resource, chat);
+            ParticipantImpl user = getSender(resource, chat);
 
             if (content == null) {
                 final String clientId = resource.get("skypeeditedid").asString();
@@ -96,7 +98,7 @@ public enum MessageType {
                     throw new IllegalArgumentException("Null content? " + resource);
                 }
                 if (user != null) {
-                    ChatMessage m = ChatMessageImpl.createMessage(chat, user, id, clientId, System.currentTimeMillis(),
+                    ChatMessageImpl m = Factory.createMessage(chat, user, id, clientId, System.currentTimeMillis(),
                             Message.fromHtml(content), skype);
                     chat.onMessage(m);
                     if (m instanceof ReceivedMessage) {
@@ -118,7 +120,25 @@ public enum MessageType {
                     ((ChatMessageImpl) m).edit0(Message.fromHtml(content));
                 }
             } else {
-                throw new IllegalArgumentException("Message had no id - hacking by user or skype changed their api");
+                String clientId = null;
+                String id = resource.get("id").asString();
+                if (resource.get("content") == null) {
+                    throw new IllegalArgumentException("Null content? " + resource);
+                }
+                if (user != null) {
+                    ChatMessageImpl m = Factory.createMessage(chat, user, id, clientId, System.currentTimeMillis(),
+                            Message.fromHtml(content), skype);
+                    chat.onMessage(m);
+                    if (m instanceof ReceivedMessage) {
+                        MessageReceivedEvent event = new MessageReceivedEvent((ReceivedMessage) m);
+                        skype.getEventDispatcher().callEvent(event);
+                    } else {
+                        MessageSentEvent event = new MessageSentEvent((SentMessage) m);
+                        skype.getEventDispatcher().callEvent(event);
+                    }
+                } else {
+                    throw new IllegalArgumentException("Null sender? " + resource);
+                }
             }
         }
     },
@@ -163,7 +183,7 @@ public enum MessageType {
             Validate.notNull(username, "Null username");
             Chat chat = getChat(chatId, skype);
             Validate.notNull(chat, "Null chatobj");
-            User initiator = chat.getUser(username);
+            Participant initiator = chat.getParticipant(username);
             Validate.notNull(initiator, "Null initiator");
 
             List<Contact> contacts = new ArrayList<>();
@@ -181,8 +201,7 @@ public enum MessageType {
             }
 
             if (contacts.size() > 0) {
-                ContactReceivedEvent event = contacts.size() == 1 ? new ContactReceivedEvent(chat, initiator,
-                        contacts.get(0)) : new MultiContactReceivedEvent(chat, initiator, contacts);
+                ContactReceivedEvent event = new ContactReceivedEvent(chat, initiator, contacts);
                 skype.getEventDispatcher().callEvent(event);
             } else {
                 throw new IllegalArgumentException("No contacts sent");
@@ -202,7 +221,7 @@ public enum MessageType {
             Validate.notNull(username, "Null username");
             Chat chat = getChat(chatId, skype);
             Validate.notNull(chat, "Null chatobj");
-            User initiator = chat.getUser(username);
+            Participant initiator = chat.getParticipant(username);
             Validate.notNull(initiator, "Null initiator");
             Document doc = Parser.xmlParser().parseInput(content, "");
 
@@ -213,8 +232,7 @@ public enum MessageType {
                             Long.parseLong(fe.attr("tid"))))
                     .collect(Collectors.toList());
 
-            FileReceivedEvent event = new FileReceivedEvent(chat, initiator,
-                    Collections.unmodifiableList(receivedFiles));
+            FileReceivedEvent event = new FileReceivedEvent(chat, initiator, receivedFiles);
             skype.getEventDispatcher().callEvent(event);
         }
     },
@@ -224,12 +242,12 @@ public enum MessageType {
             String content = resource.get("content").asString();
             String from = resource.get("from").asString();
             String url = resource.get("conversationLink").asString();
-            Chat c = getChat(url, skype);
-            User u = getUser(from, c);
+            ChatImpl c = getChat(url, skype);
+            ParticipantImpl u = getUser(from, c);
             Matcher m = SMS_PATTERN.matcher(content);
             if (m.find()) {
                 String message = m.group(1);
-                ChatMessage chatmessage = ChatMessageImpl.createMessage(c, u, null, null, System.currentTimeMillis(),
+                ChatMessage chatmessage = Factory.createMessage(c, u, null, null, System.currentTimeMillis(),
                         Message.fromHtml(message), skype); //No clientmessageid?
                 SmsReceivedEvent event = new SmsReceivedEvent((ReceivedMessage) chatmessage);
                 skype.getEventDispatcher().callEvent(event);
@@ -242,14 +260,13 @@ public enum MessageType {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException { //Implemented via fullExperience
             String content = resource.get("content").asString();
-            Chat c = getChat(resource.get("conversationLink").asString(), skype);
-            User u = getUser(resource.get("from").asString(), c);
+            ChatImpl c = getChat(resource.get("conversationLink").asString(), skype);
+            Participant u = getUser(resource.get("from").asString(), c);
             Matcher m = LOCATION_PATTERN.matcher(content);
             if (m.find()) {
                 String location = m.group(1);
                 String text = m.group(2);
-                LocationReceivedEvent event = new LocationReceivedEvent(c, u,
-                        new LocationReceivedEvent.LocationInfo(location, text));
+                LocationReceivedEvent event = new LocationReceivedEvent(c, u, new LocationReceivedEvent.LocationInfo(location, text));
                 skype.getEventDispatcher().callEvent(event);
             } else {
                 throw conformError("Location");
@@ -262,7 +279,7 @@ public enum MessageType {
             String from = resource.get("from").asString();
             String url = resource.get("conversationLink").asString();
             ChatImpl c = getChat(url, skype);
-            User u = getUser(from, c);
+            Participant u = getUser(from, c);
             String content = resource.get("content").asString();
             Document doc = Parser.xmlParser().parseInput(content, "");
             if (doc.getElementsByTag("meta").size() == 0) {
@@ -309,7 +326,7 @@ public enum MessageType {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, IOException, ChatNotFoundException {
             ChatImpl chat = getChat(resource, skype);
-            UserImpl sender = getSender(resource, chat);
+            ParticipantImpl sender = getSender(resource, chat);
             String content = Utils.getString(resource, "content");
             Validate.notNull(content, "Null content");
             Matcher matcher = URIOBJECT_URI.matcher(content);
@@ -347,13 +364,13 @@ public enum MessageType {
                 initiator = getInitiator(resource, chat);
             } catch (NoSuchUserException ignored) {
             }
-            List<User> usersAdded = new ArrayList<>();
+            List<Participant> usersAdded = new ArrayList<>();
             boolean addedSelf = false;
             Matcher matcher = SINGLE_TARGET.matcher(resource.get("content").asString());
             while (matcher.find()) {
                 String username = getUsername(matcher.group(1));
                 chat.addUser(username);
-                usersAdded.add(chat.getUser(username));
+                usersAdded.add(chat.getParticipant(username));
                 if (username.equalsIgnoreCase(skype.getUsername())) {
                     addedSelf = true;
                 }
@@ -363,13 +380,11 @@ public enum MessageType {
                 initiator = getInitiator(resource, chat);
             }
 
-            UserAddEvent event = null;
+            ParticipantAddedEvent event = null;
             if (usersAdded.size() == 0) {
                 throw new IllegalArgumentException("No targets");
-            } else if (usersAdded.size() == 1) {
-                event = new UserAddEvent(usersAdded.get(0), initiator);
-            } else if (usersAdded.size() > 1) {
-                event = new MultiUserAddEvent(usersAdded, initiator);
+            } else {
+                event = new ParticipantAddedEvent(initiator, usersAdded);
             }
             skype.getEventDispatcher().callEvent(event);
 
@@ -384,12 +399,12 @@ public enum MessageType {
         public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
             ChatImpl chat = getChat(resource, skype);
             UserImpl initiator = getInitiator(resource, chat);
-            List<User> usersRemoved = new ArrayList<>();
+            List<Participant> usersRemoved = new ArrayList<>();
             Matcher matcher = SINGLE_TARGET.matcher(resource.get("content").asString());
             boolean removedSelf = false;
             while (matcher.find()) {
                 String username = getUsername(matcher.group(1));
-                usersRemoved.add(chat.getUser(username));
+                usersRemoved.add(chat.getParticipant(username));
                 chat.removeUser(username);
                 if (username.equalsIgnoreCase(skype.getUsername())) {
                     removedSelf = true;
@@ -398,11 +413,9 @@ public enum MessageType {
 
             if (usersRemoved.size() == 0) {
                 throw new IllegalArgumentException("No targets");
-            } else if (usersRemoved.size() == 1) {
-                UserRemoveEvent event = new UserRemoveEvent(usersRemoved.get(0), initiator);
+            } else {
+                ParticipantRemovedEvent event = new ParticipantRemovedEvent(initiator, usersRemoved);
                 skype.getEventDispatcher().callEvent(event);
-            } else if (usersRemoved.size() > 1) {
-                throw new IllegalArgumentException("More than one user removed?");
             }
 
             if (removedSelf) {
@@ -421,8 +434,8 @@ public enum MessageType {
             Matcher roleMatcher = ROLE_UPDATE_PATTERN.matcher(content);
             if (timeMatcher.find() && roleMatcher.find()) {
                 long time = Long.parseLong(timeMatcher.group(1));
-                User target = chat.getUser(roleMatcher.group(1).substring(2));
-                Role role = Role.getByName(roleMatcher.group(2));
+                Participant target = chat.getParticipant(roleMatcher.group(1).substring(2));
+                Participant.Role role = Participant.Role.getByName(roleMatcher.group(2));
                 RoleUpdateEvent event = new RoleUpdateEvent(initiator, time, target, role);
                 skype.getEventDispatcher().callEvent(event);
             } else {
@@ -480,9 +493,9 @@ public enum MessageType {
                 long time = Long.parseLong(timeMatcher.group(1));
                 boolean enabled = Boolean.parseBoolean(valueMatcher.group(1));
                 OptionUpdateEvent event = new OptionUpdateEvent(initiator, time,
-                        OptionUpdateEvent.Option.HISTORY_DISCLOSED, enabled);
+                        GroupChat.Option.HISTORY_DISCLOSED, enabled);
                 skype.getEventDispatcher().callEvent(event);
-                ((ChatGroup) chat).updateOption(OptionUpdateEvent.Option.HISTORY_DISCLOSED, enabled);
+                ((ChatGroup) chat).updateOption(GroupChat.Option.HISTORY_DISCLOSED, enabled);
             } else {
                 throw conformError("HistoryDisclosedUpdate");
             }
@@ -500,9 +513,9 @@ public enum MessageType {
                 long time = Long.parseLong(timeMatcher.group(1));
                 boolean enabled = Boolean.parseBoolean(valueMatcher.group(1));
                 OptionUpdateEvent event = new OptionUpdateEvent(initiator, time,
-                        OptionUpdateEvent.Option.JOINING_ENABLED, enabled);
+                        GroupChat.Option.JOINING_ENABLED, enabled);
                 skype.getEventDispatcher().callEvent(event);
-                ((ChatGroup) chat).updateOption(OptionUpdateEvent.Option.JOINING_ENABLED, enabled);
+                ((ChatGroup) chat).updateOption(GroupChat.Option.JOINING_ENABLED, enabled);
             } else {
                 throw conformError("JoiningEnabledUpdate");
             }
@@ -524,7 +537,7 @@ public enum MessageType {
                 throw new IllegalArgumentException("Target conformity");
             }
             Chat chat = getChat(chatId, skype);
-            User user = chat.getUser(matcher.group(1).substring(2));
+            Participant user = chat.getParticipant(matcher.group(1).substring(2));
             if (user == null) {
                 throw new IllegalArgumentException("Null user");
             }
@@ -547,7 +560,7 @@ public enum MessageType {
                 throw new IllegalArgumentException("Target conformity");
             }
             Chat chat = getChat(chatId, skype);
-            User user = chat.getUser(matcher.group(1).substring(2));
+            Participant user = chat.getParticipant(matcher.group(1).substring(2));
             if (user == null) {
                 throw new IllegalArgumentException("Null user");
             }
@@ -564,7 +577,7 @@ public enum MessageType {
             boolean finished = content.startsWith("<ended/>") || content.startsWith("<partlist type=\"ended\"");
 
             ChatImpl c = getChat(url, skype);
-            User u = getUser(from, c);
+            Participant u = getUser(from, c);
             CallReceivedEvent event = new CallReceivedEvent(c, u, !finished);
             skype.getEventDispatcher().callEvent(event);
         }
@@ -575,8 +588,8 @@ public enum MessageType {
             String from = resource.get("from").asString();
             String url = resource.get("conversationLink").asString();
 
-            Chat c = getChat(url, skype);
-            User u = getUser(from, c);
+            ChatImpl c = getChat(url, skype);
+            Participant u = getUser(from, c);
             TypingReceivedEvent event = new TypingReceivedEvent(c, u, true);
             skype.getEventDispatcher().callEvent(event);
         }
@@ -584,8 +597,8 @@ public enum MessageType {
     CONTROL_CLEAR_TYPING("Control/ClearTyping") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) throws ConnectionException, ChatNotFoundException, IOException {
-            Chat c = getChat(resource.get("conversationLink").asString(), skype);
-            User u = getUser(resource.get("from").asString(), c);
+            ChatImpl c = getChat(resource.get("conversationLink").asString(), skype);
+            Participant u = getUser(resource.get("from").asString(), c);
             TypingReceivedEvent event = new TypingReceivedEvent(c, u, false);
             skype.getEventDispatcher().callEvent(event);
         }
@@ -596,6 +609,14 @@ public enum MessageType {
 //            skype.getEventDispatcher().callEvent(new UnsupportedEvent(name(), resource.toString()));
 //            skype.getLogger().log(Level.SEVERE, name() + " is in need of implementation! Please open a ticket with the following JSON data");
 //            skype.getLogger().log(Level.SEVERE, resource.toString());
+        }
+    },
+
+    // lol this one's not even implemented by Skype Web yet
+    THREAD_ACTIVITY_MODERATED_THREAD_UPDATE("ThreadActivity/ModeratedThreadUpdate") {
+        @Override
+        public void handle(SkypeImpl skype, JsonObject resource) throws SkypeException, IOException {
+
         }
     };
 
@@ -670,10 +691,10 @@ public enum MessageType {
         return getChat(chatId, skype);
     }
 
-    public UserImpl getSender(JsonObject resource, ChatImpl chat) {
+    public ParticipantImpl getSender(JsonObject resource, ChatImpl chat) {
         String author = getAuthor(resource);
-        String username = getUsername(author);
-        return chat.getUser(username);
+        String username = author; //getUsername(author);
+        return chat.getParticipant(username);
     }
 
     public static ChatImpl getChat(String url, SkypeImpl skype) throws ConnectionException, ChatNotFoundException, IOException {
@@ -684,10 +705,10 @@ public enum MessageType {
         throw conformError("Chat URL");
     }
 
-    public static User getUser(String url, Chat c) {
+    public static ParticipantImpl getUser(String url, ChatImpl c) {
         Matcher m = USER_PATTERN.matcher(url);
         if (m.find()) {
-            return c.getUser(m.group(1));
+            return c.getParticipant(m.group(1));
         }
         throw conformError("User");
     }
@@ -709,7 +730,7 @@ public enum MessageType {
         if (content == null) throw new IllegalArgumentException("Null content");
         Matcher matcher = INITIATOR.matcher(content);
         if (matcher.find()) { //TODO Joining an open chat breaks this
-            UserImpl user = chat.getUser(getUsername(matcher.group(1)));
+            UserImpl user = (UserImpl) chat.getParticipant(getUsername(matcher.group(1)));
             if (user != null) {
                 return user;
             }

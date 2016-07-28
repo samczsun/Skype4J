@@ -19,19 +19,20 @@ package com.samczsun.skype4j.events.chat.sent;
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.events.chat.ChatEvent;
 import com.samczsun.skype4j.formatting.IMoji;
-import com.samczsun.skype4j.user.User;
+import com.samczsun.skype4j.participants.Participant;
+import com.samczsun.skype4j.participants.User;
 
 public class FlikReceivedEvent extends ChatEvent {
-    private final User sender;
+    private final Participant sender;
     private final IMoji sent;
 
-    public FlikReceivedEvent(Chat c, User sender, IMoji sent) {
+    public FlikReceivedEvent(Chat c, Participant sender, IMoji sent) {
         super(c);
         this.sender = sender;
         this.sent = sent;
     }
 
-    public User getSender() {
+    public Participant getSender() {
         return this.sender;
     }
 

@@ -14,10 +14,21 @@
  *    limitations under the License.
  */
 
-package com.samczsun.skype4j.exceptions;
+package com.samczsun.skype4j.events.chat.participant;
 
-/**
- * Thrown when a chat is not yet loaded but an operation to modify it or read values was attempted
- */
-public class NotLoadedException extends RuntimeException {
+import com.samczsun.skype4j.events.chat.ChatEvent;
+import com.samczsun.skype4j.participants.Participant;
+import com.samczsun.skype4j.participants.User;
+
+public abstract class ParticipantEvent extends ChatEvent {
+    private final Participant user;
+
+    public ParticipantEvent(Participant user) {
+        super(user.getChat());
+        this.user = user;
+    }
+
+    public Participant getParticipant() {
+        return this.user;
+    }
 }

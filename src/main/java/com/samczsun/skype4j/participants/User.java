@@ -14,20 +14,30 @@
  *    limitations under the License.
  */
 
-package com.samczsun.skype4j.chat;
+package com.samczsun.skype4j.participants;
 
-import com.samczsun.skype4j.participants.Participant;
-import com.samczsun.skype4j.participants.User;
+import com.samczsun.skype4j.exceptions.ConnectionException;
+import com.samczsun.skype4j.exceptions.NoPermissionException;
+import com.samczsun.skype4j.participants.info.Contact;
 
 /**
- * Represents a private conversation between the user logged in and one other
- * user
+ * Represents a user in a chat.
+ *
+ * Multiple user instances may exist for a single contact
  */
-public interface IndividualChat extends Chat {
+public interface User extends Participant {
     /**
-     * Gets the conversation partner.
+     * Get the username of this user
      *
-     * @return A User object representing the conversation partner
+     * @return The username
      */
-    Participant getPartner();
+    String getUsername();
+
+    /**
+     * Get the contact representation of this user
+     * This call will load contact data if it is not already loaded
+     *
+     * @return The contact
+     */
+    Contact getContact();
 }

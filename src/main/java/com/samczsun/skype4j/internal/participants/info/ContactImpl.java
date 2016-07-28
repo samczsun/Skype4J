@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package com.samczsun.skype4j.internal;
+package com.samczsun.skype4j.internal.participants.info;
 
 import com.eclipsesource.json.JsonArray;
 import com.eclipsesource.json.JsonObject;
@@ -23,9 +23,12 @@ import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.NoSuchContactException;
+import com.samczsun.skype4j.internal.Endpoints;
+import com.samczsun.skype4j.internal.SkypeImpl;
+import com.samczsun.skype4j.internal.Utils;
 import com.samczsun.skype4j.internal.client.FullClient;
 import com.samczsun.skype4j.internal.utils.Encoder;
-import com.samczsun.skype4j.user.Contact;
+import com.samczsun.skype4j.participants.info.Contact;
 import org.jsoup.helper.Validate;
 
 import java.awt.*;
@@ -35,11 +38,28 @@ import java.util.regex.Pattern;
 
 public class ContactImpl implements Contact {
     private static final Pattern PHONE_NUMBER = Pattern.compile("\\+[0-9]+");
-    private static final String PROFILES_URL = "https://api.skype.com/users/self/contacts/profiles"; //contacts[] = username
 
     public static Contact createContact(SkypeImpl skype, String username) throws ConnectionException {
         Validate.notEmpty(username, "Username must not be empty");
-        return new ContactImpl(skype, username);
+        return new ContactImpl(skype, username, getObject(skype, username));
+    }
+
+    public static Contact createContact(SkypeImpl skype, String username, JsonObject unaddedData) throws ConnectionException {
+        Validate.notEmpty(username, "Username must not be empty");
+        return new ContactImpl(skype, username, unaddedData);
+    }
+
+    private static JsonObject getObject(SkypeImpl skype, String username) throws ConnectionException {
+        JsonArray array = Endpoints.PROFILE_INFO
+                .open(skype)
+                .expect(200, "While getting contact info")
+                .as(JsonArray.class)
+                .post(new JsonObject()
+                        .add("usernames", new JsonArray()
+                                .add(username)
+                        )
+                );
+        return array.get(0).asObject();
     }
 
     private SkypeImpl skype;
@@ -47,6 +67,9 @@ public class ContactImpl implements Contact {
     private String displayName;
     private String firstName;
     private String lastName;
+    private String birthday;
+    private String gender;
+    private String language;
     private String avatarURL;
     private BufferedImage avatar;
     private String mood;
@@ -63,47 +86,21 @@ public class ContactImpl implements Contact {
     private UUID personId;
     private String type;
 
-    ContactImpl(SkypeImpl skype, String username) throws ConnectionException {
+    public ContactImpl(SkypeImpl skype, String username, JsonObject unaddedData) throws ConnectionException {
         this.skype = skype;
         this.username = username;
         if (!PHONE_NUMBER.matcher(username).matches()) {
-            JsonArray array = Endpoints.CONTACT_INFO
-                    .open(skype)
-                    .expect(200, "While getting contact info")
-                    .as(JsonArray.class)
-                    .post("contacts[]=" + username);
-            JsonObject json = array.get(0).asObject();
-            this.firstName = Utils.getString(json, "firstname");
-            this.lastName = Utils.getString(json, "lastnam");
-            this.displayName = Utils.getString(json, "displayname");
-            this.avatarURL = Utils.getString(json, "avatarUrl");
-            this.mood = Utils.getString(json, "mood");
-            this.richMood = Utils.getString(json, "richMood");
-            this.country = Utils.getString(json, "country");
-            this.city = Utils.getString(json, "city");
-
+            updateProfile(unaddedData);
             updateContactInfo();
-
-            if (this.displayName == null) {
-                if (this.firstName != null) {
-                    this.displayName = this.firstName;
-                    if (this.lastName != null) {
-                        this.displayName = this.displayName + " " + this.lastName;
-                    }
-                } else if (this.lastName != null) {
-                    this.displayName = this.lastName;
-                } else {
-                    this.displayName = this.username;
-                }
-            }
         } else {
             this.isPhone = true;
         }
     }
 
-    public ContactImpl(SkypeImpl skype, JsonObject contact) {
+    public ContactImpl(SkypeImpl skype, JsonObject contact) throws ConnectionException {
         this.skype = skype;
         update(contact);
+        updateProfile(getObject(skype, getUsername()));
     }
 
     private void updateContactInfo() throws ConnectionException {
@@ -111,13 +108,11 @@ public class ContactImpl implements Contact {
             JsonObject obj = Endpoints.GET_CONTACT_BY_ID
                     .open(skype, skype.getUsername(), username)
                     .as(JsonObject.class)
-                    .expect(200, "While getting authorization data")
+                    .expect(200, "While getting contact info")
                     .get();
             if (obj.get("contacts").asArray().size() > 0) {
                 JsonObject contact = obj.get("contacts").asArray().get(0).asObject();
-                this.isAuthorized = contact.get("authorized").asBoolean();
-                this.isBlocked = contact.get("blocked").asBoolean();
-                this.displayName = contact.get("display_name").asString();
+                update(contact);
             } else {
                 this.isAuthorized = false;
                 this.isBlocked = false;
@@ -275,6 +270,39 @@ public class ContactImpl implements Contact {
             JsonObject locations = contact.get("locations").asArray().get(0).asObject();
             this.country = locations.get("country") == null ? null : locations.get("country").asString();
             this.city = locations.get("city") == null ? null : locations.get("city").asString();
+        }
+    }
+
+    public void updateProfile(JsonObject profile) {
+        this.firstName = Utils.getString(profile, "firstname");
+        this.lastName = Utils.getString(profile, "lastname");
+        this.birthday = Utils.getString(profile, "birthday");
+        this.gender = Utils.getString(profile, "gender");
+        this.language = Utils.getString(profile, "gender");
+        this.avatarURL = Utils.getString(profile, "avatarUrl");
+
+        if (this.displayName == null)
+            this.displayName = Utils.getString(profile, "displayname");
+        if (this.mood == null)
+            this.mood = Utils.getString(profile, "mood");
+        if (this.richMood == null)
+            this.richMood = Utils.getString(profile, "richMood");
+        if (this.country == null)
+            this.country = Utils.getString(profile, "country");
+        if (this.city == null)
+            this.city = Utils.getString(profile, "city");
+
+        if (this.displayName == null) {
+            if (this.firstName != null) {
+                this.displayName = this.firstName;
+                if (this.lastName != null) {
+                    this.displayName = this.displayName + " " + this.lastName;
+                }
+            } else if (this.lastName != null) {
+                this.displayName = this.lastName;
+            } else {
+                this.displayName = this.username;
+            }
         }
     }
 }

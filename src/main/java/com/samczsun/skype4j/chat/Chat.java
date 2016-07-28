@@ -19,12 +19,12 @@ package com.samczsun.skype4j.chat;
 import com.samczsun.skype4j.Skype;
 import com.samczsun.skype4j.chat.messages.ChatMessage;
 import com.samczsun.skype4j.exceptions.ConnectionException;
-import com.samczsun.skype4j.exceptions.NotLoadedException;
 import com.samczsun.skype4j.exceptions.handler.ErrorHandler;
 import com.samczsun.skype4j.formatting.IMoji;
 import com.samczsun.skype4j.formatting.Message;
-import com.samczsun.skype4j.user.Contact;
-import com.samczsun.skype4j.user.User;
+import com.samczsun.skype4j.participants.Participant;
+import com.samczsun.skype4j.participants.info.Contact;
+import com.samczsun.skype4j.participants.User;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -42,7 +42,6 @@ public interface Chat {
      * @param message The rich text to send
      * @return The {@link ChatMessage} object representing the message
      * @throws ConnectionException If an error occurs while connecting to the endpoint
-     * @throws NotLoadedException  If the chat has not yet been loaded
      */
     ChatMessage sendMessage(Message message) throws ConnectionException;
 
@@ -52,7 +51,6 @@ public interface Chat {
      * @param plainMessage The plain message to send
      * @return The {@link ChatMessage} object representing the message
      * @throws ConnectionException If an error occurs while connecting to the endpoint
-     * @throws NotLoadedException  If the chat has not yet been loaded
      */
     ChatMessage sendMessage(String plainMessage) throws ConnectionException;
 
@@ -101,13 +99,14 @@ public interface Chat {
     void sendMoji(IMoji moji) throws ConnectionException;
 
     /**
-     * Get the {@link User} object represented by that username. Usernames are case insensitive
+     * Get a participant based on their id. The ID is in the format of {number}:{string}
      *
-     * @param username The username of the user
-     * @return The user object, or null if not found
-     * @throws NotLoadedException If the chat has not yet been loaded
+     * For example, a user has id 8:{username} while a bot has id 28:{uuid}
+     *
+     * @param id The id of the participant
+     * @return The participant, or null if not found
      */
-    User getUser(String username);
+    Participant getParticipant(String id);
 
     /**
      * Get yourself!
@@ -128,7 +127,7 @@ public interface Chat {
      *
      * @return All the users
      */
-    Collection<User> getAllUsers();
+    Collection<Participant> getAllParticipants();
 
     /**
      * Return a view of all the messages saved, in chronological order
@@ -143,14 +142,6 @@ public interface Chat {
      * @return The Skype instance
      */
     Skype getClient();
-
-    /**
-     * Returns whether this chat has finished loading
-     * Any calls to act upon the chat will throw a {@link NotLoadedException} if the chat is not loaded
-     *
-     * @return Whether the chat is loaded
-     */
-    boolean isLoaded();
 
     /**
      * Sets your alerts off. Does not affect anything in this API
@@ -204,4 +195,11 @@ public interface Chat {
      * Stop sending the typing notification
      */
     void stopTyping();
+
+    /*
+     * Forces a synchronization of this Chat with the remote Chat.
+     *
+     * What this updates is up to the implementation
+     */
+    void sync() throws ConnectionException;
 }

@@ -14,22 +14,23 @@
  *    limitations under the License.
  */
 
-package com.samczsun.skype4j.events.chat.user;
+package com.samczsun.skype4j.events.chat.participant;
 
-import com.samczsun.skype4j.user.User;
+import com.samczsun.skype4j.participants.Participant;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class MultiUserAddEvent extends UserAddEvent {
-    private final List<User> allUsers;
+public class ParticipantAddedEvent extends ParticipantEvent {
+    private final List<Participant> addedParticipants;
 
-    public MultiUserAddEvent(List<User> users, User initiator) {
-        super(users.get(0), initiator);
-        allUsers = users;
+    public ParticipantAddedEvent(Participant initiator, List<Participant> added) {
+        super(initiator);
+        this.addedParticipants = new ArrayList<>(added);
     }
 
-    public List<User> getAllUsers() {
-        return Collections.unmodifiableList(allUsers);
+    public List<Participant> getAddedParticipants() {
+        return Collections.unmodifiableList(addedParticipants);
     }
 }

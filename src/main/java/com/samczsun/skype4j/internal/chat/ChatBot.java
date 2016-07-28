@@ -16,48 +16,49 @@
 
 package com.samczsun.skype4j.internal.chat;
 
-import com.samczsun.skype4j.chat.IndividualChat;
+import com.samczsun.skype4j.chat.BotChat;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
 import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.internal.Factory;
-import com.samczsun.skype4j.internal.SkypeImpl;
 import com.samczsun.skype4j.internal.participants.BotImpl;
+import com.samczsun.skype4j.internal.SkypeImpl;
 import com.samczsun.skype4j.internal.participants.UserImpl;
-import com.samczsun.skype4j.participants.User;
+import com.samczsun.skype4j.participants.Bot;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class ChatIndividual extends ChatImpl implements IndividualChat {
-    private User partner;
+public class ChatBot extends ChatImpl implements BotChat {
+    private BotImpl bot;
 
-    public ChatIndividual(SkypeImpl skype, String identity) throws ConnectionException, ChatNotFoundException {
+    public ChatBot(SkypeImpl skype, String identity) throws ConnectionException, ChatNotFoundException {
         super(skype, identity);
     }
 
     @Override
-    public void load() throws ConnectionException {
-        UserImpl partner = (UserImpl) Factory.createParticipant(getClient(), this, getIdentity());
-        this.users.put(partner.getId().toLowerCase(), partner);
-
-        UserImpl me = (UserImpl) Factory.createParticipant(getClient(), this, getClient().getId());
-        this.users.put(me.getId().toLowerCase(), me);
-
-        this.partner = partner;
-    }
-
-    @Override
-    public void addUser(String username) {
-        throw new IllegalArgumentException("Cannot add user to individual chat");
+    public void addUser(String username) throws ConnectionException {
+        throw new IllegalArgumentException("Cannot remove user from bot chat");
     }
 
     @Override
     public void removeUser(String username) {
-        throw new IllegalArgumentException("Cannot remove user from individual chat");
+        throw new IllegalArgumentException("Cannot add user to bot chat");
     }
 
     @Override
-    public User getPartner() {
-        return partner;
+    public void load() throws ConnectionException {
+        BotImpl botImpl = (BotImpl) Factory.createParticipant(getClient(), this, getIdentity());
+        botImpl.setInfo(getClient().getOrLoadBotInfo(botImpl.getId()));
+        this.users.put(botImpl.getId().toLowerCase(), botImpl);
+
+        UserImpl me = (UserImpl) Factory.createParticipant(getClient(), this, getClient().getId());
+        this.users.put(me.getId().toLowerCase(), me);
+
+        this.bot = botImpl;
+    }
+
+    @Override
+    public Bot getBot() {
+        return this.bot;
     }
 }

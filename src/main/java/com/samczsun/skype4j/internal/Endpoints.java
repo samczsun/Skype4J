@@ -70,7 +70,7 @@ public class Endpoints {
     public static final Endpoints SEND_MESSAGE_URL = new Endpoints(
             "https://%sclient-s.gateway.messenger.live.com/v1/users/ME/conversations/%s/messages").cloud().regtoken();
     public static final Endpoints MODIFY_MEMBER_URL = new Endpoints(
-            "https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/members/8:%s").cloud().regtoken();
+            "https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/members/%s").cloud().regtoken();
     public static final Endpoints CONVERSATION_PROPERTY_GLOBAL = new Endpoints(
             "https://%sclient-s.gateway.messenger.live.com/v1/threads/%s/properties?name=%s").cloud().regtoken();
     public static final Endpoints ADD_MEMBER_URL = new Endpoints(
@@ -146,11 +146,15 @@ public class Endpoints {
             "https://api.skype.com/users/self/contacts/%s").skypetoken();
     public static final Endpoints AUTHORIZATION_REQUEST = new Endpoints(
             "https://api.skype.com/users/self/contacts/auth-request/%s").skypetoken();
+    @Deprecated
     public static final Endpoints CONTACT_INFO = new Endpoints(
             "https://api.skype.com/users/self/contacts/profiles").skypetoken();
+    public static final Endpoints PROFILE_INFO = new Endpoints("https://api.skype.com/users/batch/profiles").skypetoken();
     public static final Endpoints RECONNECT_WEBSOCKET = new Endpoints(
             "https://go.trouter.io/v2/h?ccid=%s&dom=web.skype.com");
     public static final Endpoints ELIGIBILITY_CHECK = new Endpoints("https://web.skype.com/api/v2/eligibility-check").skypetoken();
+
+    public static final Endpoints AGENT_INFO = new Endpoints("https://api.aps.skype.com/v1/agents?agentId=%s").skypetoken();
 
     // todo implement
     // what other scopes are there?

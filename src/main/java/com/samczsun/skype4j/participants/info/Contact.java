@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package com.samczsun.skype4j.user;
+package com.samczsun.skype4j.participants.info;
 
 import com.samczsun.skype4j.chat.Chat;
 import com.samczsun.skype4j.exceptions.ChatNotFoundException;
@@ -22,7 +22,7 @@ import com.samczsun.skype4j.exceptions.ConnectionException;
 import com.samczsun.skype4j.exceptions.NoSuchContactException;
 
 import java.awt.image.BufferedImage;
-import java.io.UnsupportedEncodingException;
+import java.util.Date;
 
 /**
  * Represents a contact
@@ -167,4 +167,44 @@ public interface Contact {
      * @throws ChatNotFoundException If the contact does not exist or is a phone
      */
     Chat getPrivateConversation() throws ConnectionException, ChatNotFoundException;
+
+
+    interface ContactRequest {
+
+        /**
+         * Get the time at which this contact request was sent
+         *
+         * @return The time it was sent
+         */
+        Date getTime();
+
+        /**
+         * Get the user who sent this contact request
+         *
+         * @return The contact
+         * @throws ConnectionException If loading the contact failed
+         */
+        Contact getSender() throws ConnectionException;
+
+        /**
+         * Get the custom message sent by the sender
+         *
+         * @return The message
+         */
+        String getMessage();
+
+        /**
+         * Accept the contact request represented by this object
+         *
+         * @throws ConnectionException If the accepting of the contact request failed
+         */
+        void accept() throws ConnectionException;
+
+        /**
+         * Declines the contact request represented by this object
+         *
+         * @throws ConnectionException If the declining of the contact request failed
+         */
+        void decline() throws ConnectionException;
+    }
 }

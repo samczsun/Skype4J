@@ -14,29 +14,11 @@
  *    limitations under the License.
  */
 
-package com.samczsun.skype4j.events.chat.user.action;
+package com.samczsun.skype4j.chat;
 
-import com.samczsun.skype4j.events.chat.user.UserEvent;
-import com.samczsun.skype4j.user.User;
-
-/**
- * Called when the picture of a group chat is updated
+/*
+ * P2P chats are now being deprecated within Skype.
  */
-public class PictureUpdateEvent extends UserEvent {
-    private final long time;
-    private final String url;
-
-    public PictureUpdateEvent(User initiator, long time, String url) {
-        super(initiator);
-        this.time = time;
-        this.url = url;
-    }
-
-    public long getEventTime() {
-        return this.time;
-    }
-
-    public String getPictureURL() {
-        return this.url;
-    }
+@Deprecated
+public interface P2PChat extends Chat {
 }

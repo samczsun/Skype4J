@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package com.samczsun.skype4j.user;
+package com.samczsun.skype4j.participants;
 
 import com.samczsun.skype4j.Skype;
 import com.samczsun.skype4j.chat.Chat;
@@ -24,65 +24,41 @@ import com.samczsun.skype4j.exceptions.NoPermissionException;
 
 import java.util.List;
 
-/**
- * Represents a user in a chat.
- * Multiple user instances may exist for a single contact
+/*
+ * Represents a participant in a conversation.
+ *
+ * This participant could be an {@link User}, {@link Bot}, or any new participants that Skype decides to add
  */
-public interface User {
-    /**
-     * Get the username of this user
-     *
-     * @return The username
-     */
-    String getUsername();
+public interface Participant {
 
-    /**
-     * Get the displayname of this user.
-     * This call will load contact data if it is not already loaded
+    /*
+     * Gets the {@link Skype} instance that this participant is associated with
      *
-     * @throws ConnectionException If an error occurs while connecting to the endpoint
-     * @return The displayname
+     * @returns The instance
      */
-    String getDisplayName() throws ConnectionException;
+    Skype getClient();
 
-    /**
-     * Get the contact representation of this user
-     * This call will load contact data if it is not already loaded
+    /*
+     * Gets the id of this participant
      *
-     * @return The contact
-     * @throws ConnectionException If an error occurs while connecting to the endpoint
+     * @returns The id
      */
-    Contact getContact() throws ConnectionException;
+    String getId();
 
-    /**
-     * Get the role of this user
+    /*
+     * Gets the display name of this participant. Implementation may vary.
      *
-     * @return The role
+     * @returns The display name, or null if non existent or not found
      */
-    Role getRole();
+    String getDisplayName();
 
-    /**
-     * Set the role of this user
+    /*
+     * Gets the {@link Chat} this participant is participating in
      *
-     * @param role The new role
-     * @throws ConnectionException   If an error occurs while connecting to the endpoint
-     * @throws NoPermissionException If a permission error occurs
-     */
-    void setRole(Role role) throws ConnectionException, NoPermissionException;
-
-    /**
-     * Get the chat this user is currently in
-     *
-     * @return The chat this user belongs to
+     * @returns The Chat object
      */
     Chat getChat();
 
-    /**
-     * Get the {@link Skype} instance associated with this user
-     *
-     * @return The Skype instance
-     */
-    Skype getClient();
     /**
      * Get all the messages sent by this user, in sequential order.
      * Messages sent when this API was not loaded will not be returned
@@ -98,6 +74,22 @@ public interface User {
      * @return The message
      */
     ChatMessage getMessageById(String id);
+
+    /**
+     * Get the role of this user
+     *
+     * @return The role
+     */
+    Participant.Role getRole();
+
+    /**
+     * Set the role of this user
+     *
+     * @param role The new role
+     * @throws ConnectionException   If an error occurs while connecting to the endpoint
+     * @throws NoPermissionException If a permission error occurs
+     */
+    void setRole(Participant.Role role) throws ConnectionException, NoPermissionException;
 
     enum Role {
         ADMIN, USER;

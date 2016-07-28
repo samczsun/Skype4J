@@ -24,10 +24,12 @@ import com.samczsun.skype4j.formatting.Message;
 import com.samczsun.skype4j.formatting.Text;
 import com.samczsun.skype4j.internal.Endpoints;
 import com.samczsun.skype4j.internal.SkypeImpl;
-import com.samczsun.skype4j.user.User;
+import com.samczsun.skype4j.internal.participants.ParticipantImpl;
+import com.samczsun.skype4j.participants.Participant;
+import com.samczsun.skype4j.participants.User;
 
 public class SentMessageImpl extends ChatMessageImpl implements SentMessage {
-    public SentMessageImpl(Chat chat, User user, String id, String clientId, long time, Message message, SkypeImpl skype) {
+    public SentMessageImpl(Chat chat, ParticipantImpl user, String id, String clientId, long time, Message message, SkypeImpl skype) {
         super(chat, user, id, clientId, time, message, skype);
     }
 

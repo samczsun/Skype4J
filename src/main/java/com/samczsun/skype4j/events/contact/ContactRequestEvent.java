@@ -17,16 +17,16 @@
 package com.samczsun.skype4j.events.contact;
 
 import com.samczsun.skype4j.events.Event;
-import com.samczsun.skype4j.user.ContactRequest;
+import com.samczsun.skype4j.participants.info.Contact;
 
 public class ContactRequestEvent extends Event {
-    private ContactRequest request;
+    private Contact.ContactRequest request;
 
-    public ContactRequestEvent(ContactRequest request) {
+    public ContactRequestEvent(Contact.ContactRequest request) {
         this.request = request;
     }
 
-    public ContactRequest getRequest() {
+    public Contact.ContactRequest getRequest() {
         return this.request;
     }
 }
