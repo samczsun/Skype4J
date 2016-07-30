@@ -277,7 +277,7 @@ public class ContactImpl implements Contact {
         this.firstName = Utils.getString(profile, "firstname");
         this.lastName = Utils.getString(profile, "lastname");
         this.birthday = Utils.getString(profile, "birthday");
-        this.gender = Utils.getString(profile, "gender");
+        this.gender = String.valueOf(profile.get("gender").asInt());
         this.language = Utils.getString(profile, "gender");
         this.avatarURL = Utils.getString(profile, "avatarUrl");
 
