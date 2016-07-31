@@ -277,8 +277,18 @@ public class ContactImpl implements Contact {
         this.firstName = Utils.getString(profile, "firstname");
         this.lastName = Utils.getString(profile, "lastname");
         this.birthday = Utils.getString(profile, "birthday");
-        this.gender = String.valueOf(profile.get("gender").asInt());
-        this.language = Utils.getString(profile, "gender");
+
+        if (profile.get("gender") != null) {
+            if (profile.get("gender").isNumber()) {
+                this.gender = String.valueOf(profile.get("gender").asInt());
+            } else if (profile.get("gender").isString()) {
+                this.gender = profile.get("gender").asString();
+            } else {
+                throw new IllegalArgumentException("Skype decided to make the gender " + profile.get("gender").getClass());
+            }
+        }
+
+        this.language = Utils.getString(profile, "language");
         this.avatarURL = Utils.getString(profile, "avatarUrl");
 
         if (this.displayName == null)

@@ -23,10 +23,9 @@ import org.jsoup.helper.Validate;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-/**
- * @author samczsun
- */
 public enum EventType {
     NEW_MESSAGE("NewMessage") {
         @Override
@@ -44,8 +43,39 @@ public enum EventType {
     },
     ENDPOINT_PRESENCE("EndpointPresence") {
         @Override
-        public void handle(SkypeImpl skype, JsonObject resource) throws SkypeException {
+        public void handle(SkypeImpl skype, JsonObject eventObj) throws SkypeException {
+            try {
+                JsonObject resource = eventObj.get("resource").asObject();
 
+                String resourceId = resource.get("id").asString();
+
+                if (!resourceId.equals("messagingService")) {
+                    throw conformError("resource.id");
+                }
+
+                String type = resource.get("type").asString();
+
+                if (!type.equals("EndpointPresenceDoc")) {
+                    throw conformError("resource.type");
+                }
+
+                String resourceLink = resource.get("selfLink").asString();
+
+                Matcher matcher = ENDPOINT_PRESENCE_RESOURCE_LINK.matcher(resourceLink);
+
+                if (!matcher.find()) {
+                    throw conformError("resourceLink");
+                }
+
+                String id = matcher.group(1);
+                String endpoint = matcher.group(2);
+
+                JsonObject publicInfo = resource.get("publicInfo").asObject();
+                JsonObject privateInfo = resource.get("privateInfo").asObject();
+            } catch (Throwable t) {
+                t.addSuppressed(new SkypeException(eventObj.toString()));
+                throw t;
+            }
         }
     },
     USER_PRESENCE("UserPresence") {
@@ -66,6 +96,8 @@ public enum EventType {
             // User add and leave here 25898
         }
     };
+
+    private static final Pattern ENDPOINT_PRESENCE_RESOURCE_LINK = Pattern.compile("\\/users\\/([^/]+)\\/endpoints\\/\\{([a-zA-Z0-9-]+)\\}\\/");
 
 
     private static final Map<String, EventType> byValue = new HashMap<>();
@@ -89,5 +121,9 @@ public enum EventType {
         for (EventType type : values()) {
             byValue.put(type.getValue(), type);
         }
+    }
+
+    private static IllegalArgumentException conformError(String object) {
+        return new IllegalArgumentException(String.format("%s did not conform to format expected", object));
     }
 }

@@ -74,9 +74,10 @@ public enum MessageType {
     TEXT_INTERNAL("TextInternalShouldNotBeUsedOutside") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) throws SkypeException, IOException {
-            String content = Utils.getString(resource, "content");
             ChatImpl chat = getChat(resource, skype);
             ParticipantImpl user = getSender(resource, chat);
+
+            String content = Utils.getString(resource, "content");
 
             if (content == null) {
                 final String clientId = resource.get("skypeeditedid").asString();

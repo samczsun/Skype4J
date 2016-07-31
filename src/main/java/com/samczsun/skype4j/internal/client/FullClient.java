@@ -68,6 +68,7 @@ public class FullClient extends SkypeImpl {
                 .as(JsonObject.class)
                 .expect(200, "While logging in")
                 .post(Encoder.encode(data));
+
         this.setSkypeToken(loginData.get("skypetoken").asString());
 
         List<UncheckedRunnable> tasks = new ArrayList<>();

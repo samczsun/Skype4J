@@ -63,7 +63,7 @@ public interface ChatMessage {
     Skype getClient();
 
     /**
-     * Get the ID assigned to this message by the client. This is not guarenteed to be unique
+     * Get the ID assigned to this message by the client. This is not guaranteed to be unique
      *
      * @return The ClientID
      */

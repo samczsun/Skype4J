@@ -48,6 +48,7 @@ public class UserImpl extends ParticipantImpl implements User {
 
     @Override
     public String getDisplayName() {
+        if (contactRep == null) return null;
         return contactRep.getDisplayName();
     }
 
