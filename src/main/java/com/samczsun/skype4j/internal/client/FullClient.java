@@ -165,6 +165,7 @@ public class FullClient extends SkypeImpl {
             if (value.asObject().get("suggested") == null || !value.asObject().get("suggested").asBoolean()) {
                 String id = value.asObject().get("id").asString();
                 ContactImpl impl = (ContactImpl) allContacts.get(id);
+                if (impl == null) impl = (ContactImpl) loadContact(id);
                 impl.update(value.asObject());
             }
         }

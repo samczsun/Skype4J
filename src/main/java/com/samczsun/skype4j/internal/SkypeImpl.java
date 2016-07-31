@@ -466,7 +466,9 @@ public abstract class SkypeImpl implements Skype {
                     .dontConnect()
                     .post(buildSubscriptionObject());
             if (connection.getResponseCode() == 404) {
-                setRegistrationToken(connection.getHeaderField("Set-RegistrationToken"));
+                if (connection.getHeaderField("Set-RegistrationToken") != null) {
+                    setRegistrationToken(connection.getHeaderField("Set-RegistrationToken"));
+                }
                 Endpoints
                         .custom("https://" + this.getCloud() + "client-s.gateway.messenger.live.com/v1/users/ME/endpoints/" + Encoder
                                 .encode(endpointId), this)
