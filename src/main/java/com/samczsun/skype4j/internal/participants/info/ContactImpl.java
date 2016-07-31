@@ -286,7 +286,7 @@ public class ContactImpl implements Contact {
             } else if (profile.get("gender").isBoolean()) {
                 this.gender = profile.get("gender").asBoolean() ? "1" : "0";
             } else {
-                throw new IllegalArgumentException("Skype decided to make the gender " + profile.get("gender").getClass());
+                this.gender = profile.get("gender").toString();
             }
         }
 
