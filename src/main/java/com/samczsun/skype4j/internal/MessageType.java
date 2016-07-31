@@ -25,6 +25,7 @@ import com.samczsun.skype4j.chat.messages.SentMessage;
 import com.samczsun.skype4j.chat.objects.ReceivedFile;
 import com.samczsun.skype4j.events.UnsupportedEvent;
 import com.samczsun.skype4j.events.chat.ChatJoinedEvent;
+import com.samczsun.skype4j.events.chat.participant.action.ModeratedUpdateEvent;
 import com.samczsun.skype4j.events.chat.ChatQuitEvent;
 import com.samczsun.skype4j.events.chat.call.CallReceivedEvent;
 import com.samczsun.skype4j.events.chat.message.*;
@@ -617,7 +618,20 @@ public enum MessageType {
     THREAD_ACTIVITY_MODERATED_THREAD_UPDATE("ThreadActivity/ModeratedThreadUpdate") {
         @Override
         public void handle(SkypeImpl skype, JsonObject resource) throws SkypeException, IOException {
+            String from = resource.get("from").asString();
+            String url = resource.get("conversationLink").asString();
 
+            ChatImpl c = getChat(url, skype);
+            Participant u = getUser(from, c);
+
+            Matcher matcher = VALUE_BOOLEAN.matcher(resource.get("content").asString());
+            if (!matcher.find()) {
+                throw conformError("resource.content");
+            }
+
+            Boolean enabled = Boolean.parseBoolean(matcher.group(1));
+
+            skype.getEventDispatcher().callEvent(new ModeratedUpdateEvent(u, enabled));
         }
     };
 
@@ -661,6 +675,9 @@ public enum MessageType {
     private static final Pattern ROLE_UPDATE_PATTERN = Pattern.compile(
             "<target><id>(\\d+:.+)</id><role>(.+)</role></target>", Pattern.CASE_INSENSITIVE);
     private static final Pattern BLOBID = Pattern.compile("(0-[a-z]+-d[0-9]-[a-z0-9]{32})");
+
+    private static final Pattern VALUE_BOOLEAN =
+            Pattern.compile("<value>(true|false)</value>");
 
     private final String value;
 
