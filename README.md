@@ -2,7 +2,8 @@
 
 [![Build Status](https://ci.samczsun.com/buildStatus/icon?job=Skype4J)](https://ci.samczsun.com/job/Skype4J/)
 
-This is a Skype API for Java. It does not support P2P chats. You can tell whether you're in a P2P chat or not based on the output of the `/help` command. If it contains commands such as `/kickban`, you're in a P2P chat and should switch to cloud chats immediately (try using `/fork`)
+This is a Skype API for Java. It does not support P2P chats. To find out what type of chat you're in, simply type `/get name` into the chat window and press Enter. If the group name response starts with "19:...", you're in a cloud-based chat; if the group name response starts with "#skypename...", you're in a P2P-based chat. To switch to cloud chat you can use `/fork` or re-create chat in web.skype.com and re-invite members.
+
 
 Here is an example of using this API to log into your Skype account.
 
