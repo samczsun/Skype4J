@@ -739,6 +739,7 @@ public enum MessageType {
     }
 
     private static String getUsername(String author) {
+        //TODO will be problem if bot can enter in group
         Matcher matcher = USERNAME.matcher(author);
         return matcher.find() ? matcher.replaceAll("") : author;
     }

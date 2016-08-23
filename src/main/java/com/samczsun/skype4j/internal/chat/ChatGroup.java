@@ -152,6 +152,7 @@ public class ChatGroup extends ChatImpl implements GroupChat {
     }
 
     public void removeUser(String username) {
+        username = "8:" + username;
         users.remove(username.toLowerCase());
     }
 

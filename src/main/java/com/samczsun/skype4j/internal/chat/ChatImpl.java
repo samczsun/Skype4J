@@ -238,6 +238,7 @@ public abstract class ChatImpl implements Chat {
 
     @Override
     public ParticipantImpl getParticipant(String username) {
+        username = username.startsWith("8:") ? username : "8:" + username;
         return this.users.get(username.toLowerCase());
     }
 
