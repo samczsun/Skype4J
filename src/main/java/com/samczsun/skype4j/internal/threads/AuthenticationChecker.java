@@ -64,5 +64,6 @@ public class AuthenticationChecker extends Thread {
 
     public void kill() {
         this.stop.set(true);
+        this.interrupt();
     }
 }
